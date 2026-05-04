@@ -26,6 +26,7 @@ object MmkvManager {
     private const val ID_SUB = "SUB"
     private const val ID_ASSET = "ASSET"
     private const val ID_SETTING = "SETTING"
+    private const val ID_COUNTRY_CACHE = "COUNTRY_CACHE"
     private const val KEY_SELECTED_SERVER = "SELECTED_SERVER"
     private const val KEY_ANG_CONFIGS = "ANG_CONFIGS"
     private const val KEY_SUB_SERVER_PREFIX = "SUB_SERVERS_"
@@ -39,6 +40,7 @@ object MmkvManager {
     private val subStorage by lazy { MMKV.mmkvWithID(ID_SUB, MMKV.MULTI_PROCESS_MODE) }
     private val assetStorage by lazy { MMKV.mmkvWithID(ID_ASSET, MMKV.MULTI_PROCESS_MODE) }
     private val settingsStorage by lazy { MMKV.mmkvWithID(ID_SETTING, MMKV.MULTI_PROCESS_MODE) }
+    private val countryCacheStorage by lazy { MMKV.mmkvWithID(ID_COUNTRY_CACHE, MMKV.MULTI_PROCESS_MODE) }
 
     //endregion
 
@@ -686,6 +688,25 @@ object MmkvManager {
     fun decodeWebDavConfig(): WebDavConfig? {
         val json = mainStorage.decodeString(KEY_WEBDAV_CONFIG) ?: return null
         return JsonUtil.fromJson(json, WebDavConfig::class.java)
+    }
+
+    //endregion
+
+    //region Country Cache
+
+    /** Returns cached ISO country code for [ip], or null if not cached. */
+    fun getCountryCache(ip: String): String? = countryCacheStorage.decodeString(ip)
+
+    /** Persists ISO country code for [ip]. */
+    fun setCountryCache(ip: String, code: String) { countryCacheStorage.encode(ip, code) }
+
+    /** Loads the user's country filter preference (set of ISO codes to SHOW, empty = show all). */
+    fun getCountryFilter(): Set<String> =
+        settingsStorage.decodeStringSet("pref_country_filter") ?: emptySet()
+
+    /** Saves the user's country filter preference. */
+    fun setCountryFilter(codes: Set<String>) {
+        settingsStorage.encode("pref_country_filter", codes)
     }
 
     //endregion

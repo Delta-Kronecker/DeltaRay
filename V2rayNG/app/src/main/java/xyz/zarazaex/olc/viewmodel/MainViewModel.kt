@@ -23,6 +23,7 @@ import xyz.zarazaex.olc.dto.TestServiceMessage
 import xyz.zarazaex.olc.extension.matchesPattern
 import xyz.zarazaex.olc.extension.serializable
 import xyz.zarazaex.olc.handler.AngConfigManager
+import xyz.zarazaex.olc.handler.CountryDetector
 import xyz.zarazaex.olc.handler.MmkvManager
 import xyz.zarazaex.olc.handler.SettingsManager
 import xyz.zarazaex.olc.handler.SpeedtestManager
@@ -38,14 +39,18 @@ import java.util.Collections
 import java.util.regex.PatternSyntaxException
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
-    private var serverList = mutableListOf<String>() // MmkvManager.decodeServerList()
+    private var serverList = mutableListOf<String>()
     var subscriptionId: String = MmkvManager.decodeSettingsString(AppConfig.CACHE_SUBSCRIPTION_ID, "").orEmpty()
     var keywordFilter = ""
+    /** ISO codes to show (empty = show all) */
+    var countryFilter: Set<String> = MmkvManager.getCountryFilter()
+        private set
     val serversCache = mutableListOf<ServersCache>()
     val isRunning by lazy { MutableLiveData<Boolean>() }
     val updateListAction by lazy { MutableLiveData<Int>() }
     val updateTestResultAction by lazy { MutableLiveData<String>() }
     val liteTestFinished = MutableLiveData<Boolean>()
+    val isTesting by lazy { MutableLiveData<Boolean>().also { it.value = false } }
     private val tcpingTestScope by lazy { CoroutineScope(Dispatchers.IO) }
 
     /**
@@ -158,10 +163,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val searchRegex = try {
             if (kw.isNotEmpty()) Regex(kw, setOf(RegexOption.IGNORE_CASE)) else null
         } catch (e: PatternSyntaxException) {
-            null // Fallback to literal search if regex is invalid
+            null
         }
+        val activeCountryFilter = countryFilter
         for (guid in serverList) {
             val profile = MmkvManager.decodeServerConfig(guid) ?: continue
+
+            // Country filter
+            if (activeCountryFilter.isNotEmpty()) {
+                val code = CountryDetector.getCountryCode(profile.remarks, profile.server)
+                if (code !in activeCountryFilter) continue
+            }
+
             if (kw.isEmpty()) {
                 serversCache.add(ServersCache(guid, profile))
                 continue
@@ -181,6 +194,42 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Sets a new country filter and reloads list. Pass empty set to show all. */
+    fun applyCountryFilter(codes: Set<String>) {
+        countryFilter = codes
+        MmkvManager.setCountryFilter(codes)
+        reloadServerList()
+    }
+
+    /**
+     * Returns all known countries from the current full server list (for showing in filter dialog).
+     * Key = ISO code, Value = human-readable name + flag.
+     */
+    fun collectAllCountries(): Map<String, String> {
+        val result = mutableMapOf<String, String>()
+        for (guid in serverList) {
+            val profile = MmkvManager.decodeServerConfig(guid) ?: continue
+            val code = CountryDetector.getCountryCode(profile.remarks, profile.server)
+            if (code != CountryDetector.UNKNOWN) {
+                result[code] = "${CountryDetector.codeToFlag(code)} ${CountryDetector.codeToName(code)}"
+            }
+        }
+        return result.toSortedMap()
+    }
+
+    /** Trigger background geo-lookup for IPs not yet cached. */
+    fun refreshCountryCache() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val ips = serverList.mapNotNull {
+                MmkvManager.decodeServerConfig(it)?.server?.trim()
+            }.distinct()
+            CountryDetector.lookupAndCacheAll(ips)
+            withContext(Dispatchers.Main) {
+                reloadServerList()
+            }
+        }
+    }
+
     /**
      * Updates the configuration via subscription for all servers.
      * @return Detailed result of the subscription update operation.
@@ -191,27 +240,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } else if (subscriptionId.startsWith("group_")) {
             val allSubs = MmkvManager.decodeSubscriptions()
             val groupSubs = when (subscriptionId) {
-                "group_white" -> allSubs.filter { 
-                    it.subscription.remarks.startsWith("БЕЛЫЕ", ignoreCase = true) || 
+                "group_white" -> allSubs.filter {
+                    it.subscription.remarks.startsWith("БЕЛЫЕ", ignoreCase = true) ||
                     it.subscription.remarks.startsWith("WHITE", ignoreCase = true)
                 }
-                "group_black" -> allSubs.filter { 
-                    it.subscription.remarks.startsWith("ЧЕРНЫЕ", ignoreCase = true) || 
+                "group_black" -> allSubs.filter {
+                    it.subscription.remarks.startsWith("ЧЕРНЫЕ", ignoreCase = true) ||
                     it.subscription.remarks.startsWith("BLACK", ignoreCase = true)
                 }
                 else -> emptyList()
             }
-            var totalResult = SubscriptionUpdateResult()
-            groupSubs.forEach { sub ->
-                val result = AngConfigManager.updateConfigViaSub(SubscriptionCache(sub.guid, sub.subscription))
-                totalResult = SubscriptionUpdateResult(
-                    configCount = totalResult.configCount + result.configCount,
-                    successCount = totalResult.successCount + result.successCount,
-                    failureCount = totalResult.failureCount + result.failureCount,
-                    skipCount = totalResult.skipCount + result.skipCount
-                )
+            // Parallel fetch for group subs (sequential, called from IO context)
+            return groupSubs.fold(SubscriptionUpdateResult()) { acc, sub ->
+                acc + AngConfigManager.updateConfigViaSub(SubscriptionCache(sub.guid, sub.subscription))
             }
-            return totalResult
         } else {
             val subItem = MmkvManager.decodeSubscription(subscriptionId) ?: return SubscriptionUpdateResult()
             return AngConfigManager.updateConfigViaSub(SubscriptionCache(subscriptionId, subItem))
@@ -264,6 +306,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
+     * Cancels all running ping tests.
+     */
+    fun cancelAllTests() {
+        MessageUtil.sendMsg2TestService(
+            getApplication(),
+            TestServiceMessage(key = AppConfig.MSG_MEASURE_CONFIG_CANCEL)
+        )
+        isTesting.value = false
+    }
+
+    /**
      * Tests the real ping for all servers.
      */
     fun testAllRealPing() {
@@ -271,35 +324,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             getApplication(),
             TestServiceMessage(key = AppConfig.MSG_MEASURE_CONFIG_CANCEL)
         )
-        MmkvManager.clearAllTestDelayResults(serversCache.map { it.guid }.toList())
-        updateListAction.value = -1
 
-        viewModelScope.launch(Dispatchers.Default) {
-            if (serversCache.isEmpty()) {
-                withContext(Dispatchers.Main) { reloadServerList() }
-            }
-            if (serversCache.isEmpty()) {
-                return@launch
-            }
-            
-            val actualSubId = if (subscriptionId.startsWith("group_")) {
-                ""
-            } else {
-                subscriptionId
-            }
-            
-            MessageUtil.sendMsg2TestService(
-                getApplication(),
-                TestServiceMessage(
-                    key = AppConfig.MSG_MEASURE_CONFIG,
-                    subscriptionId = actualSubId,
-                    serverGuids = if (keywordFilter.isNotEmpty() || subscriptionId.startsWith("group_")) {
-                        serversCache.map { it.guid }
-                    } else {
-                        emptyList()
+        // Auto-deduplicate by IP before scanning so we don't waste time on dupes
+        viewModelScope.launch(Dispatchers.IO) {
+            val removed = removeDuplicateByIpAll()
+            withContext(Dispatchers.Main) {
+                if (removed > 0) {
+                    reloadServerList()
+                }
+                MmkvManager.clearAllTestDelayResults(serversCache.map { it.guid }.toList())
+                updateListAction.value = -1
+                isTesting.value = true
+
+                viewModelScope.launch(Dispatchers.Default) {
+                    if (serversCache.isEmpty()) {
+                        withContext(Dispatchers.Main) { reloadServerList() }
                     }
-                )
-            )
+                    if (serversCache.isEmpty()) {
+                        withContext(Dispatchers.Main) { isTesting.value = false }
+                        return@launch
+                    }
+
+                    val actualSubId = if (subscriptionId.startsWith("group_")) "" else subscriptionId
+
+                    MessageUtil.sendMsg2TestService(
+                        getApplication(),
+                        TestServiceMessage(
+                            key = AppConfig.MSG_MEASURE_CONFIG,
+                            subscriptionId = actualSubId,
+                            serverGuids = if (keywordFilter.isNotEmpty() || subscriptionId.startsWith("group_")) {
+                                serversCache.map { it.guid }
+                            } else {
+                                emptyList()
+                            }
+                        )
+                    )
+                }
+            }
         }
     }
 
@@ -437,6 +498,99 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
+     * Removes servers with duplicate IP addresses (same `server` field),
+     * keeping the one with the best ping result (or the first encountered if untested).
+     * @return Number of removed servers.
+     */
+    fun removeDuplicateByIp(): Int {
+        // Group all currently visible servers by their IP address
+        val byIp = LinkedHashMap<String, MutableList<ServersCache>>()
+        for (sc in serversCache) {
+            val ip = sc.profile.server?.trim()?.lowercase() ?: continue
+            byIp.getOrPut(ip) { mutableListOf() }.add(sc)
+        }
+
+        val toDelete = mutableListOf<String>()
+        for ((_, group) in byIp) {
+            if (group.size <= 1) continue
+            val best = group.minWithOrNull(compareBy(
+                { !it.profile.isFavorite },
+                {
+                    val d = MmkvManager.decodeServerAffiliationInfo(it.guid)?.testDelayMillis ?: 0L
+                    when {
+                        d > 0L -> d
+                        d == 0L -> Long.MAX_VALUE - 1
+                        else -> Long.MAX_VALUE
+                    }
+                }
+            ))!!
+            group.filter { it.guid != best.guid }.forEach { toDelete.add(it.guid) }
+        }
+
+        for (guid in toDelete) {
+            MmkvManager.removeServer(guid)
+        }
+        return toDelete.size
+    }
+
+    /**
+     * Removes duplicate servers by IP across ALL subscriptions (for use after sub update / before scan).
+     * Per-subscription deduplication: within each sub keeps the best (favorite > lowest ping > first).
+     */
+    /**
+     * Removes servers with duplicate IP addresses across ALL subscriptions globally.
+     * Keeps the best one per IP (favorite > lowest ping > first encountered).
+     * @return Number of removed servers.
+     */
+    fun removeDuplicateByIpAll(): Int {
+        // Collect every server GUID across all subscriptions
+        data class Entry(val guid: String, val ip: String, val isFav: Boolean)
+
+        val allEntries = mutableListOf<Entry>()
+        val allSubIds = MmkvManager.decodeSubsList().toMutableList()
+        // Add the default (no-sub) slot if not already present
+        if (!allSubIds.contains(AppConfig.DEFAULT_SUBSCRIPTION_ID)) {
+            allSubIds.add(0, AppConfig.DEFAULT_SUBSCRIPTION_ID)
+        }
+
+        for (subId in allSubIds) {
+            for (guid in MmkvManager.decodeServerList(subId)) {
+                val profile = MmkvManager.decodeServerConfig(guid) ?: continue
+                val ip = profile.server?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: continue
+                allEntries.add(Entry(guid, ip, profile.isFavorite))
+            }
+        }
+
+        // Group by IP globally
+        val byIp = LinkedHashMap<String, MutableList<Entry>>()
+        for (e in allEntries) {
+            byIp.getOrPut(e.ip) { mutableListOf() }.add(e)
+        }
+
+        val toDelete = mutableListOf<String>()
+        for ((_, group) in byIp) {
+            if (group.size <= 1) continue
+            val best = group.minWith(compareBy(
+                { !it.isFav },
+                {
+                    val d = MmkvManager.decodeServerAffiliationInfo(it.guid)?.testDelayMillis ?: 0L
+                    when {
+                        d > 0L -> d
+                        d == 0L -> Long.MAX_VALUE - 1
+                        else -> Long.MAX_VALUE
+                    }
+                }
+            ))
+            group.filter { it.guid != best.guid }.forEach { toDelete.add(it.guid) }
+        }
+
+        for (guid in toDelete) {
+            MmkvManager.removeServer(guid)
+        }
+        return toDelete.size
+    }
+
+    /**
      * Removes all servers.
      * @return The number of removed servers.
      */
@@ -457,6 +611,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Sorts servers by their test results.
      */
+    /**
+     * Sorts serversCache in-place by test delay in real time (during a ping test).
+     * Favorites always come first, then sorted ascending by delay (failed/untested go to bottom).
+     */
+    @Synchronized
+    fun sortServersCacheInPlace() {
+        serversCache.sortWith(compareBy(
+            { !it.profile.isFavorite },
+            {
+                val delay = MmkvManager.decodeServerAffiliationInfo(it.guid)?.testDelayMillis ?: 0L
+                when {
+                    delay > 0L -> delay
+                    delay == 0L -> Long.MAX_VALUE - 1  // untested
+                    else -> Long.MAX_VALUE              // failed
+                }
+            }
+        ))
+    }
+
     fun sortByTestResults() {
         if (subscriptionId.isEmpty()) {
             MmkvManager.decodeSubsList().forEach { guid ->
@@ -590,6 +763,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             withContext(Dispatchers.Main) {
                 reloadServerList()
+                isTesting.value = false
                 liteTestFinished.value = true
                 liteTestFinished.value = false
             }
@@ -626,7 +800,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 AppConfig.MSG_MEASURE_CONFIG_SUCCESS -> {
                     val resultPair = intent.serializable<Pair<String, Long>>("content") ?: return
                     MmkvManager.encodeServerTestDelayMillis(resultPair.first, resultPair.second)
-                    updateListAction.value = getPosition(resultPair.first)
+                    sortServersCacheInPlace()
+                    updateListAction.value = -1
                 }
 
                 AppConfig.MSG_MEASURE_CONFIG_BATCH -> {
@@ -634,6 +809,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     update.results.forEach { result ->
                         MmkvManager.encodeServerTestDelayMillis(result.guid, result.delay)
                     }
+                    sortServersCacheInPlace()
                     updateListAction.value = -1
                 }
 
@@ -647,6 +823,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val content = intent.getStringExtra("content")
                     if (content == "0") {
                         onTestsFinished()
+                    } else {
+                        // cancelled or finished with non-zero count still in queue — mark as not testing
+                        isTesting.value = false
                     }
                 }
             }

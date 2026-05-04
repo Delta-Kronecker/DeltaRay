@@ -26,6 +26,10 @@ import xyz.zarazaex.olc.util.JsonUtil
 import xyz.zarazaex.olc.util.QRCodeDecoder
 import xyz.zarazaex.olc.util.Utils
 import java.net.URI
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
 
 object AngConfigManager {
 
@@ -562,9 +566,13 @@ object AngConfigManager {
     fun updateConfigViaSubAll(): SubscriptionUpdateResult {
         return try {
             val subscriptions = MmkvManager.decodeSubscriptions()
-            subscriptions.fold(SubscriptionUpdateResult()) { acc, subscription ->
-                acc + updateConfigViaSub(subscription)
+            // Parallel fetch — each sub downloads concurrently on IO pool
+            val results = runBlocking(Dispatchers.IO) {
+                subscriptions.map { sub ->
+                    async { updateConfigViaSub(sub) }
+                }.awaitAll()
             }
+            results.fold(SubscriptionUpdateResult()) { acc, r -> acc + r }
         } catch (e: Exception) {
             Log.e(AppConfig.TAG, "Failed to update config via all subscriptions", e)
             SubscriptionUpdateResult()

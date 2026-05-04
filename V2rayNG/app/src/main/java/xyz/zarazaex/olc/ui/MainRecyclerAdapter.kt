@@ -86,16 +86,13 @@ class MainRecyclerAdapter(
                             override fun areContentsTheSame(oldPos: Int, newPos: Int): Boolean {
                                 val oldProfile = oldData[oldPos].profile
                                 val newProfile = parsedNewData[newPos].profile
+                                val oldGuid = oldData[oldPos].guid
+                                val newGuid = parsedNewData[newPos].guid
                                 return oldProfile == newProfile &&
                                         oldProfile.isFavorite == newProfile.isFavorite &&
-                                        MmkvManager.decodeServerAffiliationInfo(
-                                                        oldData[oldPos].guid
-                                                )
-                                                ?.testDelayMillis ==
-                                                MmkvManager.decodeServerAffiliationInfo(
-                                                                parsedNewData[newPos].guid
-                                                        )
-                                                        ?.testDelayMillis
+                                        (oldGuid == MmkvManager.getSelectServer()) == (newGuid == MmkvManager.getSelectServer()) &&
+                                        MmkvManager.decodeServerAffiliationInfo(oldGuid)?.testDelayMillis ==
+                                        MmkvManager.decodeServerAffiliationInfo(newGuid)?.testDelayMillis
                             }
 
                             override fun getChangePayload(oldPos: Int, newPos: Int): Any? {
@@ -125,8 +122,13 @@ class MainRecyclerAdapter(
         if (payloads.isNotEmpty() && holder is MainViewHolder) {
             for (payload in payloads) {
                 if (payload == PAYLOAD_FAVORITE) {
-                    val isFav = data[position].profile.isFavorite
-                    animateFavorite(holder.itemMainBinding.ivFavorite, isFav)
+                    val item = data.getOrNull(holder.bindingAdapterPosition) ?: data.getOrNull(position) ?: continue
+                    val isFav = item.profile.isFavorite
+                    // Set correct icon immediately, then animate scale bounce
+                    holder.itemMainBinding.ivFavorite.setImageResource(
+                        if (isFav) R.drawable.ic_star_filled else R.drawable.ic_star_empty
+                    )
+                    animateFavorite(holder.itemMainBinding.ivFavorite)
                 }
             }
         } else {
@@ -134,23 +136,20 @@ class MainRecyclerAdapter(
         }
     }
 
-    private fun animateFavorite(view: android.widget.ImageView, isFavorite: Boolean) {
+    private fun animateFavorite(view: android.widget.ImageView) {
+        view.animate().cancel()
         view.animate()
-                .scaleX(1.3f)
-                .scaleY(1.3f)
-                .setDuration(150)
-                .withEndAction {
-                    view.setImageResource(
-                            if (isFavorite) R.drawable.ic_star_filled
-                            else R.drawable.ic_star_empty
-                    )
-                    view.animate()
-                            .scaleX(1.0f)
-                            .scaleY(1.0f)
-                            .setDuration(150)
-                            .start()
-                }
-                .start()
+            .scaleX(1.4f)
+            .scaleY(1.4f)
+            .setDuration(120)
+            .withEndAction {
+                view.animate()
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .setDuration(120)
+                    .start()
+            }
+            .start()
     }
 
     override fun onBindViewHolder(holder: BaseViewHolder, position: Int) {

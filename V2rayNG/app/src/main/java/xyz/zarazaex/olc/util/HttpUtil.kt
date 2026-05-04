@@ -250,5 +250,27 @@ object HttpUtil {
             }
         }
     }
+
+    /**
+     * POST JSON body to [url] and return response as String or null.
+     */
+    fun postJson(url: String, body: String, timeout: Int = 10000): String? {
+        var conn: java.net.HttpURLConnection? = null
+        return try {
+            conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.connectTimeout = timeout
+            conn.readTimeout = timeout
+            conn.doOutput = true
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.setRequestProperty("Connection", "close")
+            conn.outputStream.use { it.write(body.toByteArray()) }
+            conn.inputStream.bufferedReader().readText()
+        } catch (_: Exception) {
+            null
+        } finally {
+            conn?.disconnect()
+        }
+    }
 }
 

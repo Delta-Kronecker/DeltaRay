@@ -31,6 +31,7 @@ import xyz.zarazaex.olc.enums.PermissionType
 import xyz.zarazaex.olc.extension.toast
 import xyz.zarazaex.olc.extension.toastError
 import xyz.zarazaex.olc.handler.AngConfigManager
+import xyz.zarazaex.olc.handler.CountryDetector
 import xyz.zarazaex.olc.handler.MmkvManager
 import xyz.zarazaex.olc.handler.SettingsChangeManager
 import xyz.zarazaex.olc.handler.SettingsManager
@@ -167,20 +168,30 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     private fun setupViewModel() {
         mainViewModel.updateTestResultAction.observe(this) { setTestState(it) }
 
+        mainViewModel.isTesting.observe(this) { testing ->
+            setButtonsEnabled(!testing)
+            if (testing) {
+                binding.btnSummaryLite.setImageResource(R.drawable.ic_stop_24dp)
+            } else {
+                binding.btnSummaryLite.setImageResource(R.drawable.ic_lite_bolt)
+            }
+        }
+
         mainViewModel.liteTestFinished.observe(this) { finished ->
             if (finished && isLiteTesting) {
                 isLiteTesting = false
                 mainViewModel.sortByTestResults()
-                mainViewModel.reloadServerList()
 
                 val firstReachable = mainViewModel.serversCache.firstOrNull { cache ->
                     (MmkvManager.decodeServerAffiliationInfo(cache.guid)?.testDelayMillis ?: 0L) > 0L
                 }
                 if (firstReachable != null) {
                     MmkvManager.setSelectServer(firstReachable.guid)
+                    mainViewModel.reloadServerList()  // reload AFTER selection so indicator renders correctly
                     showStatus("Подключаемся к быстрейшему серверу")
                     startV2RayWithPermission()
                 } else {
+                    mainViewModel.reloadServerList()
                     showStatus("Нет доступных серверов!")
                 }
             }
@@ -208,6 +219,25 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         binding.viewPager.setCurrentItem(targetIndex, false)
 
         binding.tabGroup.isVisible = groups.size > 1
+    }
+
+    private fun setButtonsEnabled(enabled: Boolean) {
+        binding.fab.isEnabled = enabled
+        binding.fab.alpha = if (enabled) 1.0f else 0.5f
+        // btnSummaryLite stays enabled (to allow stopping the test), but visually dim non-test buttons
+        val menu = binding.toolbar.menu
+        menu.findItem(R.id.real_ping_all)?.let {
+            it.isEnabled = enabled
+            it.icon?.alpha = if (enabled) 255 else 128
+        }
+        menu.findItem(R.id.dedupe_by_ip)?.let {
+            it.isEnabled = enabled
+            it.icon?.alpha = if (enabled) 255 else 128
+        }
+        menu.findItem(R.id.sub_update)?.let {
+            it.isEnabled = enabled
+            it.icon?.alpha = if (enabled) 255 else 128
+        }
     }
 
     private fun handleFabAction() {
@@ -248,6 +278,14 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     private fun handleLiteAction() {
+        // If testing is in progress - stop it
+        if (mainViewModel.isTesting.value == true) {
+            mainViewModel.cancelAllTests()
+            showStatus("Тест остановлен")
+            isLiteTesting = false
+            return
+        }
+
         if (isFabOperationInProgress) {
             return
         }
@@ -266,10 +304,15 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                 launch(Dispatchers.IO) {
                     val result = mainViewModel.updateConfigViaSubAll()
+                    val removed = mainViewModel.removeDuplicateByIpAll()
                     withContext(Dispatchers.Main) {
+                        mainViewModel.reloadServerList()
                         if (result.configCount > 0) {
-                            mainViewModel.reloadServerList()
-                            showStatus("Обновлено ${result.configCount} профилей. Запуск теста...")
+                            val status = if (removed > 0)
+                                "Обновлено ${result.configCount} профилей, удалено $removed дубл. IP. Запуск теста..."
+                            else
+                                "Обновлено ${result.configCount} профилей. Запуск теста..."
+                            showStatus(status)
                         } else {
                             showStatus("Запуск теста...")
                         }
@@ -425,8 +468,33 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             true
         }
 
+        R.id.dedupe_by_ip -> {
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Удалить дубликаты по IP")
+                .setMessage("Будут удалены серверы с одинаковым IP-адресом. Оставим лучший по пингу (или первый попавшийся, если тест не запускался). Продолжить?")
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    showLoading()
+                    lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        val removed = mainViewModel.removeDuplicateByIp()
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            mainViewModel.reloadServerList()
+                            showStatus("Удалено дубликатов по IP: $removed")
+                            hideLoading()
+                        }
+                    }
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+            true
+        }
+
         R.id.sub_update -> {
             importConfigViaSub()
+            true
+        }
+
+        R.id.filter_by_country -> {
+            showCountryFilterDialog()
             true
         }
 
@@ -524,11 +592,16 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         showLoading()
         lifecycleScope.launch(Dispatchers.IO) {
             val result = AngConfigManager.updateConfigViaSubAll()
+            val removed = mainViewModel.removeDuplicateByIpAll()
             delay(500L)
             launch(Dispatchers.Main) {
                 if (result.configCount > 0) {
                     mainViewModel.reloadServerList()
-                    showStatus(getString(R.string.title_update_config_count, result.configCount))
+                    val status = if (removed > 0)
+                        "${getString(R.string.title_update_config_count, result.configCount)} (удалено $removed дубл. IP)"
+                    else
+                        getString(R.string.title_update_config_count, result.configCount)
+                    showStatus(status)
                 }
                 hideLoading()
             }
@@ -719,7 +792,55 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         tabMediator?.detach()
         super.onDestroy()
     }
-    
+
+    // ── Country filter dialog ─────────────────────────────────────────────────
+
+    private fun showCountryFilterDialog() {
+        showLoading()
+        lifecycleScope.launch(Dispatchers.IO) {
+            // Collect countries from full server list (not only visible)
+            mainViewModel.refreshCountryCache()   // fire bg lookup for unknowns
+            val allCountries = mainViewModel.collectAllCountries() // code → "🇷🇺 Россия"
+            val currentFilter = mainViewModel.countryFilter
+
+            withContext(Dispatchers.Main) {
+                hideLoading()
+                if (allCountries.isEmpty()) {
+                    showStatus("Нет серверов с известной страной")
+                    return@withContext
+                }
+
+                val codes  = allCountries.keys.toTypedArray()
+                val labels = allCountries.values.toTypedArray()
+                // empty filter = show all → treat as all checked
+                val checked = BooleanArray(codes.size) {
+                    currentFilter.isEmpty() || codes[it] in currentFilter
+                }
+
+                androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Фильтр по странам")
+                    .setMultiChoiceItems(labels, checked) { _, which, isChecked ->
+                        checked[which] = isChecked
+                    }
+                    .setPositiveButton("Применить") { _, _ ->
+                        val selected = codes.filterIndexed { i, _ -> checked[i] }.toSet()
+                        // if all selected or none selected → no filter (show all)
+                        val filter = if (selected.size == codes.size || selected.isEmpty()) emptySet() else selected
+                        mainViewModel.applyCountryFilter(filter)
+                        val msg = if (filter.isEmpty()) "Показаны все страны"
+                                  else "Фильтр: ${filter.joinToString { CountryDetector.codeToFlag(it) }}"
+                        showStatus(msg)
+                    }
+                    .setNeutralButton("Сбросить") { _, _ ->
+                        mainViewModel.applyCountryFilter(emptySet())
+                        showStatus("Показаны все страны")
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
+        }
+    }
+
     private fun checkForUpdatesOnStartup() {
         showStatus("Проверка обновлений...")
         lifecycleScope.launch {
