@@ -275,6 +275,10 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     private fun setButtonsEnabled(enabled: Boolean) {
         binding.fab.isEnabled = enabled
         binding.fab.alpha = if (enabled) 1.0f else 0.5f
+        setSecondaryButtonsEnabled(enabled)
+    }
+
+    private fun setSecondaryButtonsEnabled(enabled: Boolean) {
         binding.btnSummaryLite.isEnabled = enabled
         binding.btnSummaryLite.alpha = if (enabled) 1.0f else 0.5f
         val menu = binding.toolbar.menu
@@ -316,7 +320,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             } catch (e: Exception) {
                 Log.e(AppConfig.TAG, "FAB: error", e)
                 applyRunningState(isLoading = false, isRunning = mainViewModel.isRunning.value == true)
-                setButtonsEnabled(true)
             } finally {
                 isFabOperationInProgress = false
             }
@@ -473,7 +476,10 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         }
 
         if (isRunning) {
-            setButtonsEnabled(true)
+            // Подключены: только FAB (отключить) активен, остальное блокируем
+            setSecondaryButtonsEnabled(false)
+            binding.fab.isEnabled = true
+            binding.fab.alpha = 1.0f
             binding.fab.backgroundTintList = accentColor()
             binding.btnSummaryLite.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.color_fab_inactive))
             binding.fab.contentDescription = getString(R.string.action_stop_service)
@@ -707,7 +713,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     mainViewModel.reloadServerList()
                 }
                 hideLoading()
-                setButtonsEnabled(true)
+                applyRunningState(isLoading = false, isRunning = mainViewModel.isRunning.value == true)
             }
         }
         return true

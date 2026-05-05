@@ -202,13 +202,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Returns all known countries from the current full server list (for showing in filter dialog).
+     * Returns all known countries from ALL servers across all subscriptions (for showing in filter dialog).
      * Key = ISO code, Value = human-readable name + flag.
      */
     fun collectAllCountries(): Map<String, String> {
         val result = mutableMapOf<String, String>()
         var hasUnknown = false
-        for (guid in serverList) {
+        for (guid in MmkvManager.decodeAllServerList()) {
             val profile = MmkvManager.decodeServerConfig(guid) ?: continue
             val code = CountryDetector.getCountryCode(profile.remarks, profile.server)
             if (code == CountryDetector.UNKNOWN) {
@@ -226,7 +226,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** Trigger background geo-lookup for IPs not yet cached. */
     fun refreshCountryCache() {
         viewModelScope.launch(Dispatchers.IO) {
-            val ips = serverList.mapNotNull {
+            val ips = MmkvManager.decodeAllServerList().mapNotNull {
                 MmkvManager.decodeServerConfig(it)?.server?.trim()
             }.distinct()
             CountryDetector.lookupAndCacheAll(ips)
@@ -509,6 +509,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * @return Number of removed servers.
      */
     fun removeDuplicateByIp(): Int {
+        val selectedGuid = MmkvManager.getSelectServer()
         // Group all currently visible servers by their IP address
         val byIp = LinkedHashMap<String, MutableList<ServersCache>>()
         for (sc in serversCache) {
@@ -520,6 +521,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         for ((_, group) in byIp) {
             if (group.size <= 1) continue
             val best = group.minWithOrNull(compareBy(
+                { it.guid != selectedGuid },
                 { !it.profile.isFavorite },
                 {
                     val d = MmkvManager.decodeServerAffiliationInfo(it.guid)?.testDelayMillis ?: 0L
@@ -549,6 +551,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * @return Number of removed servers.
      */
     fun removeDuplicateByIpAll(): Int {
+        val selectedGuid = MmkvManager.getSelectServer()
         // Collect every server GUID across all subscriptions
         data class Entry(val guid: String, val ip: String, val isFav: Boolean)
 
@@ -577,6 +580,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         for ((_, group) in byIp) {
             if (group.size <= 1) continue
             val best = group.minWith(compareBy(
+                { it.guid != selectedGuid },
                 { !it.isFav },
                 {
                     val d = MmkvManager.decodeServerAffiliationInfo(it.guid)?.testDelayMillis ?: 0L
