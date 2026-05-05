@@ -135,8 +135,7 @@ class RealPingWorkerService(
 
     private fun sendBatchUpdate(update: PingProgressUpdate) {
         MessageUtil.sendMsg2UI(context, AppConfig.MSG_MEASURE_CONFIG_BATCH, update)
-        val left = (update.total - update.finished).coerceAtLeast(0)
-        MessageUtil.sendMsg2UI(context, AppConfig.MSG_MEASURE_CONFIG_NOTIFY, "$left / ${update.total}")
+        MessageUtil.sendMsg2UI(context, AppConfig.MSG_MEASURE_CONFIG_NOTIFY, "${update.finished} / ${update.total}")
     }
 
     fun cancel() {

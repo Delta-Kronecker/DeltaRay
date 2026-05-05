@@ -2,7 +2,7 @@ package xyz.zarazaex.olc.ui
 
 import android.os.Bundle
 import android.util.Log
-import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.lifecycle.lifecycleScope
 import xyz.zarazaex.olc.AppConfig
 import xyz.zarazaex.olc.BuildConfig
@@ -64,7 +64,7 @@ class CheckUpdateActivity : BaseActivity() {
 
     private fun showUpdateDialog(result: CheckUpdateResult) {
         val message = result.releaseNotes?.let { MarkdownUtil.parseBasic(it) } ?: ""
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.update_new_version_found, result.latestVersion))
             .setMessage(message)
             .setPositiveButton(R.string.update_now) { _, _ ->
@@ -72,7 +72,7 @@ class CheckUpdateActivity : BaseActivity() {
                     Utils.openUri(this, it)
                 }
             }
-            .setNegativeButton(android.R.string.cancel, null)
+            .setNegativeButton("Позже", null)
             .show()
     }
 }

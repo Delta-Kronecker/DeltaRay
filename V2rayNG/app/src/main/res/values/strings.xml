@@ -341,14 +341,14 @@
 
     <string name="connection_test_pending">Check Connectivity</string>
     <string name="connection_test_testing">Testing…</string>
-    <string name="connection_test_testing_count">Testing %d configs…</string>
+    <string name="connection_test_testing_count">Тестирование %d серверов…</string>
     <string name="connection_test_available">Success: Connection took %dms</string>
     <string name="connection_test_error">Fail to detect internet connection: %s</string>
     <string name="connection_test_fail">Internet Unavailable</string>
     <string name="connection_test_error_status_code">Error code: #%d</string>
     <string name="connection_connected">Connected, tap to check connection</string>
     <string name="connection_not_connected">Готово к подключению</string>
-    <string name="connection_runing_task_left">Number of running test tasks: %s</string>
+    <string name="connection_runing_task_left">Проверено успешно: %s</string>
 
     <string name="import_subscription_success">Subscription imported Successfully</string>
     <string name="import_subscription_failure">Import subscription failed</string>

@@ -47,7 +47,7 @@
                         android:layout_height="wrap_content"
                         android:indeterminate="true"
                         android:visibility="invisible"
-                        app:indicatorColor="@color/color_fab_active" />
+                        app:indicatorColor="@color/md_theme_primary" />
 
                     <com.google.android.material.tabs.TabLayout
                         android:id="@+id/tab_group"

@@ -13,8 +13,8 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.ActionBarDrawerToggle
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.SearchView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.core.view.ViewCompat
@@ -51,6 +51,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     private var isLiteTesting = false
     private var easterEggClickCount = 0
     private var isEasterEggActive = false
+    /** Был ли VPN уже запущен в предыдущем колбэке — чтобы детектировать момент подключения */
+    private var wasRunning = false
 
     val mainViewModel: MainViewModel by viewModels()
     private lateinit var groupPagerAdapter: GroupPagerAdapter
@@ -209,15 +211,24 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     MmkvManager.setSelectServer(firstReachable.guid)
                     mainViewModel.reloadServerList()  // reload AFTER selection so indicator renders correctly
                     showStatus("Подключаемся к быстрейшему серверу")
+                    // Блокируем кнопки на время подключения
+                    setButtonsEnabled(false)
+                    applyRunningState(isLoading = true, isRunning = false)
                     startV2RayWithPermission()
                 } else {
                     mainViewModel.reloadServerList()
                     showStatus("Нет доступных серверов!")
+                    setButtonsEnabled(true)
                 }
             }
         }
         mainViewModel.isRunning.observe(this) { isRunning ->
             applyRunningState(false, isRunning)
+            // Как только VPN только что подключился — обновляем подписки через него
+            if (isRunning && !wasRunning) {
+                updateSubsViaVpn()
+            }
+            wasRunning = isRunning
         }
         mainViewModel.startListenBroadcast()
         mainViewModel.initAssets(assets)
@@ -280,6 +291,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         val isRunning = mainViewModel.isRunning.value == true
 
+        // Блокируем все кнопки сразу
+        setButtonsEnabled(false)
         applyRunningState(isLoading = true, isRunning = false)
 
         lifecycleScope.launch {
@@ -294,6 +307,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             } catch (e: Exception) {
                 Log.e(AppConfig.TAG, "FAB: error", e)
                 applyRunningState(isLoading = false, isRunning = mainViewModel.isRunning.value == true)
+                setButtonsEnabled(true)
             } finally {
                 isFabOperationInProgress = false
             }
@@ -322,6 +336,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             return
         }
         isFabOperationInProgress = true
+
+        // Блокируем все кнопки сразу при нажатии
+        setButtonsEnabled(false)
 
         lifecycleScope.launch {
             try {
@@ -438,10 +455,11 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         return ColorStateList.valueOf(color)
     }
 
-    private  fun applyRunningState(isLoading: Boolean, isRunning: Boolean) {
+    private fun applyRunningState(isLoading: Boolean, isRunning: Boolean) {
         if (isLoading) {
             binding.fab.isEnabled = false
             binding.fab.alpha = 0.5f
+            setButtonsEnabled(false)
             return
         }
 
@@ -456,6 +474,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             // Молния всегда активна — пользователь может запустить тест даже при работающем VPN
             binding.btnSummaryLite.isEnabled = true
             binding.btnSummaryLite.alpha = 1.0f
+            setButtonsEnabled(true)
         } else {
             binding.fab.isEnabled = true
             binding.fab.alpha = 1.0f
@@ -466,6 +485,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             binding.layoutTest.isFocusable = false
             binding.btnSummaryLite.isEnabled = true
             binding.btnSummaryLite.alpha = 1.0f
+            setButtonsEnabled(true)
         }
     }
 
@@ -519,6 +539,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         }
 
         R.id.sub_update -> {
+            setButtonsEnabled(false)
             importConfigViaSub()
             true
         }
@@ -617,6 +638,29 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         return true
     }
 
+    /**
+     * Обновляет подписки через уже поднятый VPN (httpPort > 0).
+     * Вызывается сразу после того, как VPN перешёл в состояние isRunning = true.
+     */
+    private fun updateSubsViaVpn() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            // Даём VPN пару секунд инициализироваться
+            delay(2000)
+            Log.d(AppConfig.TAG, "updateSubsViaVpn: starting post-connect subscription update")
+            val result = mainViewModel.updateConfigViaSubAll()
+            if (result.configCount > 0) {
+                val removed = mainViewModel.removeDuplicateByIpAll()
+                withContext(Dispatchers.Main) {
+                    mainViewModel.reloadServerList()
+                    val msg = if (removed > 0)
+                        "Подписки обновлены: ${result.configCount} профилей, удалено $removed дубл. IP"
+                    else
+                        "Подписки обновлены: ${result.configCount} профилей"
+                    showStatus(msg)
+                }
+            }
+        }
+    }
 
     private fun importAllSubsOnStartup() {
         showLoading()
@@ -663,6 +707,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     mainViewModel.reloadServerList()
                 }
                 hideLoading()
+                setButtonsEnabled(true)
             }
         }
         return true
@@ -683,7 +728,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     private fun delAllConfig() {
-        AlertDialog.Builder(this).setMessage(R.string.del_config_comfirm)
+        MaterialAlertDialogBuilder(this).setMessage(R.string.del_config_comfirm)
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 showLoading()
                 lifecycleScope.launch(Dispatchers.IO) {
@@ -702,7 +747,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     private fun delDuplicateConfig() {
-        AlertDialog.Builder(this).setMessage(R.string.del_config_comfirm)
+        MaterialAlertDialogBuilder(this).setMessage(R.string.del_config_comfirm)
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 showLoading()
                 lifecycleScope.launch(Dispatchers.IO) {
@@ -855,7 +900,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                 val checked = BooleanArray(codes.size) { codes[it] in excludedByFilter }
 
-                androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
+                MaterialAlertDialogBuilder(this@MainActivity)
                     .setTitle("Исключить страны")
                     .setMultiChoiceItems(labels, checked) { _, which, isChecked ->
                         checked[which] = isChecked
@@ -874,7 +919,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                         mainViewModel.applyCountryFilter(emptySet())
                         showStatus("Показаны все страны")
                     }
-                    .setNegativeButton(android.R.string.cancel, null)
+                    .setNegativeButton("Отмена", null)
                     .show()
             }
         }
@@ -899,7 +944,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     
     private fun showUpdateAvailableDialog(result: xyz.zarazaex.olc.dto.CheckUpdateResult) {
         val message = result.releaseNotes?.let { xyz.zarazaex.olc.util.MarkdownUtil.parseBasic(it) } ?: ""
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.update_new_version_found, result.latestVersion))
             .setMessage(message)
             .setPositiveButton(R.string.update_now) { _, _ ->
@@ -907,7 +952,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     Utils.openUri(this, it)
                 }
             }
-            .setNegativeButton(android.R.string.cancel, null)
+            .setNegativeButton("Позже", null)
             .show()
     }
     

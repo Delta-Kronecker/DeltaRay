@@ -213,6 +213,12 @@ func MeasureOutboundDelayBatch(itemsJson string, url string, callback PingCallba
 }
 
 func measureOutboundDelayInternal(ConfigureFileContent string, url string) (int64, error) {
+	return measureOutboundDelayWithContext(ConfigureFileContent, url)
+}
+
+func measureOutboundDelayWithContext(ConfigureFileContent string, url string) (int64, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
 	config, err := coreserial.LoadJSONConfig(strings.NewReader(ConfigureFileContent))
 	if err != nil {
 		return -1, fmt.Errorf("config load error: %w", err)
@@ -239,7 +245,7 @@ func measureOutboundDelayInternal(ConfigureFileContent string, url string) (int6
 		return -1, fmt.Errorf("startup failed: %w", err)
 	}
 	defer inst.Close()
-	return measureInstDelay(context.Background(), inst, url)
+	return measureInstDelay(ctx, inst, url)
 }
 
 // CheckVersionX returns the library and Xray versions
