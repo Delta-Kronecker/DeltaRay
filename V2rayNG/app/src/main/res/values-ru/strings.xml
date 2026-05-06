@@ -346,6 +346,7 @@
     <string name="connection_test_error_status_code">Код ошибки: #%d</string>
     <string name="connection_connected">Соединено, нажмите для проверки</string>
     <string name="connection_not_connected">Ожидаем действий</string>
+    <string name="connection_updating_profiles">Обновление профилей…</string>
     <string name="connection_runing_task_left">Запущено проверок: %s</string>
 
     <string name="import_subscription_success">Подписка импортирована</string>
