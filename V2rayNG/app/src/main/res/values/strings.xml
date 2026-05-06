@@ -146,7 +146,7 @@
     <string name="menu_item_import_proxy_app">Import from Clipboard</string>
     <string name="per_app_proxy_settings">Раздельное туннелирование</string>
     <string name="per_app_proxy_settings_enable">Включить</string>
-    <string name="split_tunneling_description">Выберите приложения, которые будут использовать VPN. В режиме обхода — выбранные приложения НЕ используют VPN.</string>
+    <string name="split_tunneling_description">Выберите приложения, которые будут использовать VPN — остальные приложения, например банки, будут идти напрямую через ваш домашний интернет.\n\nВ режиме обхода всё зеркально — выбранные приложения не используют VPN.</string>
 
     <!-- Preferences -->
     <string name="title_settings">Settings</string>
@@ -353,6 +353,7 @@
     <string name="connection_test_error_status_code">Error code: #%d</string>
     <string name="connection_connected">Connected, tap to check connection</string>
     <string name="connection_not_connected">Готово к подключению</string>
+    <string name="connection_updating_profiles">Updating profiles…</string>
     <string name="connection_runing_task_left">Проверено успешно: %s</string>
 
     <string name="import_subscription_success">Subscription imported Successfully</string>
