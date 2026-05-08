@@ -700,9 +700,15 @@ object MmkvManager {
     /** Persists ISO country code for [ip]. */
     fun setCountryCache(ip: String, code: String) { countryCacheStorage.encode(ip, code) }
 
-    /** Loads the user's country filter preference (set of ISO codes to SHOW, empty = show all). */
-    fun getCountryFilter(): Set<String> =
-        settingsStorage.decodeStringSet("pref_country_filter") ?: emptySet()
+    /** Loads the user's country filter preference (set of ISO codes to EXCLUDE, empty = show all). */
+    fun getCountryFilter(): Set<String> {
+        // v2: semantics changed from "included" to "excluded" — reset old data on first read
+        if (!settingsStorage.decodeBool("pref_country_filter_v2_migrated", false)) {
+            settingsStorage.removeValueForKey("pref_country_filter")
+            settingsStorage.encode("pref_country_filter_v2_migrated", true)
+        }
+        return settingsStorage.decodeStringSet("pref_country_filter") ?: emptySet()
+    }
 
     /** Saves the user's country filter preference. */
     fun setCountryFilter(codes: Set<String>) {

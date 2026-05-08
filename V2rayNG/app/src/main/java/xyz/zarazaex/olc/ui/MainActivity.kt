@@ -966,14 +966,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 val codes = allCountriesMap.keys.toTypedArray()
                 val labels = allCountriesMap.values.toTypedArray()
 
-                // In exclude mode: checked = should be EXCLUDED
-                // currentFilter stores included set (empty = show all)
-                // Convert to excluded set for UI
-                val allCodes = codes.toSet()
-                val excludedByFilter = if (currentFilter.isEmpty()) emptySet()
-                    else allCodes - currentFilter
-
-                val checked = BooleanArray(codes.size) { codes[it] in excludedByFilter }
+                // currentFilter stores excluded set (empty = show all)
+                val checked = BooleanArray(codes.size) { codes[it] in currentFilter }
 
                 val dialog = MaterialAlertDialogBuilder(this@MainActivity)
                     .setTitle("Исключить страны")
@@ -982,9 +976,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     }
                     .setPositiveButton("Применить") { _, _ ->
                         val excluded = codes.filterIndexed { i, _ -> checked[i] }.toSet()
-                        val included = if (excluded.isEmpty()) emptySet()
-                            else allCodes - excluded
-                        mainViewModel.applyCountryFilter(included)
+                        mainViewModel.applyCountryFilter(excluded)
                         val msg = if (excluded.isEmpty()) "Показаны все страны"
                             else "Скрыто: ${excluded.joinToString { CountryDetector.codeToFlag(it) }}"
                         showStatus(msg)

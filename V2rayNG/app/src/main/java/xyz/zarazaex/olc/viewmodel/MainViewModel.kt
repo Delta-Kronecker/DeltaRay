@@ -42,7 +42,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var serverList = mutableListOf<String>()
     var subscriptionId: String = MmkvManager.decodeSettingsString(AppConfig.CACHE_SUBSCRIPTION_ID, "").orEmpty()
     var keywordFilter = ""
-    /** ISO codes to show (empty = show all) */
+    /** ISO codes to EXCLUDE (empty = show all) */
     var countryFilter: Set<String> = MmkvManager.getCountryFilter()
         private set
     val serversCache = mutableListOf<ServersCache>()
@@ -170,10 +170,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         for (guid in serverList) {
             val profile = MmkvManager.decodeServerConfig(guid) ?: continue
 
-            // Country filter
+            // Country filter — skip servers whose country is in the excluded set
             if (activeCountryFilter.isNotEmpty()) {
                 val code = CountryDetector.getCountryCode(profile.remarks, profile.server)
-                if (code !in activeCountryFilter) continue
+                if (code in activeCountryFilter) continue
             }
 
             if (kw.isEmpty()) {
@@ -195,10 +195,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Sets a new country filter and reloads list. Pass empty set to show all. */
-    fun applyCountryFilter(codes: Set<String>) {
-        countryFilter = codes
-        MmkvManager.setCountryFilter(codes)
+    /** Sets excluded countries and reloads list. Pass empty set to show all. */
+    fun applyCountryFilter(excludedCodes: Set<String>) {
+        countryFilter = excludedCodes
+        MmkvManager.setCountryFilter(excludedCodes)
         reloadServerList()
     }
 
