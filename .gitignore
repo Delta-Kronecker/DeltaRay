@@ -66,3 +66,10 @@ Thumbs.db
 add_subscription_mmkv.py
 .gitignore
 material-design-icons
+.kiro/agents/kirograph.json
+.kiro/hooks/kirograph-compress-hint.kiro.hook
+.kiro/settings/mcp.json
+.kiro/hooks/kirograph-sync-if-dirty.kiro.hook
+.kiro/steering/kirograph.md
+.kirograph/config.json
+.kirograph/kirograph.db
