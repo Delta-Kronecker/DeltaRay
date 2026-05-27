@@ -305,17 +305,25 @@ object V2RayServiceManager {
             var time = -1L
             var errorStr = ""
 
-            try {
-                time = coreController.measureDelay(SettingsManager.getDelayTestUrl())
-            } catch (e: Exception) {
-                Log.e(AppConfig.TAG, "StartCore-Manager: Failed to measure delay", e)
-                errorStr = e.message?.substringAfter("\":") ?: "empty message"
-            }
-            if (time == -1L) {
+            val urls = listOf(
+                SettingsManager.getDelayTestUrl(),
+                SettingsManager.getDelayTestUrl(true)
+            )
+            for (url in urls) {
+                if (time >= 0) break
                 try {
-                    time = coreController.measureDelay(SettingsManager.getDelayTestUrl(true))
+                    time = coreController.measureDelay(url)
                 } catch (e: Exception) {
                     Log.e(AppConfig.TAG, "StartCore-Manager: Failed to measure delay", e)
+                    errorStr = e.message?.substringAfter("\":") ?: "empty message"
+                }
+            }
+            // One more retry after a brief pause to reduce false negatives
+            if (time == -1L) {
+                kotlinx.coroutines.delay(500)
+                try {
+                    time = coreController.measureDelay(urls[0])
+                } catch (e: Exception) {
                     errorStr = e.message?.substringAfter("\":") ?: "empty message"
                 }
             }

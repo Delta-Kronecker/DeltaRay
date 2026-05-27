@@ -73,3 +73,5 @@ material-design-icons
 .kiro/steering/kirograph.md
 .kirograph/config.json
 .kirograph/kirograph.db
+.kirograph/.session-id
+.kirograph/token-savings.jsonl

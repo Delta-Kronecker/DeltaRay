@@ -166,10 +166,14 @@ class MainRecyclerAdapter(
                     if (addressText.isEmpty()) View.GONE else View.VISIBLE
 
             // TestResult
-            val aff = MmkvManager.decodeServerAffiliationInfo(guid)
-            holder.itemMainBinding.tvTestResult.text = aff?.getTestDelayString().orEmpty()
+            val delayMillis = data[position].testDelayMillis
+            holder.itemMainBinding.tvTestResult.text = when {
+                delayMillis == 0L -> "—ms"
+                delayMillis < 0L -> "-ms"
+                else -> "${delayMillis}ms"
+            }
             holder.itemMainBinding.tvTestResult.setTextColor(
-                    getPingColor(context, aff?.testDelayMillis)
+                    getPingColor(context, delayMillis)
             )
             (holder.itemMainBinding.tvTestResult.layoutParams as? ViewGroup.MarginLayoutParams)?.marginStart =
                     if (addressText.isEmpty()) 0 else 6.dpToPx(context)
@@ -264,9 +268,7 @@ class MainRecyclerAdapter(
 
     private fun recomputePingRange() {
         val delays = data.mapNotNull { item ->
-            MmkvManager.decodeServerAffiliationInfo(item.guid)
-                ?.testDelayMillis
-                ?.takeIf { it > 0L }
+            item.testDelayMillis.takeIf { it > 0L }
         }
         minReachablePing = delays.minOrNull()
         maxReachablePing = delays.maxOrNull()

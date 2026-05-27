@@ -4,6 +4,7 @@
     <color name="colorPingGood">#86D993</color>
     <color name="colorPingMedium">#F1C76A</color>
     <color name="status_connected">#66BB6A</color>
+    <color name="status_failure">#EF5350</color>
     <color name="colorPingRed">#FFB4AB</color>
     <color name="color_fab_active">@color/md_theme_primary</color>
     <color name="color_fab_inactive">@color/md_theme_secondaryContainer</color>

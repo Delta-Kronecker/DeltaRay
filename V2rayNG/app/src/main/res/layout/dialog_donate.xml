@@ -27,7 +27,7 @@
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="14dp"
-            android:paddingEnd="6dp"
+            android:paddingEnd="10dp"
             android:paddingTop="10dp"
             android:paddingBottom="10dp">
 
@@ -56,15 +56,16 @@
                     android:typeface="monospace" />
             </LinearLayout>
 
-            <com.google.android.material.button.MaterialButton
+            <ImageButton
                 android:id="@+id/donate_card_open"
-                style="@style/Widget.Material3.Button.IconButton"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/donate_open_link"
-                app:icon="@drawable/ic_share_24dp"
-                app:iconSize="20dp"
-                app:iconTint="?attr/colorOnSurfaceVariant" />
+                android:padding="10dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_share_24dp"
+                app:tint="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
@@ -84,7 +85,7 @@
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="14dp"
-            android:paddingEnd="6dp"
+            android:paddingEnd="10dp"
             android:paddingTop="10dp"
             android:paddingBottom="10dp">
 
@@ -114,15 +115,16 @@
                     android:typeface="monospace" />
             </LinearLayout>
 
-            <com.google.android.material.button.MaterialButton
+            <ImageButton
                 android:id="@+id/donate_ton_copy"
-                style="@style/Widget.Material3.Button.IconButton"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/donate_copy"
-                app:icon="@drawable/ic_copy"
-                app:iconSize="20dp"
-                app:iconTint="?attr/colorOnSurfaceVariant" />
+                android:padding="10dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_copy"
+                app:tint="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
@@ -142,7 +144,7 @@
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="14dp"
-            android:paddingEnd="6dp"
+            android:paddingEnd="10dp"
             android:paddingTop="10dp"
             android:paddingBottom="10dp">
 
@@ -172,15 +174,16 @@
                     android:typeface="monospace" />
             </LinearLayout>
 
-            <com.google.android.material.button.MaterialButton
+            <ImageButton
                 android:id="@+id/donate_trc_copy"
-                style="@style/Widget.Material3.Button.IconButton"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/donate_copy"
-                app:icon="@drawable/ic_copy"
-                app:iconSize="20dp"
-                app:iconTint="?attr/colorOnSurfaceVariant" />
+                android:padding="10dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_copy"
+                app:tint="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
@@ -199,7 +202,7 @@
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="14dp"
-            android:paddingEnd="6dp"
+            android:paddingEnd="10dp"
             android:paddingTop="10dp"
             android:paddingBottom="10dp">
 
@@ -229,15 +232,16 @@
                     android:typeface="monospace" />
             </LinearLayout>
 
-            <com.google.android.material.button.MaterialButton
+            <ImageButton
                 android:id="@+id/donate_btc_copy"
-                style="@style/Widget.Material3.Button.IconButton"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/donate_copy"
-                app:icon="@drawable/ic_copy"
-                app:iconSize="20dp"
-                app:iconTint="?attr/colorOnSurfaceVariant" />
+                android:padding="10dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_copy"
+                app:tint="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 </LinearLayout>

@@ -1,5 +1,7 @@
 package xyz.zarazaex.olc.ui
 
+import android.animation.ArgbEvaluator
+import android.animation.ValueAnimator
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -203,7 +205,13 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     private fun setupViewModel() {
-        mainViewModel.updateTestResultAction.observe(this) { setTestState(it) }
+        mainViewModel.updateTestResultAction.observe(this) { result ->
+            setTestState(result)
+            if (result != null && mainViewModel.isRunning.value == true) {
+                val isSuccess = result.contains(Regex("\\d+\\s*(ms|мс|毫秒)"))
+                setStatusDot(if (isSuccess) DotState.CONNECTED else DotState.FAILURE)
+            }
+        }
 
         mainViewModel.isTesting.observe(this) { testing ->
             if (testing) {
@@ -218,13 +226,13 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 binding.btnSummaryLite.isEnabled = true
                 binding.btnSummaryLite.alpha = 1.0f
                 binding.btnSummaryLite.setIconResource(R.drawable.ic_stop_24dp)
-                binding.btnSummaryLite.backgroundTintList = ColorStateList.valueOf(
-                    com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimaryContainer, 0)
+                animateButtonTint(binding.btnSummaryLite,
+                    com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorSecondaryContainer, 0)
                 )
             } else {
                 setButtonsEnabled(true)
                 binding.btnSummaryLite.setIconResource(R.drawable.bolt_24)
-                binding.btnSummaryLite.backgroundTintList = ColorStateList.valueOf(
+                animateButtonTint(binding.btnSummaryLite,
                     com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorSecondaryContainer, 0)
                 )
                 if (!isLiteTesting) {
@@ -383,7 +391,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             showStatus("Остановлено")
             setButtonsEnabled(true)
             binding.btnSummaryLite.setIconResource(R.drawable.bolt_24)
-            binding.btnSummaryLite.backgroundTintList = ColorStateList.valueOf(
+            animateButtonTint(binding.btnSummaryLite,
                 com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorSecondaryContainer, 0)
             )
             hideLoading()
@@ -490,9 +498,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 delay(1000)
             } catch (e: Exception) {
                 Log.e(AppConfig.TAG, "Error in restartV2Ray", e)
-                applyRunningState(isLoading = false, isRunning = mainViewModel.isRunning.value == true)
             } finally {
                 isFabOperationInProgress = false
+                applyRunningState(isLoading = false, isRunning = mainViewModel.isRunning.value == true)
             }
         }
     }
@@ -530,6 +538,16 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         return ColorStateList.valueOf(color)
     }
 
+    private fun animateButtonTint(view: com.google.android.material.button.MaterialButton, toColor: Int, duration: Long = 300L) {
+        val from = view.backgroundTintList?.defaultColor ?: toColor
+        if (from == toColor) { view.backgroundTintList = ColorStateList.valueOf(toColor); return }
+        ValueAnimator.ofArgb(from, toColor).apply {
+            this.duration = duration
+            addUpdateListener { view.backgroundTintList = ColorStateList.valueOf(it.animatedValue as Int) }
+            start()
+        }
+    }
+
     private fun applyRunningState(isLoading: Boolean, isRunning: Boolean) {
         val secContainer = ColorStateList.valueOf(
             com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorSecondaryContainer, 0)
@@ -562,7 +580,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             binding.fab.alpha = 1.0f
             binding.fab.backgroundTintList = accentColor()
             binding.fab.iconTint = onPrimary
-            binding.btnSummaryLite.backgroundTintList = secContainer
+            animateButtonTint(binding.btnSummaryLite, secContainer.defaultColor)
             binding.fab.contentDescription = getString(R.string.action_stop_service)
             setTestState(getString(R.string.connection_connected))
             binding.layoutTest.isFocusable = true
@@ -571,7 +589,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             setButtonsEnabled(true)
             binding.fab.backgroundTintList = secContainer
             binding.fab.iconTint = onSecContainer
-            binding.btnSummaryLite.backgroundTintList = secContainer
+            animateButtonTint(binding.btnSummaryLite, secContainer.defaultColor)
             binding.fab.contentDescription = getString(R.string.tasker_start_service)
             if (mainViewModel.isTesting.value != true && statusResetJob?.isActive != true) {
                 setTestState(getString(R.string.connection_not_connected))
@@ -581,7 +599,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         }
     }
 
-    private enum class DotState { IDLE, CONNECTED, LOADING }
+    private enum class DotState { IDLE, CONNECTED, LOADING, FAILURE }
 
     private fun setStatusDot(state: DotState) {
         val dot = binding.statusDot
@@ -589,6 +607,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         dot.alpha = 1f; dot.scaleX = 1f; dot.scaleY = 1f
         dot.backgroundTintList = ColorStateList.valueOf(when (state) {
             DotState.CONNECTED -> ContextCompat.getColor(this, R.color.status_connected)
+            DotState.FAILURE   -> ContextCompat.getColor(this, R.color.status_failure)
             DotState.LOADING   -> com.google.android.material.color.MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary, 0)
             DotState.IDLE      -> com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorOutline, 0)
         })
@@ -894,20 +913,26 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             copyToClipboard(btcValue.text.toString())
         }
 
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.donate_dialog_title)
+        val titleStr = getString(R.string.donate_dialog_title)
+        val dialog = MaterialAlertDialogBuilder(this)
             .setView(view)
-            .setNegativeButton(R.string.donate_btn_dont_show) { dialog, _ ->
+            .setNegativeButton(R.string.donate_btn_dont_show) { d, _ ->
                 MmkvManager.encodeSettings(AppConfig.PREF_DONATE_DIALOG_DISMISSED, true)
-                dialog.dismiss()
-            }
-            .setPositiveButton(R.string.donate_btn_postpone) { dialog, _ ->
-                val postponeUntil = System.currentTimeMillis() + 24L * 60 * 60 * 1000
-                MmkvManager.encodeSettings(AppConfig.PREF_DONATE_DIALOG_POSTPONE_UNTIL, postponeUntil)
-                dialog.dismiss()
+                d.dismiss()
             }
             .setCancelable(true)
-            .show()
+            .create()
+        // Closing (X / outside / back) postpones for 24h
+        val postpone = {
+            val postponeUntil = System.currentTimeMillis() + 24L * 60 * 60 * 1000
+            MmkvManager.encodeSettings(AppConfig.PREF_DONATE_DIALOG_POSTPONE_UNTIL, postponeUntil)
+        }
+        dialog.setOnCancelListener { postpone() }
+        dialog.setCustomTitle(buildDialogTitleWithClose(titleStr) {
+            postpone()
+            dialog.dismiss()
+        })
+        dialog.show()
     }
 
     private fun copyToClipboard(text: String) {
@@ -1117,7 +1142,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 }
 
                 val dialog = MaterialAlertDialogBuilder(this@MainActivity)
-                    .setTitle("Исключить страны")
                     .setAdapter(adapter, null)
                     .setPositiveButton("Применить") { _, _ ->
                         val excluded = codes.filterIndexed { i, _ -> checked[i] }.toSet()
@@ -1131,8 +1155,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                         showStatus("Показаны все страны")
                     }
                     .create()
-                dialog.show()
                 dialog.setCustomTitle(buildDialogTitleWithClose("Исключить страны") { dialog.dismiss() })
+                dialog.show()
             }
         }
     }
@@ -1158,7 +1182,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         val message = result.releaseNotes?.let { xyz.zarazaex.olc.util.MarkdownUtil.parseBasic(it) } ?: ""
         val titleStr = getString(R.string.update_new_version_found, result.latestVersion)
         val dialog = MaterialAlertDialogBuilder(this)
-            .setTitle(titleStr)
             .setMessage(message)
             .setPositiveButton(R.string.update_now) { _, _ ->
                 result.downloadUrl?.let {
@@ -1166,8 +1189,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 }
             }
             .create()
-        dialog.show()
         dialog.setCustomTitle(buildDialogTitleWithClose(titleStr) { dialog.dismiss() })
+        dialog.show()
     }
 
     private fun buildDialogTitleWithClose(title: String, onClose: () -> Unit): View {
