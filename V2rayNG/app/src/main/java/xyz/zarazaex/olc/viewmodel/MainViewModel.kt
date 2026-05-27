@@ -902,7 +902,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 AppConfig.MSG_MEASURE_DELAY_SUCCESS -> {
-                    updateTestResultAction.value = intent.getStringExtra("content")
+                    val content = intent.getStringExtra("content")
+                    updateTestResultAction.value = content
+                    // Save ping for selected server so it shows in the list
+                    val guid = MmkvManager.getSelectServer()
+                    if (!guid.isNullOrEmpty() && content != null) {
+                        val ms = Regex("\\d+").find(content)?.value?.toLongOrNull()
+                        if (ms != null && ms > 0) {
+                            MmkvManager.encodeServerTestDelayMillis(guid, ms)
+                            refreshPingInCache(listOf(guid))
+                        }
+                    }
                 }
 
                 AppConfig.MSG_MEASURE_CONFIG_SUCCESS -> {
