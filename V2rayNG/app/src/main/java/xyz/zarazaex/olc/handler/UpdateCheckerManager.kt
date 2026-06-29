@@ -70,35 +70,41 @@ object UpdateCheckerManager {
     }
 
     suspend fun downloadApk(context: Context, downloadUrl: String): File? = withContext(Dispatchers.IO) {
-        try {
-            val httpPort = SettingsManager.getHttpPort()
-            val connection = HttpUtil.createProxyConnection(downloadUrl, httpPort, 10000, 10000, true)
-                ?: throw IllegalStateException("Failed to create connection")
+        // Try a direct connection first, then fall back to the local proxy
+        // (mirrors checkForUpdate). The proxy only listens while the VPN is up,
+        // so a direct attempt is what makes updating work when disconnected.
+        downloadApkVia(context, downloadUrl, 0)
+            ?: downloadApkVia(context, downloadUrl, SettingsManager.getHttpPort())
+    }
 
-            try {
-                val apkFile = File(context.cacheDir, "update.apk")
-                Log.i(AppConfig.TAG, "Downloading APK to: ${apkFile.absolutePath}")
+    private fun downloadApkVia(context: Context, downloadUrl: String, httpPort: Int): File? {
+        val connection = HttpUtil.createProxyConnection(downloadUrl, httpPort, 10000, 10000, true)
+            ?: return null
+        return try {
+            val code = connection.responseCode
+            if (code !in 200..299) {
+                Log.e(AppConfig.TAG, "APK download failed, http $code (port=$httpPort)")
+                return null
+            }
+            val apkFile = File(context.cacheDir, "update.apk")
+            Log.i(AppConfig.TAG, "Downloading APK to: ${apkFile.absolutePath} (port=$httpPort)")
 
-                FileOutputStream(apkFile).use { outputStream ->
-                    connection.inputStream.use { inputStream ->
-                        inputStream.copyTo(outputStream)
-                    }
-                }
-                Log.i(AppConfig.TAG, "APK download completed")
-                return@withContext apkFile
-            } catch (e: Exception) {
-                Log.e(AppConfig.TAG, "Failed to download APK: ${e.message}")
-                return@withContext null
-            } finally {
-                try {
-                    connection.disconnect()
-                } catch (e: Exception) {
-                    Log.e(AppConfig.TAG, "Error closing connection: ${e.message}")
+            FileOutputStream(apkFile).use { outputStream ->
+                connection.inputStream.use { inputStream ->
+                    inputStream.copyTo(outputStream)
                 }
             }
+            Log.i(AppConfig.TAG, "APK download completed")
+            apkFile
         } catch (e: Exception) {
-            Log.e(AppConfig.TAG, "Failed to initiate download: ${e.message}")
-            return@withContext null
+            Log.e(AppConfig.TAG, "Failed to download APK (port=$httpPort): ${e.message}")
+            null
+        } finally {
+            try {
+                connection.disconnect()
+            } catch (e: Exception) {
+                Log.e(AppConfig.TAG, "Error closing connection: ${e.message}")
+            }
         }
     }
 
