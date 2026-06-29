@@ -15,10 +15,12 @@ import android.util.Log
 import android.util.Patterns
 import android.webkit.URLUtil
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import xyz.zarazaex.olc.AppConfig
 import xyz.zarazaex.olc.AppConfig.LOOPBACK
 import xyz.zarazaex.olc.BuildConfig
+import java.io.File
 import java.io.IOException
 import java.net.InetAddress
 import java.net.ServerSocket
@@ -289,6 +291,40 @@ object Utils {
         } catch (e: Exception) {
             Log.e(AppConfig.TAG, "Failed to open URI", e)
         }
+    }
+
+    /**
+     * Launch the system package installer for a downloaded APK file.
+     *
+     * @param context The context to use.
+     * @param apkFile The downloaded APK file (must live under the FileProvider paths).
+     * @return true if the installer intent was started, false otherwise.
+     */
+    fun installApk(context: Context, apkFile: File): Boolean {
+        return try {
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${BuildConfig.APPLICATION_ID}.cache",
+                apkFile
+            )
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            true
+        } catch (e: Exception) {
+            Log.e(AppConfig.TAG, "Failed to install APK", e)
+            false
+        }
+    }
+
+    /**
+     * Whether the app is allowed to install APKs from unknown sources.
+     */
+    fun canInstallApk(context: Context): Boolean {
+        return context.packageManager.canRequestPackageInstalls()
     }
 
     /**

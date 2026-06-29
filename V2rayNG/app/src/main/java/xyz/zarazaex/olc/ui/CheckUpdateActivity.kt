@@ -1,8 +1,11 @@
 package xyz.zarazaex.olc.ui
 
+import android.content.Intent
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import android.widget.TextView
+import androidx.core.net.toUri
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.lifecycle.lifecycleScope
 import xyz.zarazaex.olc.AppConfig
@@ -63,6 +66,40 @@ class CheckUpdateActivity : BaseActivity() {
         }
     }
 
+    private fun downloadAndInstall(downloadUrl: String) {
+        if (!Utils.canInstallApk(this)) {
+            toast(R.string.update_install_permission_required)
+            try {
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    "package:$packageName".toUri()
+                )
+                startActivity(intent)
+            } catch (e: Exception) {
+                Log.e(AppConfig.TAG, "Failed to open install-sources settings: ${e.message}")
+            }
+            return
+        }
+
+        toast(R.string.update_downloading)
+        showLoading()
+
+        lifecycleScope.launch {
+            try {
+                val apk = UpdateCheckerManager.downloadApk(this@CheckUpdateActivity, downloadUrl)
+                if (apk != null && Utils.installApk(this@CheckUpdateActivity, apk)) {
+                    return@launch
+                }
+                toastError(R.string.update_download_failed)
+            } catch (e: Exception) {
+                Log.e(AppConfig.TAG, "Failed to download/install update: ${e.message}")
+                toastError(e.message ?: getString(R.string.update_download_failed))
+            } finally {
+                hideLoading()
+            }
+        }
+    }
+
     private fun showUpdateDialog(result: CheckUpdateResult) {
         val message = result.releaseNotes?.let { MarkdownUtil.parseBasic(it) } ?: ""
         val titleStr = getString(R.string.update_new_version_found, result.latestVersion)
@@ -70,9 +107,7 @@ class CheckUpdateActivity : BaseActivity() {
             .setTitle(titleStr)
             .setMessage(message)
             .setPositiveButton(R.string.update_now) { _, _ ->
-                result.downloadUrl?.let {
-                    Utils.openUri(this, it)
-                }
+                result.downloadUrl?.let { downloadAndInstall(it) }
             }
             .create()
         dialog.show()
