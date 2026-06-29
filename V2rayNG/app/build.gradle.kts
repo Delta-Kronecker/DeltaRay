@@ -8,7 +8,7 @@ android {
 
     defaultConfig {
         applicationId = "xyz.zarazaex.olc"
-        minSdk = 24
+        minSdk = 30
         targetSdk = 36
         
         val envVersionName = System.getenv("VERSION_NAME")
