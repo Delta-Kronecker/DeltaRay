@@ -37,7 +37,7 @@ object SettingsManager {
 
     fun initApp(context: Context) {
         ensureDefaultSettings()
-        //ensureDefaultSubscription()
+        ensureDefaultSubscription()
         initRoutingRulesets(context)
         migrateServerListToSubscriptions()
         migrateHysteria2PinSHA256()
@@ -556,7 +556,7 @@ object SettingsManager {
 
     /**
      * Ensures the default subscription exists for ungrouped servers.
-     * This subscription is used internally to store servers without a subscription.
+     * Also creates default VLESS and Trojan subscriptions if they don't exist.
      * Made public for migration in SettingsManager.
      */
     private fun ensureDefaultSubscription() {
@@ -571,6 +571,28 @@ object SettingsManager {
             if (subsList.count() > 1) {
                 swapSubscriptions(0, subsList.count() - 1)
             }
+        }
+
+        // Create default VLESS subscription if not exists
+        val vlessSubId = "default_vless"
+        if (decodeSubscription(vlessSubId) == null) {
+            val vlessSub = SubscriptionItem(
+                remarks = "VLESS Configs",
+                url = AppConfig.DEFAULT_SUBSCRIPTION_VLESS_URL,
+                enabled = true,
+            )
+            encodeSubscription(vlessSubId, vlessSub)
+        }
+
+        // Create default Trojan subscription if not exists
+        val trojanSubId = "default_trojan"
+        if (decodeSubscription(trojanSubId) == null) {
+            val trojanSub = SubscriptionItem(
+                remarks = "Trojan Configs",
+                url = AppConfig.DEFAULT_SUBSCRIPTION_TROJAN_URL,
+                enabled = true,
+            )
+            encodeSubscription(trojanSubId, trojanSub)
         }
     }
     
