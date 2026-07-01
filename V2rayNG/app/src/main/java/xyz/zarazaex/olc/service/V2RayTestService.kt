@@ -3,6 +3,7 @@ package xyz.zarazaex.olc.service
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
+import android.util.Log
 import xyz.zarazaex.olc.AppConfig
 import xyz.zarazaex.olc.AppConfig.MSG_MEASURE_CONFIG
 import xyz.zarazaex.olc.AppConfig.MSG_MEASURE_CONFIG_CANCEL
