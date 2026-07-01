@@ -189,6 +189,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         binding.layoutTest.setOnClickListener { handleLayoutTestClick() }
 
         mainViewModel.startListenBroadcast()
+        mainViewModel.initAssets(assets)
 
         val logFilter = android.content.IntentFilter("xyz.zarazaex.olc.action.LOG")
         registerReceiver(logReceiver, logFilter, android.content.Context.RECEIVER_NOT_EXPORTED)
