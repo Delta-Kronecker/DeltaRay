@@ -46,7 +46,7 @@ object FailoverManager {
             }
 
             // Main failover loop
-            while (failoverActive && coroutineContext.failoverActive) {
+            while (failoverActive && coroutineContext.isActive) {
                 // Test current server
                 val currentServer = sortedServers[currentServerIndex]
                 val delay = testServerPing()
