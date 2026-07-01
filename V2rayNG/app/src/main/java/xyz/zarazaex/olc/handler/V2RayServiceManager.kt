@@ -120,6 +120,7 @@ object V2RayServiceManager {
      * @param context The context from which the service is started.
      */
     private fun startContextService(context: Context) {
+        Log.i(AppConfig.TAG, "StartCore-Manager: startContextService called")
         if (coreController.isRunning) {
             Log.w(AppConfig.TAG, "StartCore-Manager: Core already running")
             return
@@ -130,41 +131,44 @@ object V2RayServiceManager {
             Log.e(AppConfig.TAG, "StartCore-Manager: No server selected")
             return
         }
+        Log.i(AppConfig.TAG, "StartCore-Manager: server guid=$guid")
 
         val config = MmkvManager.decodeServerConfig(guid)
         if (config == null) {
             Log.e(AppConfig.TAG, "StartCore-Manager: Failed to decode server config")
             return
         }
+        Log.i(AppConfig.TAG, "StartCore-Manager: config decoded, type=${config.configType}, server=${config.server}")
 
         if (config.configType != EConfigType.CUSTOM
             && config.configType != EConfigType.POLICYGROUP
             && !Utils.isValidUrl(config.server)
             && !Utils.isPureIpAddress(config.server.orEmpty())
         ) {
-            Log.e(AppConfig.TAG, "StartCore-Manager: Invalid server configuration")
+            Log.e(AppConfig.TAG, "StartCore-Manager: Invalid server config: server=${config.server}")
             return
         }
-//        val result = V2rayConfigUtil.getV2rayConfig(context, guid)
-//        if (!result.status) return
 
         if (MmkvManager.decodeSettingsBool(AppConfig.PREF_PROXY_SHARING)) {
             Log.i(AppConfig.TAG, "StartCore-Manager: proxy sharing enabled")
         }
 
         val isVpnMode = SettingsManager.isVpnMode()
+        Log.i(AppConfig.TAG, "StartCore-Manager: isVpnMode=$isVpnMode")
         val intent = if (isVpnMode) {
-            Log.i(AppConfig.TAG, "StartCore-Manager: Starting VPN service")
+            Log.i(AppConfig.TAG, "StartCore-Manager: Creating VPN intent")
             Intent(context.applicationContext, V2RayVpnService::class.java)
         } else {
-            Log.i(AppConfig.TAG, "StartCore-Manager: Starting Proxy service")
+            Log.i(AppConfig.TAG, "StartCore-Manager: Creating Proxy intent")
             Intent(context.applicationContext, V2RayProxyOnlyService::class.java)
         }
 
         try {
+            Log.i(AppConfig.TAG, "StartCore-Manager: calling startForegroundService")
             ContextCompat.startForegroundService(context, intent)
+            Log.i(AppConfig.TAG, "StartCore-Manager: startForegroundService returned OK")
         } catch (e: Exception) {
-            Log.e(AppConfig.TAG, "StartCore-Manager: Failed to start service", e)
+            Log.e(AppConfig.TAG, "StartCore-Manager: FAILED to start service: ${e.message}", e)
         }
     }
 
@@ -238,6 +242,7 @@ object V2RayServiceManager {
 
         try {
             MessageUtil.sendMsg2UI(service, AppConfig.MSG_STATE_START_SUCCESS, "")
+            MessageUtil.sendMsg2UI(service, AppConfig.MSG_STATE_RUNNING, "")
             NotificationManager.startSpeedNotification(currentConfig)
             Log.i(AppConfig.TAG, "StartCore-Manager: Core started successfully")
         } catch (e: Exception) {
