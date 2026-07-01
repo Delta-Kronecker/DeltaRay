@@ -192,43 +192,42 @@ object V2RayServiceManager {
      * Starts the V2Ray core service.
      */
     fun startCoreLoop(vpnInterface: ParcelFileDescriptor?): Boolean {
-        AppConfig.addServiceLog("CORE: startCoreLoop called")
+        val ctx = getService()
+        AppConfig.broadcastLog(ctx, "CORE: startCoreLoop called, isRunning=${coreController.isRunning}")
         if (coreController.isRunning) {
             Log.w(AppConfig.TAG, "StartCore-Manager: Core already running")
-            AppConfig.addServiceLog("CORE: already running")
             return false
         }
 
         val service = getService()
         if (service == null) {
             Log.e(AppConfig.TAG, "StartCore-Manager: Service is null")
-            AppConfig.addServiceLog("CORE: ERROR service null")
+            AppConfig.broadcastLog(service ?: return false, "CORE: ERROR service null")
             return false
         }
 
         val guid = MmkvManager.getSelectServer()
         if (guid == null) {
             Log.e(AppConfig.TAG, "StartCore-Manager: No server selected")
-            AppConfig.addServiceLog("CORE: ERROR no server selected")
+            AppConfig.broadcastLog(service, "CORE: ERROR no server selected")
             return false
         }
 
         val config = MmkvManager.decodeServerConfig(guid)
         if (config == null) {
             Log.e(AppConfig.TAG, "StartCore-Manager: Failed to decode server config")
-            AppConfig.addServiceLog("CORE: ERROR decode config failed")
+            AppConfig.broadcastLog(service, "CORE: ERROR decode config failed")
             return false
         }
 
-        Log.i(AppConfig.TAG, "StartCore-Manager: Starting core loop for ${config.remarks}")
-        AppConfig.addServiceLog("CORE: getting v2ray config for ${config.remarks}")
+        AppConfig.broadcastLog(service, "CORE: getting v2ray config for ${config.remarks}")
         val result = V2rayConfigManager.getV2rayConfig(service, guid)
         if (!result.status) {
             Log.e(AppConfig.TAG, "StartCore-Manager: Failed to get V2Ray config")
-            AppConfig.addServiceLog("CORE: ERROR getV2rayConfig failed")
+            AppConfig.broadcastLog(service, "CORE: ERROR getV2rayConfig failed")
             return false
         }
-        AppConfig.addServiceLog("CORE: v2ray config OK")
+        AppConfig.broadcastLog(service, "CORE: v2ray config OK, registering receiver")
 
         try {
             val mFilter = IntentFilter(AppConfig.BROADCAST_ACTION_SERVICE)
@@ -238,7 +237,7 @@ object V2RayServiceManager {
             ContextCompat.registerReceiver(service, mMsgReceive, mFilter, Utils.receiverFlags())
         } catch (e: Exception) {
             Log.e(AppConfig.TAG, "StartCore-Manager: Failed to register receiver", e)
-            AppConfig.addServiceLog("CORE: ERROR register receiver: ${e.message}")
+            AppConfig.broadcastLog(service, "CORE: ERROR register receiver: ${e.message}")
             return false
         }
 
@@ -249,34 +248,34 @@ object V2RayServiceManager {
         }
 
         try {
-            AppConfig.addServiceLog("CORE: starting core loop...")
+            AppConfig.broadcastLog(service, "CORE: starting core loop, tunFd=$tunFd")
             NotificationManager.showNotification(currentConfig)
             coreController.startLoop(result.content, tunFd)
-            AppConfig.addServiceLog("CORE: startLoop returned, isRunning=${coreController.isRunning}")
+            AppConfig.broadcastLog(service, "CORE: startLoop returned, isRunning=${coreController.isRunning}")
         } catch (e: Exception) {
             Log.e(AppConfig.TAG, "StartCore-Manager: Failed to start core loop", e)
-            AppConfig.addServiceLog("CORE: ERROR startLoop: ${e.message}")
+            AppConfig.broadcastLog(service, "CORE: ERROR startLoop: ${e.message}")
             return false
         }
 
         if (coreController.isRunning == false) {
             Log.e(AppConfig.TAG, "StartCore-Manager: Core failed to start")
-            AppConfig.addServiceLog("CORE: ERROR core not running after startLoop")
+            AppConfig.broadcastLog(service, "CORE: ERROR core not running after startLoop")
             MessageUtil.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, "")
             NotificationManager.cancelNotification()
             return false
         }
 
         try {
-            AppConfig.addServiceLog("CORE: sending MSG_STATE_RUNNING")
+            AppConfig.broadcastLog(service, "CORE: sending MSG_STATE_RUNNING")
             MessageUtil.sendMsg2UI(service, AppConfig.MSG_STATE_START_SUCCESS, "")
             MessageUtil.sendMsg2UI(service, AppConfig.MSG_STATE_RUNNING, "")
             NotificationManager.startSpeedNotification(currentConfig)
             Log.i(AppConfig.TAG, "StartCore-Manager: Core started successfully")
-            AppConfig.addServiceLog("CORE: STARTED OK")
+            AppConfig.broadcastLog(service, "CORE: STARTED OK")
         } catch (e: Exception) {
             Log.e(AppConfig.TAG, "StartCore-Manager: Failed to complete startup", e)
-            AppConfig.addServiceLog("CORE: ERROR final: ${e.message}")
+            AppConfig.broadcastLog(service, "CORE: ERROR final: ${e.message}")
             return false
         }
         return true

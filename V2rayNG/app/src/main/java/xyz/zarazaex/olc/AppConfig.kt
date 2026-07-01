@@ -14,6 +14,17 @@ object AppConfig {
         }
     }
 
+    /** Send log via broadcast from any process */
+    fun broadcastLog(ctx: android.content.Context, msg: String) {
+        val ts = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.US).format(java.util.Date())
+        try {
+            val intent = android.content.Intent("xyz.zarazaex.olc.action.LOG")
+            intent.`package` = ctx.packageName
+            intent.putExtra("log_msg", "$ts $msg")
+            ctx.sendBroadcast(intent)
+        } catch (_: Exception) {}
+    }
+
     /** The application's package name. */
     const val ANG_PACKAGE = BuildConfig.APPLICATION_ID
     const val TAG = BuildConfig.APPLICATION_ID
