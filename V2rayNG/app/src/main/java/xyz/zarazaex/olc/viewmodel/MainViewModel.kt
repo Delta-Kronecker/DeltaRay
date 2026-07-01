@@ -314,14 +314,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * Tests the real ping for all servers.
      */
     fun testAllRealPing() {
+        Log.d(AppConfig.TAG, "TEST_PING: START, subscriptionId=$subscriptionId, serverCount=${_serversCache.size}")
         MessageUtil.sendMsg2TestService(
             getApplication(),
             TestServiceMessage(key = AppConfig.MSG_MEASURE_CONFIG_CANCEL)
         )
+        Log.d(AppConfig.TAG, "TEST_PING: cancel message sent")
 
         // Auto-deduplicate by IP before scanning so we don't waste time on dupes
         viewModelScope.launch(Dispatchers.IO) {
             val removed = removeDuplicateByIpAll()
+            Log.d(AppConfig.TAG, "TEST_PING: dedup done, removed=$removed")
             withContext(Dispatchers.Main) {
                 if (removed > 0) {
                     reloadServerList()
@@ -331,28 +334,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 publishSnapshot()
                 isTesting.value = true
+                Log.d(AppConfig.TAG, "TEST_PING: isTesting=true, launching test coroutine")
 
                 viewModelScope.launch(Dispatchers.Default) {
                     if (_serversCache.isEmpty()) {
                         withContext(Dispatchers.Main) { reloadServerList() }
                     }
                     if (_serversCache.isEmpty()) {
+                        Log.d(AppConfig.TAG, "TEST_PING: serverCache EMPTY after reload, aborting")
                         withContext(Dispatchers.Main) { isTesting.value = false }
                         return@launch
                     }
+
+                    val testSubId = subscriptionId
+                    val testServerGuids = if (keywordFilter.isNotEmpty()) {
+                        _serversCache.map { it.guid }
+                    } else {
+                        emptyList()
+                    }
+                    Log.d(AppConfig.TAG, "TEST_PING: sending MSG_MEASURE_CONFIG, subId=$testSubId, guids=${testServerGuids.size}")
 
                     MessageUtil.sendMsg2TestService(
                         getApplication(),
                         TestServiceMessage(
                             key = AppConfig.MSG_MEASURE_CONFIG,
-                            subscriptionId = subscriptionId,
-                            serverGuids = if (keywordFilter.isNotEmpty()) {
-                                _serversCache.map { it.guid }
-                            } else {
-                                emptyList()
-                            }
+                            subscriptionId = testSubId,
+                            serverGuids = testServerGuids
                         )
                     )
+                    Log.d(AppConfig.TAG, "TEST_PING: MSG_MEASURE_CONFIG sent successfully")
                 }
             }
         }

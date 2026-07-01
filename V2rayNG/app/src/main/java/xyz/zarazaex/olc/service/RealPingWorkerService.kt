@@ -1,6 +1,7 @@
 package xyz.zarazaex.olc.service
 
 import android.content.Context
+import android.util.Log
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
@@ -49,6 +50,7 @@ class RealPingWorkerService(
     data class PingItem(val guid: String, val config: String)
 
     fun start() {
+        Log.d(AppConfig.TAG, "PING_WORKER: start() called, ${guids.size} configs")
         scope.launch(Dispatchers.IO) {
             while (isActive) {
                 delay(FLUSH_INTERVAL_MS)
@@ -58,8 +60,6 @@ class RealPingWorkerService(
 
         scope.launch(Dispatchers.IO) {
             try {
-                // Prepare configurations in parallel for faster startup.
-                // Keep the currently selected server at the front so it gets a result first.
                 val selectedGuid = MmkvManager.getSelectServer()
                 val shuffledGuids = if (selectedGuid != null && guids.contains(selectedGuid)) {
                     val rest = guids.filter { it != selectedGuid }.shuffled()
@@ -67,38 +67,49 @@ class RealPingWorkerService(
                 } else {
                     guids.shuffled()
                 }
+                Log.d(AppConfig.TAG, "PING_WORKER: preparing ${shuffledGuids.size} configs")
+
                 val deferredItems = shuffledGuids.map { guid ->
                     async(Dispatchers.IO) {
                         val configResult = V2rayConfigManager.getV2rayConfig4Speedtest(context, guid)
                         if (configResult.status) {
                             PingItem(guid, configResult.content)
                         } else {
+                            Log.d(AppConfig.TAG, "PING_WORKER: config failed for $guid")
                             reportResult(guid, -1L)
                             null
                         }
                     }
                 }
                 val items = deferredItems.awaitAll().filterNotNull()
+                Log.d(AppConfig.TAG, "PING_WORKER: ${items.size} configs prepared, starting batch ping")
 
                 if (items.isNotEmpty()) {
                     val configsJson = JsonUtil.toJson(items)
+                    Log.d(AppConfig.TAG, "PING_WORKER: calling measureOutboundDelayBatch with ${items.size} configs, url=$delayTestUrl")
 
                     V2RayNativeManager.measureOutboundDelayBatch(
                             configsJson,
                             delayTestUrl,
                             object : libv2ray.PingCallback {
                                 override fun onResult(guid: String?, delay: Long) {
+                                    Log.d(AppConfig.TAG, "PING_WORKER: onResult guid=$guid delay=$delay")
                                     if (guid != null) {
                                         reportResult(guid, delay)
                                     }
                                 }
                             }
                     )
+                    Log.d(AppConfig.TAG, "PING_WORKER: measureOutboundDelayBatch returned")
+                } else {
+                    Log.e(AppConfig.TAG, "PING_WORKER: no configs to test!")
                 }
 
                 flushPendingResults()
+                Log.d(AppConfig.TAG, "PING_WORKER: all done, finishing")
                 onFinish("0")
             } catch (e: Exception) {
+                Log.e(AppConfig.TAG, "PING_WORKER: ERROR: ${e.message}", e)
                 flushPendingResults()
                 onFinish("-1")
             } finally {

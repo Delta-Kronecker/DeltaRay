@@ -277,6 +277,20 @@
 
             </ScrollView>
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_copy_log"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:text="Copy Log"
+                android:textAllCaps="false"
+                android:textSize="12sp"
+                android:layout_marginTop="4dp"
+                app:icon="@drawable/ic_copy"
+                app:iconSize="16dp"
+                app:iconGravity="textStart"
+                app:cornerRadius="12dp" />
+
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"

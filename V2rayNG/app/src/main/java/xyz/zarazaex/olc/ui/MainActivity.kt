@@ -179,6 +179,12 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         binding.btnConnect.setOnClickListener { handleConnectAction() }
         binding.layoutTest.setOnClickListener { handleLayoutTestClick() }
+        binding.btnCopyLog.setOnClickListener {
+            val logText = logMessages.joinToString("\n")
+            val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("app_log", logText))
+            toast("Log copied to clipboard")
+        }
 
         setupSpinner()
         setupViewModel()
