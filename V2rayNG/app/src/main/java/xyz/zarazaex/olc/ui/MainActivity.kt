@@ -56,10 +56,28 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
     private var groupNames = mutableListOf<String>()
     private var groupIds = mutableListOf<String>()
+    private val logMessages = mutableListOf<String>()
+    private val maxLogLines = 100
+
+    private fun log(msg: String) {
+        val ts = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.US).format(java.util.Date())
+        val line = "$ts $msg"
+        Log.d(AppConfig.TAG, line)
+        runOnUiThread {
+            logMessages.add(line)
+            if (logMessages.size > maxLogLines) logMessages.removeAt(0)
+            binding.tvLog.text = logMessages.joinToString("\n")
+            binding.logScroll.post { binding.logScroll.fullScroll(android.view.View.FOCUS_DOWN) }
+        }
+    }
 
     private val requestVpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        log("VPN_PERM: resultCode=${it.resultCode} OK=${RESULT_OK}")
         if (it.resultCode == RESULT_OK) {
+            log("VPN_PERM: granted, calling startV2Ray")
             startV2Ray()
+        } else {
+            log("VPN_PERM: denied")
         }
     }
     private val requestActivityLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -205,6 +223,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
     private fun setupViewModel() {
         mainViewModel.updateTestResultAction.observe(this) { result ->
+            log("OBS updateTestResult: $result")
             setTestState(result)
             if (result != null && mainViewModel.isRunning.value == true) {
                 val isSuccess = result.contains(Regex("\\d+\\s*(ms|ms|毫秒)"))
@@ -213,6 +232,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         }
 
         mainViewModel.isTesting.observe(this) { testing ->
+            log("OBS isTesting=$testing")
             if (testing) {
                 binding.btnConnect.isEnabled = true
                 binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
@@ -230,6 +250,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         }
 
         mainViewModel.liteTestFinished.observe(this) { finished ->
+            log("OBS liteTestFinished=$finished isOpInProgress=$isOperationInProgress")
             if (finished && isOperationInProgress) {
                 isOperationInProgress = false
 
@@ -237,8 +258,10 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     .filter { (MmkvManager.decodeServerAffiliationInfo(it.guid)?.testDelayMillis ?: 0L) > 0L }
                     .minByOrNull { MmkvManager.decodeServerAffiliationInfo(it.guid)?.testDelayMillis ?: Long.MAX_VALUE }
 
+                log("OBS liteTestFinished: firstReachable=${firstReachable?.guid}")
                 if (firstReachable != null) {
                     MmkvManager.setSelectServer(firstReachable.guid)
+                    log("OBS: selected server ${firstReachable.guid}")
                 }
 
                 mainViewModel.suppressPinSelected = false
@@ -247,14 +270,17 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                 if (firstReachable != null) {
                     showStatus("Connecting to fastest server")
+                    log("OBS: calling startV2RayWithPermission")
                     startV2RayWithPermission()
                 } else {
                     showStatus("No servers available!")
+                    log("OBS: no reachable servers found")
                 }
             }
         }
 
         mainViewModel.isRunning.observe(this) { isRunning ->
+            log("OBS isRunning=$isRunning wasRunning=$wasRunning")
             if (isRunning && !wasRunning) {
                 wasRunning = true
                 updateSubsViaVpn()
@@ -268,15 +294,20 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     private fun handleConnectAction() {
         val isRunning = mainViewModel.isRunning.value == true
         val isTesting = mainViewModel.isTesting.value == true
+        log("BTN CLICK: isRunning=$isRunning isTesting=$isTesting isOpInProgress=$isOperationInProgress")
 
         if (isRunning || isTesting) {
+            log("BTN: stopping (isRunning=$isRunning isTesting=$isTesting)")
             if (isTesting) {
                 mainViewModel.cancelAllTests()
                 mainViewModel.suppressPinSelected = false
+                log("BTN: cancelled tests")
             }
             if (isRunning) {
                 lifecycleScope.launch {
+                    log("BTN: calling stopVService")
                     V2RayServiceManager.stopVService(this@MainActivity)
+                    log("BTN: stopVService done")
                 }
             }
             isOperationInProgress = false
@@ -286,8 +317,12 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             return
         }
 
-        if (isOperationInProgress) return
+        if (isOperationInProgress) {
+            log("BTN: already in progress, skip")
+            return
+        }
         isOperationInProgress = true
+        log("BTN: starting test flow")
 
         binding.btnConnect.animate().scaleX(0.85f).scaleY(0.85f).setDuration(100).withEndAction {
             binding.btnConnect.animate().scaleX(1f).scaleY(1f).setDuration(150).start()
@@ -295,19 +330,38 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         connectJob = lifecycleScope.launch {
             try {
+                log("FLOW: reloading server list")
                 showStatus("Testing all servers...")
                 showLoading()
                 binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
                 mainViewModel.suppressPinSelected = true
 
                 mainViewModel.reloadServerList()
+                val serverCount = mainViewModel.serversCache.size
+                log("FLOW: serverList reloaded, count=$serverCount servers")
+
+                if (serverCount == 0) {
+                    log("FLOW: NO SERVERS! aborting test")
+                    isOperationInProgress = false
+                    hideLoading()
+                    binding.btnConnect.setIconResource(R.drawable.bolt_24)
+                    applyRunningState(false)
+                    showStatus("No servers available")
+                    return@launch
+                }
+
+                log("FLOW: calling testAllRealPing()")
                 mainViewModel.testAllRealPing()
+                log("FLOW: testAllRealPing() returned")
             } catch (e: kotlinx.coroutines.CancellationException) {
+                log("FLOW: CANCELLED by user")
             } catch (e: Exception) {
+                log("FLOW: ERROR: ${e.message}")
                 Log.e(AppConfig.TAG, "Error in handleConnectAction", e)
                 isOperationInProgress = false
                 hideLoading()
                 binding.btnConnect.setIconResource(R.drawable.bolt_24)
+                applyRunningState(false)
             }
         }
     }
@@ -320,23 +374,32 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     private fun startV2RayWithPermission() {
-        if (SettingsManager.isVpnMode()) {
+        val isVpn = SettingsManager.isVpnMode()
+        log("START_VPN: isVpnMode=$isVpn")
+        if (isVpn) {
             val intent = VpnService.prepare(this)
             if (intent == null) {
+                log("START_VPN: no permission needed, starting directly")
                 startV2Ray()
             } else {
+                log("START_VPN: requesting VPN permission")
                 requestVpnPermission.launch(intent)
             }
         } else {
+            log("START_VPN: not VPN mode, starting directly")
             startV2Ray()
         }
     }
 
     private fun startV2Ray() {
-        if (MmkvManager.getSelectServer().isNullOrEmpty()) {
+        val selected = MmkvManager.getSelectServer()
+        log("START_V2: selectedServer=$selected")
+        if (selected.isNullOrEmpty()) {
+            log("START_V2: ABORT - no server selected!")
             showStatus(R.string.title_file_chooser)
             return
         }
+        log("START_V2: calling startVService")
         V2RayServiceManager.startVService(this)
     }
 
@@ -525,11 +588,13 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     private fun importAllSubsOnStartup() {
+        log("STARTUP: importing all subscriptions")
         showLoading()
         setTestState(getString(R.string.connection_updating_profiles))
         lifecycleScope.launch(Dispatchers.IO) {
             val result = AngConfigManager.updateConfigViaSubAll()
             val removed = mainViewModel.removeDuplicateByIpAll()
+            log("STARTUP: sub update done: configCount=${result.configCount} success=${result.successCount} fail=${result.failureCount} removed=$removed")
             delay(500L)
             launch(Dispatchers.Main) {
                 if (result.configCount > 0) {
@@ -541,6 +606,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                         getString(R.string.title_update_config_count, result.configCount)
                     showStatus(status)
                 }
+                val serverCount = mainViewModel.serversCache.size
+                log("STARTUP: done. serverCount=$serverCount")
                 hideLoading()
             }
         }
