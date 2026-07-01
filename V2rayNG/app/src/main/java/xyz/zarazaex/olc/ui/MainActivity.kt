@@ -39,11 +39,9 @@ import xyz.zarazaex.olc.enums.PermissionType
 import xyz.zarazaex.olc.extension.toast
 import xyz.zarazaex.olc.extension.toastError
 import xyz.zarazaex.olc.handler.AngConfigManager
-import xyz.zarazaex.olc.handler.CountryDetector
 import xyz.zarazaex.olc.handler.MmkvManager
 import xyz.zarazaex.olc.handler.SettingsChangeManager
 import xyz.zarazaex.olc.handler.SettingsManager
-import xyz.zarazaex.olc.handler.UpdateCheckerManager
 import xyz.zarazaex.olc.handler.V2RayServiceManager
 import xyz.zarazaex.olc.util.MessageUtil
 import xyz.zarazaex.olc.util.Utils
@@ -139,10 +137,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             requestActivityLauncher.launch(Intent(this, PerAppProxyActivity::class.java))
             binding.drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START)
         }
-        findViewById<android.view.View>(R.id.drawer_check_update)?.setOnClickListener {
-            startActivity(Intent(this, CheckUpdateActivity::class.java))
-            binding.drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START)
-        }
         fun removeUnderlines(textView: android.widget.TextView?) {
             if (textView == null) return
             textView.movementMethod = android.text.method.LinkMovementMethod.getInstance()
@@ -199,9 +193,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         checkAndRequestPermission(PermissionType.POST_NOTIFICATIONS) {
         }
-
-        checkForUpdatesOnStartup()
-        showDonateDialogIfNeeded()
     }
 
     private fun setupViewModel() {
@@ -220,7 +211,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 binding.fab.alpha = 0.5f
                 val menu = binding.toolbar.menu
                 menu.findItem(R.id.real_ping_all)?.let { it.isEnabled = false; it.icon?.alpha = 128 }
-                menu.findItem(R.id.filter_by_country)?.let { it.isEnabled = false; it.icon?.alpha = 128 }
                 menu.findItem(R.id.sub_update)?.let { it.isEnabled = false; it.icon?.alpha = 128 }
                 // Молния — стоп-кнопка, всегда активна во время теста
                 binding.btnSummaryLite.isEnabled = true
@@ -236,7 +226,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorSecondaryContainer, 0)
                 )
                 if (!isLiteTesting) {
-                    showStatus("Проверка завершена")
+                    showStatus("Test completed")
                 }
             }
         }
@@ -259,11 +249,11 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 mainViewModel.reloadServerList()
 
                 if (firstReachable != null) {
-                    showStatus("Подключаемся к быстрейшему серверу")
+                    showStatus("Connecting to fastest server")
                     applyRunningState(isLoading = true, isRunning = false)
                     startV2RayWithPermission()
                 } else {
-                    showStatus("Нет доступных серверов!")
+                    showStatus("No servers available!")
                     setButtonsEnabled(true)
                 }
             }
@@ -326,10 +316,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             it.isEnabled = enabled
             it.icon?.alpha = if (enabled) 255 else 128
         }
-        menu.findItem(R.id.filter_by_country)?.let {
-            it.isEnabled = enabled
-            it.icon?.alpha = if (enabled) 255 else 128
-        }
         menu.findItem(R.id.sub_update)?.let {
             it.isEnabled = enabled
             it.icon?.alpha = if (enabled) 255 else 128
@@ -388,7 +374,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             mainViewModel.suppressPinSelected = false
             isLiteTesting = false
             isFabOperationInProgress = false
-            showStatus("Остановлено")
+            showStatus("Stopped")
             setButtonsEnabled(true)
             binding.btnSummaryLite.setIconResource(R.drawable.bolt_24)
             animateButtonTint(binding.btnSummaryLite,
@@ -410,7 +396,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     delay(1000)
                 }
 
-                showStatus("Обновление профилей...")
+                showStatus("Updating profiles...")
                 showLoading()
                 // Иконка молнии → стоп пока идёт обновление; FAB и меню блокируем
                 binding.btnSummaryLite.setIconResource(R.drawable.ic_stop_24dp)
@@ -420,7 +406,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 binding.fab.alpha = 0.5f
                 val menu = binding.toolbar.menu
                 menu.findItem(R.id.real_ping_all)?.let { it.isEnabled = false; it.icon?.alpha = 128 }
-                menu.findItem(R.id.filter_by_country)?.let { it.isEnabled = false; it.icon?.alpha = 128 }
                 menu.findItem(R.id.sub_update)?.let { it.isEnabled = false; it.icon?.alpha = 128 }
                 isLiteTesting = true
                 mainViewModel.suppressPinSelected = true
@@ -431,16 +416,16 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 mainViewModel.reloadServerList()
                 if (result.configCount > 0) {
                     val status = if (removed > 0)
-                        "Обновлено ${result.configCount} профилей, удалено $removed дубл. IP. Запуск теста..."
+                        "Updated ${result.configCount} profiles, removed $removed duplicate IPs. Starting test..."
                     else
-                        "Обновлено ${result.configCount} профилей. Запуск теста..."
+                        "Updated ${result.configCount} profiles. Starting test..."
                     showStatus(status)
                 } else {
-                    showStatus("Запуск теста...")
+                    showStatus("Starting test...")
                 }
                 hideLoading()
 
-                showStatus("Выполняется замер задержки. Ожидаем завершения...")
+                showStatus("Measuring delay. Waiting for completion...")
                 mainViewModel.testAllRealPing()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 // Пользователь нажал стоп — уже обработано выше
@@ -561,7 +546,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             binding.btnSummaryLite.alpha = 0.5f
             val menu = binding.toolbar.menu
             menu.findItem(R.id.real_ping_all)?.let { it.isEnabled = false; it.icon?.alpha = 128 }
-            menu.findItem(R.id.filter_by_country)?.let { it.isEnabled = false; it.icon?.alpha = 128 }
             menu.findItem(R.id.sub_update)?.let { it.isEnabled = false; it.icon?.alpha = 128 }
             setStatusDot(DotState.LOADING)
             return
@@ -698,11 +682,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             true
         }
 
-        R.id.filter_by_country -> {
-            showCountryFilterDialog()
-            true
-        }
-
         else -> super.onOptionsItemSelected(item)
     }
 
@@ -807,9 +786,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 withContext(Dispatchers.Main) {
                     mainViewModel.reloadServerList()
                     val msg = if (removed > 0)
-                        "Подписки обновлены: ${result.configCount} профилей, удалено $removed дубл. IP"
+                        "Subscriptions updated: ${result.configCount} profiles, removed $removed duplicate IPs"
                     else
-                        "Подписки обновлены: ${result.configCount} профилей"
+                        "Subscriptions updated: ${result.configCount} profiles"
                     showStatus(msg)
                 }
             }
@@ -827,7 +806,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 if (result.configCount > 0) {
                     mainViewModel.reloadServerList()
                     val status = if (removed > 0)
-                        "${getString(R.string.title_update_config_count, result.configCount)} (удалено $removed дубл. IP)"
+                        "${getString(R.string.title_update_config_count, result.configCount)} (removed $removed duplicate IPs)"
                     else
                         getString(R.string.title_update_config_count, result.configCount)
                     showStatus(status)
@@ -881,64 +860,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 hideLoading()
             }
         }
-    }
-
-    private fun showDonateDialogIfNeeded() {
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_DONATE_DIALOG_DISMISSED)) return
-        val postponeUntil = MmkvManager.decodeSettingsLong(AppConfig.PREF_DONATE_DIALOG_POSTPONE_UNTIL, 0L)
-        if (System.currentTimeMillis() < postponeUntil) return
-
-        // Откладываем на следующий тик, чтобы Activity полностью отрисовался
-        binding.root.post { showDonateDialog() }
-    }
-
-    private fun showDonateDialog() {
-        val view = layoutInflater.inflate(R.layout.dialog_donate, null)
-
-        val tonValue = view.findViewById<TextView>(R.id.donate_ton_value)
-        val trcValue = view.findViewById<TextView>(R.id.donate_trc_value)
-        val btcValue = view.findViewById<TextView>(R.id.donate_btc_value)
-
-        val openCard = View.OnClickListener { openUrl(getString(R.string.donate_card_link_url)) }
-        view.findViewById<View>(R.id.donate_card_row).setOnClickListener(openCard)
-        view.findViewById<View>(R.id.donate_card_open).setOnClickListener(openCard)
-
-        view.findViewById<View>(R.id.donate_ton_copy).setOnClickListener {
-            copyToClipboard(tonValue.text.toString())
-        }
-        view.findViewById<View>(R.id.donate_trc_copy).setOnClickListener {
-            copyToClipboard(trcValue.text.toString())
-        }
-        view.findViewById<View>(R.id.donate_btc_copy).setOnClickListener {
-            copyToClipboard(btcValue.text.toString())
-        }
-
-        val titleStr = getString(R.string.donate_dialog_title)
-        val dialog = MaterialAlertDialogBuilder(this)
-            .setView(view)
-            .setNegativeButton(R.string.donate_btn_dont_show) { d, _ ->
-                MmkvManager.encodeSettings(AppConfig.PREF_DONATE_DIALOG_DISMISSED, true)
-                d.dismiss()
-            }
-            .setCancelable(true)
-            .create()
-        // Closing (X / outside / back) postpones for 24h
-        val postpone = {
-            val postponeUntil = System.currentTimeMillis() + 24L * 60 * 60 * 1000
-            MmkvManager.encodeSettings(AppConfig.PREF_DONATE_DIALOG_POSTPONE_UNTIL, postponeUntil)
-        }
-        dialog.setOnCancelListener { postpone() }
-        dialog.setCustomTitle(buildDialogTitleWithClose(titleStr) {
-            postpone()
-            dialog.dismiss()
-        })
-        dialog.show()
-    }
-
-    private fun copyToClipboard(text: String) {
-        val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("addr", text))
-        toast(R.string.donate_toast_copied)
     }
 
     private fun openUrl(url: String) {
@@ -1080,7 +1001,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         when (item.itemId) {
             R.id.per_app_proxy_settings -> requestActivityLauncher.launch(Intent(this, PerAppProxyActivity::class.java))
             R.id.settings -> requestActivityLauncher.launch(Intent(this, SettingsActivity::class.java))
-            R.id.check_update -> startActivity(Intent(this, CheckUpdateActivity::class.java))
         }
 
         binding.drawerLayout.closeDrawer(GravityCompat.START)
@@ -1092,106 +1012,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         super.onDestroy()
     }
 
-    // ── Country filter dialog ─────────────────────────────────────────────────
 
-    private fun showCountryFilterDialog() {
-        showLoading()
-        lifecycleScope.launch(Dispatchers.IO) {
-            mainViewModel.refreshCountryCache()
-            // Collect all countries including UNKNOWN
-            val allCountriesMap = mainViewModel.collectAllCountries().toMutableMap()
-            // Add Unknown entry
-            allCountriesMap[CountryDetector.UNKNOWN] = "🌐 Неизвестно"
-
-            val currentFilter = mainViewModel.countryFilter  // empty = show all
-
-            withContext(Dispatchers.Main) {
-                hideLoading()
-                if (allCountriesMap.size <= 1) {
-                    showStatus("Нет серверов с известной страной")
-                    return@withContext
-                }
-
-                val codes = allCountriesMap.keys.toTypedArray()
-
-                // currentFilter stores excluded set (empty = show all)
-                val checked = BooleanArray(codes.size) { codes[it] in currentFilter }
-
-                val adapter = object : android.widget.BaseAdapter() {
-                    override fun getCount() = codes.size
-                    override fun getItem(pos: Int) = codes[pos]
-                    override fun getItemId(pos: Int) = pos.toLong()
-                    override fun getView(pos: Int, convertView: android.view.View?, parent: android.view.ViewGroup): android.view.View {
-                        val view = convertView ?: layoutInflater.inflate(R.layout.item_dialog_country, parent, false)
-                        val code = codes[pos]
-                        val isUnknown = code == CountryDetector.UNKNOWN
-                        view.findViewById<android.widget.TextView>(R.id.flag).text =
-                            if (isUnknown) "🌐" else CountryDetector.codeToFlag(code)
-                        view.findViewById<android.widget.TextView>(R.id.text).text =
-                            if (isUnknown) "Неизвестно" else CountryDetector.codeToName(code)
-                        view.findViewById<android.widget.TextView>(R.id.code).text =
-                            if (isUnknown) "—" else code
-                        val cb = view.findViewById<com.google.android.material.checkbox.MaterialCheckBox>(R.id.check_box)
-                        cb.isChecked = checked[pos]
-                        view.setOnClickListener {
-                            checked[pos] = !checked[pos]
-                            cb.isChecked = checked[pos]
-                        }
-                        return view
-                    }
-                }
-
-                val dialog = MaterialAlertDialogBuilder(this@MainActivity)
-                    .setAdapter(adapter, null)
-                    .setPositiveButton("Применить") { _, _ ->
-                        val excluded = codes.filterIndexed { i, _ -> checked[i] }.toSet()
-                        mainViewModel.applyCountryFilter(excluded)
-                        val msg = if (excluded.isEmpty()) "Показаны все страны"
-                            else "Скрыто: ${excluded.joinToString { CountryDetector.codeToFlag(it) }}"
-                        showStatus(msg)
-                    }
-                    .setNeutralButton("Сбросить") { _, _ ->
-                        mainViewModel.applyCountryFilter(emptySet())
-                        showStatus("Показаны все страны")
-                    }
-                    .create()
-                dialog.setCustomTitle(buildDialogTitleWithClose("Исключить страны") { dialog.dismiss() })
-                dialog.show()
-            }
-        }
-    }
-
-    private fun checkForUpdatesOnStartup() {
-        showStatus("Проверка обновлений...")
-        lifecycleScope.launch {
-            try {
-                val result = UpdateCheckerManager.checkForUpdate(true)
-                if (result.hasUpdate) {
-                    showStatus("Доступно обновление ${result.latestVersion}")
-                    showUpdateAvailableDialog(result)
-                } else {
-                    showStatus("Обновлений нет")
-                }
-            } catch (e: Exception) {
-                Log.e(AppConfig.TAG, "Failed to check for updates on startup: ${e.message}")
-            }
-        }
-    }
-    
-    private fun showUpdateAvailableDialog(result: xyz.zarazaex.olc.dto.CheckUpdateResult) {
-        val message = result.releaseNotes?.let { xyz.zarazaex.olc.util.MarkdownUtil.parseBasic(it) } ?: ""
-        val titleStr = getString(R.string.update_new_version_found, result.latestVersion)
-        val dialog = MaterialAlertDialogBuilder(this)
-            .setMessage(message)
-            .setPositiveButton(R.string.update_now) { _, _ ->
-                result.downloadUrl?.let {
-                    Utils.openUri(this, it)
-                }
-            }
-            .create()
-        dialog.setCustomTitle(buildDialogTitleWithClose(titleStr) { dialog.dismiss() })
-        dialog.show()
-    }
 
     private fun buildDialogTitleWithClose(title: String, onClose: () -> Unit): View {
         val view = layoutInflater.inflate(R.layout.dialog_title_with_close, null)

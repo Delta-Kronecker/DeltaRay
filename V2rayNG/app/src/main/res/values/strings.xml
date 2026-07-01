@@ -198,11 +198,11 @@
     <string name="msg_downloading_content">Downloading content</string>
     <string name="menu_item_export_proxy_app">Export to Clipboard</string>
     <string name="menu_item_import_proxy_app">Import from Clipboard</string>
-    <string name="per_app_proxy_settings">Раздельное туннелирование</string>
-    <string name="per_app_proxy_settings_enable">Включить</string>
+    <string name="per_app_proxy_settings">Split Tunneling</string>
+    <string name="per_app_proxy_settings_enable">Enable</string>
     <string
         name="split_tunneling_description"
-    >Выберите приложения, которые будут использовать VPN. Остальные (например банки) пойдут напрямую через ваш домашний интернет.\n\nВ режиме обхода всё зеркально: выбранные приложения не используют VPN.</string>
+    >Choose which apps will use the VPN. The rest (e.g. banks) will go directly through your home internet.\n\nIn bypass mode it works the opposite way: selected apps do NOT use the VPN.</string>
 
     <!-- Preferences -->
     <string name="title_settings">Settings</string>
@@ -450,6 +450,7 @@
     <string name="title_sub_update">Update subscription</string>
     <string name="title_ping_all_server">Tcping config</string>
     <string name="title_real_ping_all_server">Real delay config</string>
+    <string name="real_ping_all">Test delay</string>
     <string name="title_user_asset_setting">Asset files</string>
     <string name="title_sort_by_test_results">Sorting by test results</string>
     <string name="title_filter_config">Filter config</string>
@@ -537,7 +538,7 @@
     <string name="connection_test_testing">Testing…</string>
     <string
         name="connection_test_testing_count"
-    >Тестирование %d серверов…</string>
+    >Testing %d servers…</string>
     <string
         name="connection_test_available"
     >Success: Connection took %dms</string>
@@ -549,9 +550,9 @@
     <string
         name="connection_connected"
     >Connected, tap to check connection</string>
-    <string name="connection_not_connected">Готово к подключению</string>
+    <string name="connection_not_connected">Ready to connect</string>
     <string name="connection_updating_profiles">Updating profiles…</string>
-    <string name="connection_runing_task_left">Проверено %s</string>
+    <string name="connection_runing_task_left">Tested %s</string>
 
     <string
         name="import_subscription_success"
@@ -666,35 +667,15 @@
     </string-array>
 
     <!-- Donate dialog -->
-    <string name="donate_dialog_title">Поддержите нас</string>
-    <string name="donate_label_card">Карта</string>
+    <string name="donate_dialog_title">Support us</string>
+    <string name="donate_label_card">Card</string>
     <string name="donate_label_ton">TON</string>
     <string name="donate_label_trc20">TRC20</string>
     <string name="donate_label_btc">BTC</string>
-    <string
-        name="donate_card_url"
-        translatable="false"
-    >pay.cloudtips.ru/p/28c476e5</string>
-    <string
-        name="donate_addr_ton"
-        translatable="false"
-    >UQD_Qc2cxLGe1P4wANi46cKdEvvzyJRrJTYPvGX2KAZDnsDh</string>
-    <string
-        name="donate_addr_trc20"
-        translatable="false"
-    >TYQqdACH5PrScvsMowSyS8JjaaF5wvFf5Q</string>
-    <string
-        name="donate_addr_btc"
-        translatable="false"
-    >bc1qvw0ts0jk5e5dfj9fdez76j9ck95lqz04fpf02a</string>
-    <string name="donate_copy">Копировать</string>
-    <string name="donate_open_link">Открыть</string>
-    <string
-        name="donate_card_link_url"
-        translatable="false"
-    >https://pay.cloudtips.ru/p/28c476e5</string>
-    <string name="donate_btn_dont_show">Не показывать</string>
-    <string name="donate_btn_postpone">Позже</string>
-    <string name="donate_toast_copied">Скопировано</string>
+    <string name="donate_copy">Copy</string>
+    <string name="donate_open_link">Open</string>
+    <string name="donate_btn_dont_show">Don\'t show</string>
+    <string name="donate_btn_postpone">Later</string>
+    <string name="donate_toast_copied">Copied</string>
 
 </resources>

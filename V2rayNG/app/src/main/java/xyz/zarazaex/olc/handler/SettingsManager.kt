@@ -555,44 +555,26 @@ object SettingsManager {
     }
 
     /**
-     * Ensures the default subscription exists for ungrouped servers.
-     * Also creates default VLESS and Trojan subscriptions if they don't exist.
+     * Ensures the default subscriptions exist with proper names and URLs.
      * Made public for migration in SettingsManager.
      */
     private fun ensureDefaultSubscription() {
-        if (decodeSubscription(DEFAULT_SUBSCRIPTION_ID) == null) {
-            val defaultSub = SubscriptionItem(
-                remarks = "Default",
-            )
-            encodeSubscription(DEFAULT_SUBSCRIPTION_ID, defaultSub)
+        val defaultSubscriptions = listOf(
+            Triple("sub_best", "\u26A1 Best", AppConfig.DEFAULT_SUBSCRIPTION_BEST_URL),
+            Triple("sub_vless", "\uD83D\uDD25 Delta Vless", AppConfig.DEFAULT_SUBSCRIPTION_VLESS_URL),
+            Triple("sub_trojan", "\uD83D\uDD25 Delta Trojan", AppConfig.DEFAULT_SUBSCRIPTION_TROJAN_URL),
+            Triple("sub_ss", "\uD83D\uDD25 Delta Ss", AppConfig.DEFAULT_SUBSCRIPTION_SS_URL),
+        )
 
-            // Move top
-            val subsList = decodeSubsList()
-            if (subsList.count() > 1) {
-                swapSubscriptions(0, subsList.count() - 1)
+        for ((id, name, url) in defaultSubscriptions) {
+            if (decodeSubscription(id) == null) {
+                val sub = SubscriptionItem(
+                    remarks = name,
+                    url = url,
+                    enabled = true,
+                )
+                encodeSubscription(id, sub)
             }
-        }
-
-        // Create default VLESS subscription if not exists
-        val vlessSubId = "default_vless"
-        if (decodeSubscription(vlessSubId) == null) {
-            val vlessSub = SubscriptionItem(
-                remarks = "VLESS Configs",
-                url = AppConfig.DEFAULT_SUBSCRIPTION_VLESS_URL,
-                enabled = true,
-            )
-            encodeSubscription(vlessSubId, vlessSub)
-        }
-
-        // Create default Trojan subscription if not exists
-        val trojanSubId = "default_trojan"
-        if (decodeSubscription(trojanSubId) == null) {
-            val trojanSub = SubscriptionItem(
-                remarks = "Trojan Configs",
-                url = AppConfig.DEFAULT_SUBSCRIPTION_TROJAN_URL,
-                enabled = true,
-            )
-            encodeSubscription(trojanSubId, trojanSub)
         }
     }
     

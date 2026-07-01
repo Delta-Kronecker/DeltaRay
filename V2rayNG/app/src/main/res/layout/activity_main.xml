@@ -263,21 +263,6 @@
                 app:iconGravity="start"
                 app:iconTint="?attr/colorOnSurfaceVariant" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/drawer_check_update"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="start|center_vertical"
-                android:drawablePadding="12dp"
-                android:paddingTop="12dp"
-                android:paddingBottom="16dp"
-                android:text="@string/update_check_for_update"
-                android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                android:textColor="?attr/colorOnSurface"
-                app:iconGravity="start"
-                app:iconTint="?attr/colorOnSurfaceVariant" />
-
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
