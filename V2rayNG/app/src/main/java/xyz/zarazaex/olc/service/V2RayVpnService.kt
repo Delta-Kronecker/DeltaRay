@@ -78,6 +78,7 @@ class V2RayVpnService : VpnService(), ServiceControl {
     override fun onCreate() {
         super.onCreate()
         Log.i(AppConfig.TAG, "StartCore-VPN: Service created")
+        AppConfig.addServiceLog("VPN: onCreate")
         val policy = StrictMode.ThreadPolicy.Builder().permitAll().build()
         StrictMode.setThreadPolicy(policy)
         V2RayServiceManager.serviceControl = SoftReference(this)
@@ -106,6 +107,7 @@ class V2RayVpnService : VpnService(), ServiceControl {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.i(AppConfig.TAG, "StartCore-VPN: Service command received")
+        AppConfig.addServiceLog("VPN: onStartCommand")
         setupVpnService()
         startService()
         return START_NOT_STICKY
@@ -116,15 +118,20 @@ class V2RayVpnService : VpnService(), ServiceControl {
     }
 
     override fun startService() {
+        AppConfig.addServiceLog("VPN: startService called")
         if (!::mInterface.isInitialized) {
             Log.e(AppConfig.TAG, "StartCore-VPN: Interface not initialized")
+            AppConfig.addServiceLog("VPN: ERROR interface not initialized")
             return
         }
+        AppConfig.addServiceLog("VPN: calling startCoreLoop")
         if (!V2RayServiceManager.startCoreLoop(mInterface)) {
             Log.e(AppConfig.TAG, "StartCore-VPN: Failed to start core loop")
+            AppConfig.addServiceLog("VPN: ERROR startCoreLoop failed")
             stopAllService()
             return
         }
+        AppConfig.addServiceLog("VPN: startCoreLoop OK")
     }
 
     override fun stopService() {
@@ -147,18 +154,23 @@ class V2RayVpnService : VpnService(), ServiceControl {
      * Prepares the VPN and configures it if preparation is successful.
      */
     private fun setupVpnService() {
+        AppConfig.addServiceLog("VPN: setupVpnService")
         val prepare = prepare(this)
         if (prepare != null) {
             Log.e(AppConfig.TAG, "StartCore-VPN: Permission not granted")
+            AppConfig.addServiceLog("VPN: ERROR permission not granted")
             stopSelf()
             return
         }
+        AppConfig.addServiceLog("VPN: permission OK")
 
         if (configureVpnService() != true) {
             Log.e(AppConfig.TAG, "StartCore-VPN: Configuration failed")
+            AppConfig.addServiceLog("VPN: ERROR configureVpnService failed")
             stopSelf()
             return
         }
+        AppConfig.addServiceLog("VPN: configureVpnService OK")
 
         runTun2socks()
     }
@@ -168,6 +180,7 @@ class V2RayVpnService : VpnService(), ServiceControl {
      * @return True if the VPN service was configured successfully, false otherwise.
      */
     private fun configureVpnService(): Boolean {
+        AppConfig.addServiceLog("VPN: configureVpnService")
         val builder = Builder()
 
         // Configure network settings (addresses, routing and DNS)
@@ -192,9 +205,11 @@ class V2RayVpnService : VpnService(), ServiceControl {
         try {
             mInterface = builder.establish()!!
             isRunning = true
+            AppConfig.addServiceLog("VPN: VPN interface established OK")
             return true
         } catch (e: Exception) {
             Log.e(AppConfig.TAG, "Failed to establish VPN interface", e)
+            AppConfig.addServiceLog("VPN: ERROR establish failed: ${e.message}")
             stopAllService()
         }
         return false

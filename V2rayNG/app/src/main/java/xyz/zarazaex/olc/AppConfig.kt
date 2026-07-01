@@ -3,6 +3,17 @@ package xyz.zarazaex.olc
 
 object AppConfig {
 
+    /** Static log buffer for drawer display */
+    private val _serviceLog = mutableListOf<String>()
+    val serviceLog: List<String> get() = synchronized(_serviceLog) { _serviceLog.toList() }
+    fun addServiceLog(msg: String) {
+        val ts = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.US).format(java.util.Date())
+        synchronized(_serviceLog) {
+            _serviceLog.add("$ts SVC: $msg")
+            if (_serviceLog.size > 200) _serviceLog.removeAt(0)
+        }
+    }
+
     /** The application's package name. */
     const val ANG_PACKAGE = BuildConfig.APPLICATION_ID
     const val TAG = BuildConfig.APPLICATION_ID

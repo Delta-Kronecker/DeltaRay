@@ -65,7 +65,11 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         Log.d(AppConfig.TAG, line)
         runOnUiThread {
             logMessages.add(line)
-            if (logMessages.size > maxLogLines) logMessages.removeAt(0)
+            val svcLogs = AppConfig.serviceLog
+            logMessages.addAll(svcLogs.filter { it !in logMessages })
+            if (logMessages.size > maxLogLines) {
+                logMessages.subList(0, logMessages.size - maxLogLines).clear()
+            }
             binding.tvLog.text = logMessages.joinToString("\n")
             binding.logScroll.post { binding.logScroll.fullScroll(android.view.View.FOCUS_DOWN) }
         }
