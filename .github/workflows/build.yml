@@ -107,7 +107,7 @@ jobs:
           TAG_NAME="${{ github.event.inputs.release_tag }}"
           VERSION_NAME="${TAG_NAME#v}"
         else
-          VERSION_NAME="dev-$(git rev-parse --short HEAD)"
+          VERSION_NAME="0.1.$(git rev-list --count HEAD)"
         fi
         
         IFS='.' read -ra VERSION_PARTS <<< "$VERSION_NAME"
@@ -115,6 +115,10 @@ jobs:
         MINOR=${VERSION_PARTS[1]:-0}
         PATCH=${VERSION_PARTS[2]:-0}
         VERSION_CODE=$((MAJOR * 1000000 + MINOR * 1000 + PATCH))
+        
+        if [ "$VERSION_CODE" -le 0 ] 2>/dev/null; then
+          VERSION_CODE=1
+        fi
         
         echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
         echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
