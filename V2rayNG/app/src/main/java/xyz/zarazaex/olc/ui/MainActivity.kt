@@ -2,6 +2,7 @@ package xyz.zarazaex.olc.ui
 
 import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
+import android.content.BroadcastReceiver
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
