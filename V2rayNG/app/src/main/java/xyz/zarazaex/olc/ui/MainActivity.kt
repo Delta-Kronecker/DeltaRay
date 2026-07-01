@@ -140,6 +140,14 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             requestActivityLauncher.launch(Intent(this, PerAppProxyActivity::class.java))
             binding.drawerLayout.closeDrawer(GravityCompat.START)
         }
+        findViewById<android.view.View>(R.id.drawer_telegram)?.setOnClickListener {
+            openUrl("https://t.me/DeltaKroneckerGithub")
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
+        }
+        findViewById<android.view.View>(R.id.drawer_source)?.setOnClickListener {
+            openUrl("https://github.com/Delta-Kronecker/DeltaRay")
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
+        }
         fun removeUnderlines(textView: android.widget.TextView?) {
             if (textView == null) return
             textView.movementMethod = android.text.method.LinkMovementMethod.getInstance()

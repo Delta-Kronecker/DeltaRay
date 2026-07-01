@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <resources>
-    <string name="app_name" translatable="false">olcng</string>
+    <string name="app_name" translatable="false">DeltaRay</string>
     <string name="app_widget_name">Switch</string>
     <string name="app_tile_name">Switch</string>
     <string
@@ -9,15 +9,11 @@
     <string name="navigation_drawer_open">Open navigation drawer</string>
     <string name="navigation_drawer_close">Close navigation drawer</string>
     <string name="migration_success">Data migration success!</string>
-    <string name="drawer_forked_text" translatable="false">forked from <a
-            href="https://github.com/2dust/v2rayng"
-        >V2RayNG</a></string>
+    <string name="drawer_forked_text" translatable="false"></string>
     <string
         name="drawer_developed_text"
         translatable="false"
-    >developed by developers from <a
-            href="https://t.me/openlibrecommunity"
-        >Olc</a></string>
+    ></string>
     <string name="action_stop_service">Stop service</string>
     <string name="migration_fail">Data migration failed!</string>
     <string name="pull_down_to_refresh">Please pull down to refresh!</string>
