@@ -243,7 +243,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         }
     }
 
-    private var startupDialog: android.app.AlertDialog? = null
+    private var startupDialog: androidx.appcompat.app.AlertDialog? = null
 
     private fun showStartupDialog() {
         binding.btnConnect.isEnabled = false
