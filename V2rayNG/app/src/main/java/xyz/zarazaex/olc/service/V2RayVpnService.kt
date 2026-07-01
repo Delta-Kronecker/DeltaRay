@@ -126,7 +126,7 @@ class V2RayVpnService : VpnService(), ServiceControl {
         try {
             createNotificationChannel()
             val notification = NotificationCompat.Builder(this, AppConfig.RAY_NG_CHANNEL_ID)
-                .setContentTitle("OLCNG")
+                .setContentTitle("DeltaRay")
                 .setContentText("VPN service starting...")
                 .setSmallIcon(R.drawable.ic_play_24dp)
                 .setOngoing(true)
