@@ -108,9 +108,39 @@ class V2RayVpnService : VpnService(), ServiceControl {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.i(AppConfig.TAG, "StartCore-VPN: Service command received")
         AppConfig.addServiceLog("VPN: onStartCommand")
+
+        // Must call startForeground() within 5 seconds or Android kills the service
+        try {
+            createNotificationChannel()
+            val notification = NotificationCompat.Builder(this, AppConfig.RAY_NG_CHANNEL_ID)
+                .setContentTitle("OLCNG")
+                .setContentText("VPN service starting...")
+                .setSmallIcon(R.drawable.ic_play_24dp)
+                .setOngoing(true)
+                .build()
+            startForeground(1, notification)
+            Log.i(AppConfig.TAG, "StartCore-VPN: startForeground called OK")
+            AppConfig.addServiceLog("VPN: startForeground OK")
+        } catch (e: Exception) {
+            Log.e(AppConfig.TAG, "StartCore-VPN: startForeground FAILED: ${e.message}", e)
+            AppConfig.addServiceLog("VPN: ERROR startForeground: ${e.message}")
+        }
+
         setupVpnService()
         startService()
         return START_NOT_STICKY
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                AppConfig.RAY_NG_CHANNEL_ID,
+                AppConfig.RAY_NG_CHANNEL_NAME,
+                android.app.NotificationManager.IMPORTANCE_LOW
+            )
+            val nm = getSystemService(android.app.NotificationManager::class.java)
+            nm.createNotificationChannel(channel)
+        }
     }
 
     override fun getService(): Service {
