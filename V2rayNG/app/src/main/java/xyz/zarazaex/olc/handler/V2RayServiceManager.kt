@@ -192,17 +192,14 @@ object V2RayServiceManager {
      * Starts the V2Ray core service.
      */
     fun startCoreLoop(vpnInterface: ParcelFileDescriptor?): Boolean {
-        val ctx = getService()
-        AppConfig.broadcastLog(ctx, "CORE: startCoreLoop called, isRunning=${coreController.isRunning}")
-        if (coreController.isRunning) {
-            Log.w(AppConfig.TAG, "StartCore-Manager: Core already running")
-            return false
-        }
-
         val service = getService()
         if (service == null) {
             Log.e(AppConfig.TAG, "StartCore-Manager: Service is null")
-            AppConfig.broadcastLog(service ?: return false, "CORE: ERROR service null")
+            return false
+        }
+        AppConfig.broadcastLog(service, "CORE: startCoreLoop called, isRunning=${coreController.isRunning}")
+        if (coreController.isRunning) {
+            Log.w(AppConfig.TAG, "StartCore-Manager: Core already running")
             return false
         }
 
