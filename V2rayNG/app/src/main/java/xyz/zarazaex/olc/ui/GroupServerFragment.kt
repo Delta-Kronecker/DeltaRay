@@ -284,8 +284,6 @@ class GroupServerFragment : BaseFragment<FragmentGroupServerBinding>(),
     }
 
     override fun onRefresh() {
-        ownerActivity.importConfigViaSub()
-        //binding.refreshLayout.isRefreshing = false
     }
 
     /**
