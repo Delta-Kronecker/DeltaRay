@@ -422,10 +422,28 @@ object V2RayServiceManager {
             } catch (e: Exception) {
                 Log.e(AppConfig.TAG, "StartCore-Manager: Failed to handle core shutdown", e)
                 -1
+        }
+    }
+
+    /**
+     * Simple ping test for failover. Returns delay in ms or -1 for failure.
+     */
+    suspend fun measurePingSimple(): Long {
+        if (coreController.isRunning == false) return -1L
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = SettingsManager.getDelayTestUrl()
+                val result = withTimeoutOrNull(10_000L) {
+                    coreController.measureDelay(url)
+                }
+                result ?: -1L
+            } catch (e: Exception) {
+                -1L
             }
         }
+    }
 
-        /**
+    /**
          * Called when V2Ray core emits status information.
          * @param l Status code.
          * @param s Status message.

@@ -34,6 +34,7 @@ import xyz.zarazaex.olc.enums.PermissionType
 import xyz.zarazaex.olc.extension.toast
 import xyz.zarazaex.olc.extension.toastError
 import xyz.zarazaex.olc.handler.AngConfigManager
+import xyz.zarazaex.olc.handler.FailoverManager
 import xyz.zarazaex.olc.handler.MmkvManager
 import xyz.zarazaex.olc.handler.SettingsChangeManager
 import xyz.zarazaex.olc.handler.SettingsManager
@@ -386,8 +387,15 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             if (isRunning && !wasRunning) {
                 wasRunning = true
                 updateSubsViaVpn()
+                // Start failover monitoring
+                FailoverManager.onStatusChange = { status ->
+                    log(status)
+                    runOnUiThread { showStatus(status) }
+                }
+                FailoverManager.start(this)
             } else if (!isRunning) {
                 wasRunning = false
+                FailoverManager.stop()
             }
             applyRunningState(isRunning)
         }
@@ -400,6 +408,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         if (isRunning || isTesting) {
             log("BTN: stopping (isRunning=$isRunning isTesting=$isTesting)")
+            FailoverManager.stop()
             if (isTesting) {
                 mainViewModel.cancelAllTests()
                 mainViewModel.suppressPinSelected = false
