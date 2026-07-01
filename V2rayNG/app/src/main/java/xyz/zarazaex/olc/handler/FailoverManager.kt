@@ -9,7 +9,7 @@ import xyz.zarazaex.olc.handler.V2RayServiceManager
 object FailoverManager {
 
     private var job: Job? = null
-    private var isActive = false
+    private var failoverActive = false
     private var currentServerIndex = 0
     private var sortedServers = mutableListOf<String>()
 
@@ -24,8 +24,8 @@ object FailoverManager {
     var onStatusChange: ((String) -> Unit)? = null
 
     fun start(context: Context) {
-        if (isActive) return
-        isActive = true
+        if (failoverActive) return
+        failoverActive = true
         onStatusChange?.invoke("Failover: started")
 
         job = CoroutineScope(Dispatchers.IO).launch {
@@ -35,7 +35,7 @@ object FailoverManager {
                 withContext(Dispatchers.Main) {
                     onStatusChange?.invoke("Failover: not enough servers (${sortedServers.size})")
                 }
-                isActive = false
+                failoverActive = false
                 return@launch
             }
 
@@ -46,7 +46,7 @@ object FailoverManager {
             }
 
             // Main failover loop
-            while (isActive && coroutineContext.isActive) {
+            while (failoverActive && coroutineContext.failoverActive) {
                 // Test current server
                 val currentServer = sortedServers[currentServerIndex]
                 val delay = testServerPing()
@@ -98,7 +98,7 @@ object FailoverManager {
     }
 
     fun stop() {
-        isActive = false
+        failoverActive = false
         job?.cancel()
         job = null
         sortedServers.clear()
@@ -106,7 +106,7 @@ object FailoverManager {
         onStatusChange?.invoke("Failover: stopped")
     }
 
-    fun isRunning(): Boolean = isActive
+    fun isRunning(): Boolean = failoverActive
 
     /**
      * Test ping to current server through the live VPN tunnel.
