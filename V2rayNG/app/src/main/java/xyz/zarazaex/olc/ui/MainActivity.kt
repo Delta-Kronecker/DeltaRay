@@ -263,66 +263,44 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     private fun handleConnectAction() {
-        if (connectJob?.isActive == true) {
-            connectJob?.cancel()
-            connectJob = null
-            mainViewModel.cancelAllTests()
-            mainViewModel.suppressPinSelected = false
-            isOperationInProgress = false
-            showStatus("Stopped")
-            binding.btnConnect.setIconResource(R.drawable.bolt_24)
-            hideLoading()
-            return
-        }
+        val isRunning = mainViewModel.isRunning.value == true
+        val isTesting = mainViewModel.isTesting.value == true
 
-        if (isOperationInProgress) {
-            if (mainViewModel.isRunning.value == true) {
+        if (isRunning || isTesting) {
+            if (isTesting) {
+                mainViewModel.cancelAllTests()
+                mainViewModel.suppressPinSelected = false
+            }
+            if (isRunning) {
                 lifecycleScope.launch {
                     V2RayServiceManager.stopVService(this@MainActivity)
                 }
             }
+            isOperationInProgress = false
+            showStatus("Stopped")
+            binding.btnConnect.setIconResource(R.drawable.bolt_24)
+            applyRunningState(false)
             return
         }
 
+        if (isOperationInProgress) return
         isOperationInProgress = true
 
         connectJob = lifecycleScope.launch {
             try {
-                if (mainViewModel.isRunning.value == true) {
-                    V2RayServiceManager.stopVService(this@MainActivity)
-                    delay(1000)
-                }
-
-                showStatus("Updating profiles...")
+                showStatus("Testing all servers...")
                 showLoading()
                 binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
                 mainViewModel.suppressPinSelected = true
 
-                val result = withContext(Dispatchers.IO) { mainViewModel.updateConfigViaSubAll() }
-                val removed = withContext(Dispatchers.IO) { mainViewModel.removeDuplicateByIpAll() }
-
                 mainViewModel.reloadServerList()
-                if (result.configCount > 0) {
-                    val status = if (removed > 0)
-                        "Updated ${result.configCount} profiles, removed $removed duplicate IPs. Starting test..."
-                    else
-                        "Updated ${result.configCount} profiles. Starting test..."
-                    showStatus(status)
-                } else {
-                    showStatus("Starting test...")
-                }
-                hideLoading()
-
-                showStatus("Measuring delay. Waiting for completion...")
                 mainViewModel.testAllRealPing()
             } catch (e: kotlinx.coroutines.CancellationException) {
-                // stopped by user
             } catch (e: Exception) {
                 Log.e(AppConfig.TAG, "Error in handleConnectAction", e)
                 isOperationInProgress = false
                 hideLoading()
-            } finally {
-                connectJob = null
+                binding.btnConnect.setIconResource(R.drawable.bolt_24)
             }
         }
     }
@@ -412,6 +390,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             )
             binding.btnConnect.backgroundTintList = accentColor()
             binding.btnConnect.iconTint = onPrimary
+            binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
             setTestState(getString(R.string.connection_connected))
             setStatusDot(DotState.CONNECTED)
         } else {
