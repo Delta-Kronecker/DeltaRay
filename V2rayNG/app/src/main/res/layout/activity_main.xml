@@ -15,7 +15,7 @@
             android:id="@+id/app_bar_layout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorSurface"
+            android:background="@android:color/transparent"
             app:elevation="0dp"
             app:liftOnScroll="false">
 
@@ -23,6 +23,7 @@
                 android:id="@+id/toolbar"
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
+                android:background="@android:color/transparent"
                 app:title="@string/app_name"
                 app:titleTextColor="?attr/colorOnSurface"
                 app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge" />
@@ -32,104 +33,165 @@
         <com.google.android.material.progressindicator.LinearProgressIndicator
             android:id="@+id/progress_bar"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="4dp"
             android:indeterminate="true"
             android:visibility="invisible"
             app:indicatorColor="?attr/colorPrimary"
-            app:trackCornerRadius="0dp"
+            app:trackCornerRadius="2dp"
             app:trackColor="@android:color/transparent" />
 
-        <LinearLayout
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:padding="32dp">
+            android:layout_weight="1">
 
-            <!-- Subscription group selector -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Connection Mode"
-                android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:layout_marginBottom="12dp" />
-
-            <Spinner
-                android:id="@+id/spinner_group"
+            <View
+                android:id="@+id/gradient_bg"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:background="@android:drawable/btn_dropdown"
-                android:layout_marginBottom="48dp" />
+                android:layout_height="match_parent"
+                android:background="@drawable/gradient_background" />
 
-            <!-- Status pill -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/layout_test"
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginBottom="32dp"
-                android:clickable="true"
-                android:focusable="true"
-                app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
-                app:cardCornerRadius="24dp"
-                app:cardElevation="0dp"
-                app:strokeWidth="0dp">
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:paddingStart="28dp"
+                android:paddingEnd="28dp">
 
-                <LinearLayout
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="⚡"
+                    android:textSize="48sp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/tv_connection_mode_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Connection Mode"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                    android:textColor="?attr/colorOnSurface"
+                    android:letterSpacing="0.05"
+                    android:layout_marginBottom="16dp" />
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_spinner"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp">
+                    android:layout_height="56dp"
+                    android:layout_marginBottom="40dp"
+                    app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="?attr/colorOutlineVariant">
+
+                    <Spinner
+                        android:id="@+id/spinner_group"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="12dp"
+                        android:layout_marginEnd="12dp"
+                        android:background="@android:color/transparent" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/layout_test"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_marginBottom="48dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    app:cardBackgroundColor="?attr/colorSurfaceContainer"
+                    app:cardCornerRadius="26dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="?attr/colorOutlineVariant">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingStart="20dp"
+                        android:paddingEnd="20dp">
+
+                        <View
+                            android:id="@+id/status_dot"
+                            android:layout_width="10dp"
+                            android:layout_height="10dp"
+                            android:background="@drawable/status_dot"
+                            android:layout_marginEnd="12dp" />
+
+                        <TextView
+                            android:id="@+id/tv_test_state"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:maxLines="1"
+                            android:ellipsize="end"
+                            android:text="@string/connection_test_pending"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <FrameLayout
+                    android:layout_width="160dp"
+                    android:layout_height="160dp"
+                    android:layout_gravity="center">
 
                     <View
-                        android:id="@+id/status_dot"
-                        android:layout_width="10dp"
-                        android:layout_height="10dp"
-                        android:background="@drawable/status_dot"
-                        android:layout_marginEnd="10dp" />
+                        android:id="@+id/pulse_ring"
+                        android:layout_width="160dp"
+                        android:layout_height="160dp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/pulse_ring"
+                        android:alpha="0" />
 
-                    <TextView
-                        android:id="@+id/tv_test_state"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:maxLines="1"
-                        android:ellipsize="end"
-                        android:text="@string/connection_test_pending"
-                        android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                        android:textColor="?attr/colorOnSurfaceVariant" />
+                    <View
+                        android:id="@+id/pulse_ring_2"
+                        android:layout_width="160dp"
+                        android:layout_height="160dp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/pulse_ring"
+                        android:alpha="0" />
 
-                </LinearLayout>
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_connect"
+                        style="@style/Widget.Material3.Button.ElevatedButton"
+                        android:layout_width="140dp"
+                        android:layout_height="140dp"
+                        android:layout_gravity="center"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        app:icon="@drawable/bolt_24"
+                        app:iconSize="52dp"
+                        app:iconGravity="textStart"
+                        app:iconPadding="0dp"
+                        app:cornerRadius="70dp"
+                        app:backgroundTint="?attr/colorPrimary"
+                        app:iconTint="@android:color/white"
+                        app:strokeWidth="0dp"
+                        app:elevation="8dp"
+                        app:rippleColor="?attr/colorPrimary" />
 
-            </com.google.android.material.card.MaterialCardView>
+                </FrameLayout>
 
-            <!-- Main connect/disconnect button -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_connect"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_width="120dp"
-                android:layout_height="120dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                app:icon="@drawable/bolt_24"
-                app:iconSize="48dp"
-                app:iconGravity="textStart"
-                app:cornerRadius="60dp"
-                app:backgroundTint="?attr/colorPrimaryContainer"
-                app:iconTint="?attr/colorOnPrimaryContainer"
-                app:rippleColor="?attr/colorPrimary" />
+            </LinearLayout>
 
-        </LinearLayout>
+        </FrameLayout>
 
     </LinearLayout>
 
     <!-- Navigation Drawer -->
     <LinearLayout
         android:id="@+id/drawer_content_layout"
-        android:layout_width="280dp"
+        android:layout_width="300dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
         android:background="?attr/colorSurfaceContainerLow"

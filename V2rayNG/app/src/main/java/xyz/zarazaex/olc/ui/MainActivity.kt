@@ -180,8 +180,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             groupIds.add(sub.guid)
         }
 
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, groupNames)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        val adapter = ArrayAdapter(this, R.layout.spinner_item, groupNames)
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
         binding.spinnerGroup.adapter = adapter
 
         val savedId = MmkvManager.decodeSettingsString(AppConfig.CACHE_SUBSCRIPTION_ID, "").orEmpty()
@@ -216,6 +216,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             if (testing) {
                 binding.btnConnect.isEnabled = true
                 binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
+                binding.btnConnect.animate().scaleX(0.9f).scaleY(0.9f).setDuration(150).withEndAction {
+                    binding.btnConnect.animate().scaleX(1f).scaleY(1f).setDuration(150).start()
+                }.start()
                 setStatusDot(DotState.LOADING)
             } else {
                 binding.btnConnect.isEnabled = true
@@ -285,6 +288,10 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         if (isOperationInProgress) return
         isOperationInProgress = true
+
+        binding.btnConnect.animate().scaleX(0.85f).scaleY(0.85f).setDuration(100).withEndAction {
+            binding.btnConnect.animate().scaleX(1f).scaleY(1f).setDuration(150).start()
+        }.start()
 
         connectJob = lifecycleScope.launch {
             try {
@@ -384,6 +391,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     private fun applyRunningState(isRunning: Boolean) {
+        val ring1 = binding.pulseRing
+        val ring2 = binding.pulseRing2
         if (isRunning) {
             val onPrimary = ColorStateList.valueOf(
                 com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnPrimary, 0)
@@ -391,9 +400,11 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             binding.btnConnect.backgroundTintList = accentColor()
             binding.btnConnect.iconTint = onPrimary
             binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
+            startPulseAnimation(ring1, ring2)
             setTestState(getString(R.string.connection_connected))
             setStatusDot(DotState.CONNECTED)
         } else {
+            stopPulseAnimation(ring1, ring2)
             val secContainer = ColorStateList.valueOf(
                 com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorSecondaryContainer, 0)
             )
@@ -408,6 +419,29 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             }
             setStatusDot(DotState.IDLE)
         }
+    }
+
+    private var pulseAnimator1: android.animation.ObjectAnimator? = null
+    private var pulseAnimator2: android.animation.ObjectAnimator? = null
+
+    private fun startPulseAnimation(ring1: View, ring2: View) {
+        pulseAnimator1 = android.animation.ObjectAnimator.ofFloat(ring1, "alpha", 0.7f, 0f).apply {
+            duration = 1500
+            repeatCount = android.animation.ObjectAnimator.INFINITE
+            start()
+        }
+        pulseAnimator2 = android.animation.ObjectAnimator.ofFloat(ring2, "alpha", 0f, 0.7f).apply {
+            duration = 1500
+            repeatCount = android.animation.ObjectAnimator.INFINITE
+            start()
+        }
+    }
+
+    private fun stopPulseAnimation(ring1: View, ring2: View) {
+        pulseAnimator1?.cancel()
+        pulseAnimator2?.cancel()
+        ring1.alpha = 0f
+        ring2.alpha = 0f
     }
 
     private enum class DotState { IDLE, CONNECTED, LOADING, FAILURE }
