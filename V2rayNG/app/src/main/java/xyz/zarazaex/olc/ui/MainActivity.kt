@@ -294,14 +294,14 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             log("OBS isTesting=$testing")
             if (testing) {
                 binding.btnConnect.isEnabled = true
-                binding.btnConnect.text = "\u23F9"
+                binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
                 binding.btnConnect.animate().scaleX(0.9f).scaleY(0.9f).setDuration(150).withEndAction {
                     binding.btnConnect.animate().scaleX(1f).scaleY(1f).setDuration(150).start()
                 }.start()
                 setStatusDot(DotState.LOADING)
             } else {
                 binding.btnConnect.isEnabled = true
-                binding.btnConnect.text = "\uD83D\uDD25"
+                binding.btnConnect.setIconResource(R.drawable.bolt_24)
                 if (!isOperationInProgress) {
                     showStatus("Test completed")
                 }
@@ -371,7 +371,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             }
             isOperationInProgress = false
             showStatus("Stopped")
-            binding.btnConnect.text = "\u23F9"
+            binding.btnConnect.setIconResource(R.drawable.bolt_24)
             applyRunningState(false)
             return
         }
@@ -392,7 +392,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 log("FLOW: reloading server list")
                 showStatus("Testing all servers...")
                 showLoading()
-                binding.btnConnect.text = "\u23F9"
+                binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
                 mainViewModel.suppressPinSelected = true
 
                 mainViewModel.reloadServerList()
@@ -403,7 +403,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     log("FLOW: NO SERVERS! aborting test")
                     isOperationInProgress = false
                     hideLoading()
-                    binding.btnConnect.text = "\uD83D\uDD25"
+                    binding.btnConnect.setIconResource(R.drawable.bolt_24)
                     applyRunningState(false)
                     showStatus("No servers available")
                     return@launch
@@ -475,7 +475,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     showStatus("Failed to start VPN service")
                     applyRunningState(false)
                     isOperationInProgress = false
-                    binding.btnConnect.text = "\uD83D\uDD25"
+                    binding.btnConnect.setIconResource(R.drawable.bolt_24)
                 }
             }
         }
@@ -539,8 +539,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnPrimary, 0)
             )
             binding.btnConnect.backgroundTintList = accentColor()
-            binding.btnConnect.setTextColor(ContextCompat.getColor(this, R.color.md_theme_onPrimary))
-            binding.btnConnect.text = "\uD83D\uDD25"
+            binding.btnConnect.iconTint = onPrimary
+            binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
             startPulseAnimation(ring1, ring2)
             binding.tvTestState.text = getString(R.string.connection_connected)
             setStatusDot(DotState.CONNECTED)
@@ -559,8 +559,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSecondaryContainer, 0)
             )
             binding.btnConnect.backgroundTintList = secContainer
-            binding.btnConnect.setTextColor(onSecContainer)
-            binding.btnConnect.text = "\uD83D\uDD25"
+            binding.btnConnect.iconTint = onSecContainer
+            binding.btnConnect.setIconResource(R.drawable.bolt_24)
             if (mainViewModel.isTesting.value != true && statusResetJob?.isActive != true) {
                 setTestState(getString(R.string.connection_not_connected))
             }

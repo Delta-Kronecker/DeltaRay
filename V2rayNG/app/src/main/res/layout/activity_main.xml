@@ -52,7 +52,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="⚡"
+                    android:text="🔥"
                     android:textSize="48sp"
                     android:layout_marginBottom="8dp" />
 
@@ -172,11 +172,13 @@
                         android:layout_gravity="center"
                         android:insetTop="0dp"
                         android:insetBottom="0dp"
-                        android:text="🔥"
-                        android:textSize="52sp"
-                        android:fontFamily="sans-serif"
+                        app:icon="@drawable/bolt_24"
+                        app:iconSize="52dp"
+                        app:iconGravity="textStart"
+                        app:iconPadding="0dp"
                         app:cornerRadius="70dp"
                         app:backgroundTint="?attr/colorPrimaryContainer"
+                        app:iconTint="?attr/colorOnPrimaryContainer"
                         app:strokeWidth="0dp"
                         app:elevation="8dp"
                         app:rippleColor="?attr/colorPrimary" />
