@@ -1,6 +1,7 @@
 package xyz.zarazaex.olc.service
 
 import android.annotation.SuppressLint
+import android.app.NotificationChannel
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -17,7 +18,9 @@ import android.os.PowerManager
 import android.os.StrictMode
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.core.app.NotificationCompat
 import xyz.zarazaex.olc.AppConfig
+import xyz.zarazaex.olc.R
 import xyz.zarazaex.olc.AppConfig.LOOPBACK
 import xyz.zarazaex.olc.BuildConfig
 import xyz.zarazaex.olc.contracts.ServiceControl
