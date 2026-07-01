@@ -241,7 +241,7 @@
         <activity
             android:name=".ui.TaskerActivity"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher">
+            android:icon="@drawable/ic_launcher">
             <intent-filter>
                 <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />
             </intent-filter>

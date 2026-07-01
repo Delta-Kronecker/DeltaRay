@@ -590,6 +590,16 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             }.start()
     }
 
+    private fun openUrl(url: String) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.w("MainActivity", "Failed to open url: $url", e)
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         MessageUtil.sendMsg2Service(this, AppConfig.MSG_REGISTER_CLIENT, "")
