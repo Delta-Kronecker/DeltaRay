@@ -30,6 +30,8 @@ import java.lang.ref.SoftReference
 object V2RayServiceManager {
 
     private val coreController: CoreController = V2RayNativeManager.newCoreController(CoreCallback())
+
+    fun getCoreController(): CoreController = coreController
     private val mMsgReceive = ReceiveMessageHandler()
     private var currentConfig: ProfileItem? = null
     private val operationLock = Any()
@@ -381,7 +383,7 @@ object V2RayServiceManager {
      * Gets the current service instance.
      * @return The current service instance, or null if not available.
      */
-    private fun getService(): Service? {
+    fun getService(): Service? {
         return serviceControl?.get()?.getService()
     }
 
