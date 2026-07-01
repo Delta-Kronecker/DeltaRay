@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <resources>
     <string name="app_name" translatable="false">DeltaRay</string>
+    <string name="drawer_donate_text" translatable="false">💰 Donate:\n\nUSDT BEP20 (BNB Smart Chain):\n0x2a434FF74737be5B94634040D010a458507b0741\n\n⚠️ BEP20 network only — send only USDT on BNB Smart Chain.</string>
     <string name="app_widget_name">Switch</string>
     <string name="app_tile_name">Switch</string>
     <string

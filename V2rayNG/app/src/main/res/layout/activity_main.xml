@@ -100,33 +100,46 @@
                     app:strokeWidth="1dp"
                     app:strokeColor="?attr/colorOutlineVariant">
 
-                    <LinearLayout
+                    <FrameLayout
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:paddingStart="20dp"
-                        android:paddingEnd="20dp">
+                        android:layout_height="match_parent">
 
                         <View
-                            android:id="@+id/status_dot"
-                            android:layout_width="10dp"
-                            android:layout_height="10dp"
-                            android:background="@drawable/status_dot"
-                            android:layout_marginEnd="12dp" />
-
-                        <TextView
-                            android:id="@+id/tv_test_state"
+                            android:id="@+id/progress_fill"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:maxLines="1"
-                            android:ellipsize="end"
-                            android:text="@string/connection_test_pending"
-                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                            android:textColor="?attr/colorOnSurfaceVariant" />
+                            android:layout_height="match_parent"
+                            android:background="@color/status_connected"
+                            android:alpha="0.12" />
 
-                    </LinearLayout>
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:orientation="horizontal"
+                            android:gravity="center"
+                            android:paddingStart="20dp"
+                            android:paddingEnd="20dp">
+
+                            <View
+                                android:id="@+id/status_dot"
+                                android:layout_width="10dp"
+                                android:layout_height="10dp"
+                                android:background="@drawable/status_dot"
+                                android:layout_marginEnd="12dp"
+                                android:visibility="gone" />
+
+                            <TextView
+                                android:id="@+id/tv_test_state"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:maxLines="1"
+                                android:gravity="center"
+                                android:text="@string/connection_test_pending"
+                                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                                android:textColor="?attr/colorOnSurfaceVariant" />
+
+                        </LinearLayout>
+
+                    </FrameLayout>
 
                 </com.google.android.material.card.MaterialCardView>
 
@@ -264,25 +277,59 @@
                 app:iconGravity="start"
                 app:iconTint="?attr/colorOnSurfaceVariant" />
 
-            <View
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/drawer_donate"
+                style="@style/Widget.Material3.Button.TextButton"
                 android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginBottom="8dp"
-                android:background="?attr/colorOutlineVariant" />
-
-            <TextView
-                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="LOG"
-                android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:layout_marginBottom="4dp" />
+                android:gravity="start|center_vertical"
+                android:drawablePadding="12dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                android:text="Donate"
+                android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                android:textColor="?attr/colorOnSurface"
+                app:icon="@drawable/ic_promotion_24dp"
+                app:iconGravity="start"
+                app:iconTint="?attr/colorOnSurfaceVariant" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/drawer_log"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="start|center_vertical"
+                android:drawablePadding="12dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                android:text="Log"
+                android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                android:textColor="?attr/colorOnSurface"
+                app:icon="@drawable/ic_logcat_24dp"
+                app:iconGravity="start"
+                app:iconTint="?attr/colorOnSurfaceVariant" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_copy_log"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:text="Copy Log"
+                android:textAllCaps="false"
+                android:textSize="12sp"
+                android:visibility="gone"
+                android:layout_marginTop="4dp"
+                app:icon="@drawable/ic_copy"
+                app:iconSize="16dp"
+                app:iconGravity="textStart"
+                app:cornerRadius="12dp" />
 
             <ScrollView
                 android:id="@+id/log_scroll"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
+                android:visibility="gone"
                 android:background="?attr/colorSurfaceContainer"
                 android:padding="8dp"
                 android:fadeScrollbars="false"
@@ -298,20 +345,6 @@
                     android:lineSpacingExtra="2dp" />
 
             </ScrollView>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_copy_log"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_width="match_parent"
-                android:layout_height="40dp"
-                android:text="Copy Log"
-                android:textAllCaps="false"
-                android:textSize="12sp"
-                android:layout_marginTop="4dp"
-                app:icon="@drawable/ic_copy"
-                app:iconSize="16dp"
-                app:iconGravity="textStart"
-                app:cornerRadius="12dp" />
 
             <View
                 android:layout_width="match_parent"

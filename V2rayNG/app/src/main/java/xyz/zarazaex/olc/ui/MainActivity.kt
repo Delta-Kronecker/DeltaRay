@@ -209,6 +209,24 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             toast("Log copied to clipboard")
         }
 
+        var logVisible = false
+        binding.drawerLog.setOnClickListener {
+            logVisible = !logVisible
+            binding.logScroll.visibility = if (logVisible) android.view.View.VISIBLE else android.view.View.GONE
+            binding.btnCopyLog.visibility = if (logVisible) android.view.View.VISIBLE else android.view.View.GONE
+            if (logVisible) binding.drawerLog.text = "Hide Log" else binding.drawerLog.text = "Log"
+        }
+
+        binding.drawerDonate.setOnClickListener {
+            val msg = getString(R.string.drawer_donate_text)
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Donate")
+                .setMessage(msg)
+                .setPositiveButton("OK", null)
+                .show()
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
+        }
+
         setupSpinner()
         setupViewModel()
         mainViewModel.reloadServerList()
@@ -253,7 +271,18 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     private fun setupViewModel() {
         mainViewModel.updateTestResultAction.observe(this) { result ->
             log("OBS updateTestResult: $result")
-            setTestState(result)
+            if (result != null) {
+                val match = Regex("(\\d+)/(\\d+)").find(result)
+                if (match != null) {
+                    val done = match.groupValues[1].toIntOrNull() ?: 0
+                    val total = match.groupValues[2].toIntOrNull() ?: 1
+                    val pct = (done * 100 / total).coerceIn(0, 100)
+                    binding.tvTestState.text = "$pct%"
+                    updateProgressFill(pct)
+                } else {
+                    setTestState(result)
+                }
+            }
             if (result != null && mainViewModel.isRunning.value == true) {
                 val isSuccess = result.contains(Regex("\\d+\\s*(ms|ms|毫秒)"))
                 setStatusDot(if (isSuccess) DotState.CONNECTED else DotState.FAILURE)
@@ -512,10 +541,18 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             binding.btnConnect.iconTint = onPrimary
             binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
             startPulseAnimation(ring1, ring2)
-            setTestState(getString(R.string.connection_connected))
+            binding.tvTestState.text = "\uD83D\uDD25 Connected"
+            binding.tvTestState.setTextColor(ContextCompat.getColor(this, R.color.status_connected))
             setStatusDot(DotState.CONNECTED)
+            lifecycleScope.launch {
+                delay(2000)
+                handleLayoutTestClick()
+            }
         } else {
             stopPulseAnimation(ring1, ring2)
+            binding.tvTestState.text = "\uD83D\uDD25"
+            binding.tvTestState.setTextColor(ContextCompat.getColor(this, R.color.md_theme_outline))
+            updateProgressFill(0)
             val secContainer = ColorStateList.valueOf(
                 com.google.android.material.color.MaterialColors.getColor(this, com.google.android.material.R.attr.colorSecondaryContainer, 0)
             )
@@ -570,6 +607,14 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         if (state == DotState.LOADING) {
             pulseDot(dot)
         }
+    }
+
+    private fun updateProgressFill(percent: Int) {
+        val fill = binding.progressFill
+        val parent = fill.parent as android.view.ViewGroup
+        val parentWidth = parent.width
+        val targetWidth = (parentWidth * percent / 100f).toInt()
+        fill.animate().width(targetWidth).setDuration(300).start()
     }
 
     private fun pulseDot(dot: android.view.View) {
