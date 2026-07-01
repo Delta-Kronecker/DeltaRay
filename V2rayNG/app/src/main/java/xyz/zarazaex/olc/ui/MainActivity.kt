@@ -25,6 +25,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.navigation.NavigationView
 import xyz.zarazaex.olc.AppConfig
 import xyz.zarazaex.olc.R
@@ -614,7 +615,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         val parent = fill.parent as android.view.ViewGroup
         val parentWidth = parent.width
         val targetWidth = (parentWidth * percent / 100f).toInt()
-        fill.animate().width(targetWidth).setDuration(300).start()
+        val lp = fill.layoutParams
+        lp.width = targetWidth
+        fill.layoutParams = lp
     }
 
     private fun pulseDot(dot: android.view.View) {
