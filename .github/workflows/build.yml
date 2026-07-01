@@ -147,34 +147,50 @@ jobs:
           exit 1
         fi
         chmod 755 gradlew
-        ./gradlew assembleRelease --info 2>&1 | grep -i "signing\|keystore" || true
+        ./gradlew assembleRelease
+    
+    - name: List APK outputs
+      if: always()
+      run: |
+        find ${{ github.workspace }}/V2rayNG/app/build/outputs -name "*.apk" -type f || echo "No APK files found"
     
     - name: Upload arm64-v8a APK
       uses: actions/upload-artifact@v7
-      if: ${{  success() }}
+      if: ${{ success() }}
       with:
         name: arm64-v8a
-        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/release/*arm64-v8a*.apk
+        path: |
+          ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/fdroid/release/*arm64-v8a*.apk
+          ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/playstore/release/*arm64-v8a*.apk
+        if-no-files-found: warn
 
     - name: Upload armeabi-v7a APK
       uses: actions/upload-artifact@v7
-      if: ${{  success() }}
+      if: ${{ success() }}
       with:
         name: armeabi-v7a
-        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/release/*armeabi-v7a*.apk
+        path: |
+          ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/fdroid/release/*armeabi-v7a*.apk
+          ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/playstore/release/*armeabi-v7a*.apk
+        if-no-files-found: warn
 
     - name: Upload x86 APK
       uses: actions/upload-artifact@v7
-      if: ${{  success() }}
+      if: ${{ success() }}
       with:
         name: x86-apk
-        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/release/*x86*.apk
+        path: |
+          ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/fdroid/release/*x86*.apk
+          ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/playstore/release/*x86*.apk
+        if-no-files-found: warn
 
     - name: Upload to release
       uses: softprops/action-gh-release@v2
       if: github.event.inputs.release_tag != '' || startsWith(github.ref, 'refs/tags/')
       with:
-        files: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/release/*.apk
+        files: |
+          ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/fdroid/release/*.apk
+          ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/playstore/release/*.apk
         tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}
         prerelease: false
         generate_release_notes: true
