@@ -324,7 +324,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Auto-deduplicate by IP before scanning so we don't waste time on dupes
         viewModelScope.launch(Dispatchers.IO) {
             val removed = removeDuplicateByIpAll()
-            Log.d(AppConfig.TAG, "TEST_PING: dedup done, removed=$removed")
             withContext(Dispatchers.Main) {
                 if (removed > 0) {
                     reloadServerList()
@@ -334,14 +333,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 publishSnapshot()
                 isTesting.value = true
-                Log.d(AppConfig.TAG, "TEST_PING: isTesting=true, launching test coroutine")
 
                 viewModelScope.launch(Dispatchers.Default) {
                     if (_serversCache.isEmpty()) {
                         withContext(Dispatchers.Main) { reloadServerList() }
                     }
                     if (_serversCache.isEmpty()) {
-                        Log.d(AppConfig.TAG, "TEST_PING: serverCache EMPTY after reload, aborting")
+                        Log.e(AppConfig.TAG, "TEST_PING: serverCache EMPTY after reload, aborting")
                         withContext(Dispatchers.Main) { isTesting.value = false }
                         return@launch
                     }
@@ -354,15 +352,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     Log.d(AppConfig.TAG, "TEST_PING: sending MSG_MEASURE_CONFIG, subId=$testSubId, guids=${testServerGuids.size}")
 
-                    MessageUtil.sendMsg2TestService(
-                        getApplication(),
-                        TestServiceMessage(
-                            key = AppConfig.MSG_MEASURE_CONFIG,
-                            subscriptionId = testSubId,
-                            serverGuids = testServerGuids
+                    try {
+                        MessageUtil.sendMsg2TestService(
+                            getApplication(),
+                            TestServiceMessage(
+                                key = AppConfig.MSG_MEASURE_CONFIG,
+                                subscriptionId = testSubId,
+                                serverGuids = testServerGuids
+                            )
                         )
-                    )
-                    Log.d(AppConfig.TAG, "TEST_PING: MSG_MEASURE_CONFIG sent successfully")
+                        Log.d(AppConfig.TAG, "TEST_PING: MSG_MEASURE_CONFIG sent successfully")
+                    } catch (e: Exception) {
+                        Log.e(AppConfig.TAG, "TEST_PING: FAILED to send message: ${e.message}", e)
+                        withContext(Dispatchers.Main) { isTesting.value = false }
+                    }
                 }
             }
         }

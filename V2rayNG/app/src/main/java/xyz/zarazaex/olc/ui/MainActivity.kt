@@ -179,6 +179,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         binding.btnConnect.setOnClickListener { handleConnectAction() }
         binding.layoutTest.setOnClickListener { handleLayoutTestClick() }
+
+        mainViewModel.startListenBroadcast()
+
         binding.btnCopyLog.setOnClickListener {
             val logText = logMessages.joinToString("\n")
             val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
