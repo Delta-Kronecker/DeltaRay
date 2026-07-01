@@ -410,6 +410,25 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         }
         log("START_V2: calling startVService")
         V2RayServiceManager.startVService(this)
+
+        lifecycleScope.launch {
+            delay(3000)
+            val running = mainViewModel.isRunning.value == true
+            log("START_V2: after 3s, isRunning=$running")
+            if (!running) {
+                log("START_V2: service failed to start, retrying...")
+                V2RayServiceManager.startVService(this@MainActivity)
+                delay(3000)
+                val running2 = mainViewModel.isRunning.value == true
+                log("START_V2: after retry, isRunning=$running2")
+                if (!running2) {
+                    showStatus("Failed to start VPN service")
+                    applyRunningState(false)
+                    isOperationInProgress = false
+                    binding.btnConnect.setIconResource(R.drawable.bolt_24)
+                }
+            }
+        }
     }
 
     fun restartV2Ray() {
