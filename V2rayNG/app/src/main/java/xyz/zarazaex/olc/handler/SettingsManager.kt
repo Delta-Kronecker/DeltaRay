@@ -556,9 +556,18 @@ object SettingsManager {
 
     /**
      * Ensures the default subscriptions exist with proper names and URLs.
-     * Made public for migration in SettingsManager.
+     * Removes any old/unknown subscriptions that don't match the expected set.
      */
     private fun ensureDefaultSubscription() {
+        val validSubIds = setOf("sub_best", "sub_vless", "sub_trojan", "sub_ss")
+
+        val allSubs = decodeSubsList()
+        for (subId in allSubs.toList()) {
+            if (subId !in validSubIds) {
+                MmkvManager.removeSubscription(subId)
+            }
+        }
+
         val defaultSubscriptions = listOf(
             Triple("sub_best", "\u26A1 Best", AppConfig.DEFAULT_SUBSCRIPTION_BEST_URL),
             Triple("sub_vless", "\uD83D\uDD25 Delta Vless", AppConfig.DEFAULT_SUBSCRIPTION_VLESS_URL),
