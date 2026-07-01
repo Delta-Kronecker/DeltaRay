@@ -65,13 +65,16 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         Log.d(AppConfig.TAG, line)
         runOnUiThread {
             logMessages.add(line)
-            val svcLogs = AppConfig.serviceLog
-            logMessages.addAll(svcLogs.filter { it !in logMessages })
-            if (logMessages.size > maxLogLines) {
-                logMessages.subList(0, logMessages.size - maxLogLines).clear()
-            }
+            if (logMessages.size > maxLogLines) logMessages.removeAt(0)
             binding.tvLog.text = logMessages.joinToString("\n")
             binding.logScroll.post { binding.logScroll.fullScroll(android.view.View.FOCUS_DOWN) }
+        }
+    }
+
+    private val logReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: android.content.Intent?) {
+            val msg = intent?.getStringExtra("log_msg") ?: return
+            log(msg)
         }
     }
 
@@ -185,6 +188,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         binding.layoutTest.setOnClickListener { handleLayoutTestClick() }
 
         mainViewModel.startListenBroadcast()
+
+        val logFilter = android.content.IntentFilter("xyz.zarazaex.olc.action.LOG")
+        registerReceiver(logReceiver, logFilter, android.content.Context.RECEIVER_NOT_EXPORTED)
 
         binding.btnCopyLog.setOnClickListener {
             val logText = logMessages.joinToString("\n")
@@ -684,5 +690,10 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        try { unregisterReceiver(logReceiver) } catch (_: Exception) {}
+        super.onDestroy()
     }
 }
