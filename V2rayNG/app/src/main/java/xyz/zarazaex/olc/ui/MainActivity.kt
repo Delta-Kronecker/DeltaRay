@@ -73,7 +73,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     private val logReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: android.content.Intent?) {
+        override fun onReceive(ctx: android.content.Context?, intent: android.content.Intent?) {
             val msg = intent?.getStringExtra("log_msg") ?: return
             log(msg)
         }
