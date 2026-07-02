@@ -239,8 +239,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         val isBooted = MmkvManager.decodeSettingsBool(AppConfig.PREF_IS_BOOTED)
         if (!isBooted) {
-            showLanguageDialog()
-        } else {
             showStartupDialog()
             importAllSubsOnStartup()
         }
@@ -250,32 +248,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     private var startupDialog: androidx.appcompat.app.AlertDialog? = null
-
-    private fun showLanguageDialog() {
-        val languages = arrayOf("English", "فارسی")
-        val languageCodes = arrayOf("en", "fa")
-
-        MaterialAlertDialogBuilder(this)
-            .setTitle("Select Language / انتخاب زبان")
-            .setItems(languages) { _, which ->
-                val langCode = languageCodes[which]
-                MmkvManager.encodeSettings(AppConfig.PREF_LANGUAGE, langCode)
-                applyLanguage(langCode)
-                showStartupDialog()
-                importAllSubsOnStartup()
-            }
-            .setCancelable(false)
-            .show()
-    }
-
-    private fun applyLanguage(langCode: String) {
-        val locale = java.util.Locale.forLanguageTag(langCode)
-        java.util.Locale.setDefault(locale)
-        val config = resources.configuration
-        config.setLocale(locale)
-        @Suppress("DEPRECATION")
-        resources.updateConfiguration(config, resources.displayMetrics)
-    }
 
     private fun showStartupDialog() {
         binding.btnConnect.isEnabled = false
