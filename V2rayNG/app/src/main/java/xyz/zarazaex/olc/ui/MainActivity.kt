@@ -220,11 +220,16 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         }
 
         binding.drawerDonate.setOnClickListener {
-            val msg = getString(R.string.drawer_donate_text)
+            val donateAddress = "0x2a434FF74737be5B94634040D010a458507b0741"
             MaterialAlertDialogBuilder(this)
                 .setTitle("Donate")
-                .setMessage(msg)
-                .setPositiveButton("OK", null)
+                .setMessage(getString(R.string.drawer_donate_text))
+                .setPositiveButton("Copy Address") { _, _ ->
+                    val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("donate", donateAddress))
+                    toast("Address copied")
+                }
+                .setNegativeButton("OK", null)
                 .show()
             binding.drawerLayout.closeDrawer(GravityCompat.START)
         }
@@ -234,7 +239,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         mainViewModel.reloadServerList()
 
         val subsCount = MmkvManager.decodeSubscriptions().size
-        if (subsCount > 0) {
+        val subsCount = MmkvManager.decodeSubscriptions().size
+        val isBooted = MmkvManager.decodeSettingsBool(AppConfig.PREF_IS_BOOTED)
+        if (subsCount > 0 && !isBooted) {
             showStartupDialog()
         }
 
@@ -279,6 +286,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         binding.btnConnect.isEnabled = true
         binding.btnConnect.alpha = 1.0f
         binding.spinnerGroup.isEnabled = true
+        MmkvManager.encodeSettings(AppConfig.PREF_IS_BOOTED, true)
     }
 
     private fun setupSpinner() {
@@ -324,13 +332,17 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     val pct = (done * 100 / total).coerceIn(0, 100)
                     binding.tvTestState.text = "$pct%"
                     updateProgressFill(pct)
+                } else if (result.contains("ms")) {
+                    val msMatch = Regex("(\\d+)\\s*ms").find(result)
+                    val ms = msMatch?.groupValues?.get(1) ?: ""
+                    if (ms.isNotEmpty()) {
+                        binding.tvTestState.text = "Connected ${ms}ms"
+                    } else {
+                        binding.tvTestState.text = result
+                    }
                 } else {
-                    setTestState(result)
+                    binding.tvTestState.text = result
                 }
-            }
-            if (result != null && mainViewModel.isRunning.value == true) {
-                val isSuccess = result.contains(Regex("\\d+\\s*(ms|ms|毫秒)"))
-                setStatusDot(if (isSuccess) DotState.CONNECTED else DotState.FAILURE)
             }
         }
 
@@ -559,6 +571,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
     private fun showStatus(message: String) {
         statusResetJob?.cancel()
+        if (message.contains("Updated") && message.contains("config")) return
+        if (message.contains("profiles")) return
         binding.tvTestState.text = message
         if (isOperationInProgress || mainViewModel.isTesting.value == true) return
         statusResetJob = lifecycleScope.launch {
@@ -668,6 +682,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         val lp = fill.layoutParams
         lp.width = targetWidth
         fill.layoutParams = lp
+        if (percent > 0) {
+            fill.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.status_connected))
+        }
     }
 
     private fun pulseDot(dot: android.view.View) {
