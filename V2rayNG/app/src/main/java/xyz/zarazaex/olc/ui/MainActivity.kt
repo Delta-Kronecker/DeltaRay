@@ -427,18 +427,20 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         log("BTN CLICK: isRunning=$isRunning isTesting=$isTesting isOpInProgress=$isOperationInProgress")
 
         if (isRunning || isTesting) {
-            log("BTN: stopping (isRunning=$isRunning isTesting=$isTesting)")
+            log("BTN: stopping everything")
             FailoverManager.stop()
             connectJob?.cancel()
             connectJob = null
+
+            // Stop VPN service directly (stops everything)
+            lifecycleScope.launch {
+                V2RayServiceManager.stopVService(this@MainActivity)
+            }
+
+            // Also send cancel to test service
             mainViewModel.cancelAllTests()
             mainViewModel.suppressPinSelected = false
-            log("BTN: cancelled tests")
-            if (isRunning) {
-                lifecycleScope.launch {
-                    V2RayServiceManager.stopVService(this@MainActivity)
-                }
-            }
+
             isOperationInProgress = false
             showStatus("Stopped")
             binding.btnConnect.setIconResource(R.drawable.bolt_24)
