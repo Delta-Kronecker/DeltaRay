@@ -796,9 +796,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     refreshPingInCache(update.results.map { it.guid })
                     if (!suppressPinSelected) sortServersCacheInPlace()
-                }
-                    refreshPingInCache(update.results.map { it.guid })
-                    if (!suppressPinSelected) sortServersCacheInPlace()
                     // publishSnapshot() already called inside refresh/sort above
                 }
 
