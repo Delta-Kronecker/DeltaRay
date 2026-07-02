@@ -12,10 +12,12 @@ object FailoverManager {
     private var switching = false
     private var currentServerIndex = 0
     private var sortedServers = mutableListOf<String>()
+    private var consecutiveFailures = 0
 
     private const val PING_TIMEOUT_MS = 10_000L
     private const val PING_INTERVAL_MS = 5_000L
-    private const val INITIAL_DELAY_MS = 8_000L
+    private const val INITIAL_DELAY_MS = 15_000L
+    private const val MAX_FAILURES_BEFORE_SWITCH = 3
 
     var onStatusChange: ((String) -> Unit)? = null
 
@@ -23,10 +25,12 @@ object FailoverManager {
         if (failoverActive) return
         failoverActive = true
         switching = false
+        consecutiveFailures = 0
         onStatusChange?.invoke("Failover: started")
 
         job = CoroutineScope(Dispatchers.IO).launch {
             // Wait for VPN tunnel to fully establish
+            onStatusChange?.let { withContext(Dispatchers.Main) { it("Failover: waiting ${INITIAL_DELAY_MS/1000}s for VPN...") } }
             delay(INITIAL_DELAY_MS)
 
             sortedServers = getSortedServers()
@@ -41,47 +45,51 @@ object FailoverManager {
             currentServerIndex = 0
             val currentServer = sortedServers[currentServerIndex]
             withContext(Dispatchers.Main) {
-                onStatusChange?.invoke("Failover: monitoring ${sortedServers.size} servers, current: ${currentServer.take(8)}")
+                onStatusChange?.invoke("Failover: monitoring ${sortedServers.size} servers")
             }
 
             while (failoverActive && coroutineContext.isActive) {
                 val server = sortedServers[currentServerIndex]
-                val delay = measurePingWithTimeout()
+                val delayMs = measurePingWithTimeout()
 
-                if (delay < 0) {
+                if (delayMs < 0) {
+                    consecutiveFailures++
                     withContext(Dispatchers.Main) {
-                        onStatusChange?.invoke("Failover: ${server.take(8)} TIMEOUT - switching")
+                        onStatusChange?.invoke("Failover: ${server.take(8)} TIMEOUT ($consecutiveFailures/$MAX_FAILURES_BEFORE_SWITCH)")
                     }
 
-                    switching = true
+                    if (consecutiveFailures >= MAX_FAILURES_BEFORE_SWITCH) {
+                        consecutiveFailures = 0
+                        switching = true
 
-                    sortedServers = getSortedServers()
-                    val nextIdx = sortedServers.indexOfFirst { it != server }
-                    if (nextIdx >= 0) {
-                        val newServer = sortedServers[nextIdx]
-                        withContext(Dispatchers.Main) {
-                            onStatusChange?.invoke("Failover: switching to ${newServer.take(8)}")
-                        }
-                        V2RayServiceManager.stopVService(context)
-                        delay(2000)
-                        MmkvManager.setSelectServer(newServer)
-                        currentServerIndex = nextIdx
-                        V2RayServiceManager.startVService(context)
-                        // Wait for VPN to establish before next ping
-                        delay(INITIAL_DELAY_MS)
-                        switching = false
-                        withContext(Dispatchers.Main) {
-                            onStatusChange?.invoke("Failover: connected to ${newServer.take(8)}")
-                        }
-                    } else {
-                        switching = false
-                        withContext(Dispatchers.Main) {
-                            onStatusChange?.invoke("Failover: no backup server available")
+                        sortedServers = getSortedServers()
+                        val nextIdx = sortedServers.indexOfFirst { it != server }
+                        if (nextIdx >= 0) {
+                            val newServer = sortedServers[nextIdx]
+                            withContext(Dispatchers.Main) {
+                                onStatusChange?.invoke("Failover: switching to ${newServer.take(8)}")
+                            }
+                            V2RayServiceManager.stopVService(context)
+                            delay(2000)
+                            MmkvManager.setSelectServer(newServer)
+                            currentServerIndex = nextIdx
+                            V2RayServiceManager.startVService(context)
+                            delay(INITIAL_DELAY_MS)
+                            switching = false
+                            withContext(Dispatchers.Main) {
+                                onStatusChange?.invoke("Failover: connected to ${newServer.take(8)}")
+                            }
+                        } else {
+                            switching = false
+                            withContext(Dispatchers.Main) {
+                                onStatusChange?.invoke("Failover: no backup server available")
+                            }
                         }
                     }
                 } else {
+                    consecutiveFailures = 0
                     withContext(Dispatchers.Main) {
-                        onStatusChange?.invoke("Failover: ${server.take(8)} ${delay}ms OK")
+                        onStatusChange?.invoke("Failover: ${server.take(8)} ${delayMs}ms OK")
                     }
                 }
                 delay(PING_INTERVAL_MS)
@@ -113,6 +121,7 @@ object FailoverManager {
         job = null
         sortedServers.clear()
         currentServerIndex = 0
+        consecutiveFailures = 0
         onStatusChange?.invoke("Failover: stopped")
     }
 
