@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.*
 import xyz.zarazaex.olc.AppConfig
-import xyz.zarazaex.olc.util.MessageUtil
 
 object FailoverManager {
 
@@ -14,7 +13,6 @@ object FailoverManager {
     private var currentServerIndex = 0
     private var sortedServers = mutableListOf<String>()
     private var consecutiveFailures = 0
-    private var pendingPingDeferred: kotlinx.coroutines.CompletableDeferred<Long>? = null
 
     private const val PING_TIMEOUT_MS = 10_000L
     private const val PING_INTERVAL_MS = 5_000L
@@ -100,25 +98,22 @@ object FailoverManager {
     }
 
     private suspend fun measurePingWithTimeout(): Long {
-        return try {
-            val svc = V2RayServiceManager.getService() ?: return -1L
-            val ctrl = V2RayServiceManager.getCoreController()
-            if (!ctrl.isRunning) return -1L
-
-            val deferred = kotlinx.coroutines.CompletableDeferred<Long>()
-            pendingPingDeferred = deferred
-
-            MessageUtil.sendMsg2Service(svc, AppConfig.MSG_MEASURE_DELAY, "")
-
-            withTimeout(PING_TIMEOUT_MS) {
-                deferred.await()
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = java.net.URL("https://api.ipify.org")
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 8000
+                conn.readTimeout = 8000
+                conn.requestMethod = "GET"
+                val startTime = System.currentTimeMillis()
+                conn.connect()
+                val code = conn.responseCode
+                conn.disconnect()
+                val elapsed = System.currentTimeMillis() - startTime
+                if (code == 200) elapsed else -1L
+            } catch (e: Exception) {
+                -1L
             }
-        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-            -1L
-        } catch (e: Exception) {
-            -1L
-        } finally {
-            pendingPingDeferred = null
         }
     }
 
@@ -134,10 +129,6 @@ object FailoverManager {
     }
 
     fun isRunning(): Boolean = failoverActive
-
-    fun resolvePingResult(delay: Long) {
-        pendingPingDeferred?.complete(delay)
-    }
 
     private fun getSortedServers(): MutableList<String> {
         val allSubs = MmkvManager.decodeSubscriptions()
