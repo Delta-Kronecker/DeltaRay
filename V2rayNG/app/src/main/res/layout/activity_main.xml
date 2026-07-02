@@ -153,7 +153,6 @@
                     android:layout_marginBottom="16dp"
                     android:clickable="true"
                     android:focusable="true"
-                    android:visibility="gone"
                     app:cardBackgroundColor="?attr/colorSurfaceContainer"
                     app:cardCornerRadius="24dp"
                     app:cardElevation="0dp"
@@ -165,7 +164,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:gravity="center"
-                        android:text="not connected yet"
+                        android:text="@string/switch_server_not_connected"
                         android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
                         android:textColor="?attr/colorOnSurfaceVariant" />
 

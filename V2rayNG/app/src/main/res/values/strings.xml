@@ -186,6 +186,8 @@
 
     <!-- PerAppProxyActivity -->
     <string name="msg_dialog_progress">Loading</string>
+    <string name="switch_server_not_connected">not connected yet</string>
+    <string name="switch_server_connected">to slow? click to change the server</string>
     <string name="menu_item_search">Search</string>
     <string name="menu_item_select_all">Select all</string>
     <string name="menu_item_invert_selection">Invert selection</string>

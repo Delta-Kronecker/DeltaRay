@@ -662,8 +662,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             binding.btnConnect.backgroundTintList = accentColor()
             binding.btnConnect.iconTint = onPrimary
             binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
-            binding.btnSwitchServer.visibility = android.view.View.VISIBLE
-            binding.tvSwitchServer.text = "to slow? click to change the server"
+            binding.tvSwitchServer.text = getString(R.string.switch_server_connected)
             startPulseAnimation(ring1, ring2)
             binding.tvTestState.text = getString(R.string.connection_connected)
             setStatusDot(DotState.CONNECTED)
@@ -673,7 +672,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             }
         } else {
             stopPulseAnimation(ring1, ring2)
-            binding.btnSwitchServer.visibility = android.view.View.GONE
+            binding.tvSwitchServer.text = getString(R.string.switch_server_not_connected)
             binding.tvTestState.text = getString(R.string.connection_not_connected)
             updateProgressFill(0)
             val secContainer = ColorStateList.valueOf(
