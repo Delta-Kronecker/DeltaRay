@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.*
 import xyz.zarazaex.olc.AppConfig
+import xyz.zarazaex.olc.util.MessageUtil
 
 object FailoverManager {
 
