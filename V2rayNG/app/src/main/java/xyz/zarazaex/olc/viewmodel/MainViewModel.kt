@@ -302,7 +302,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Cancels all running ping tests.
      */
+    @Volatile var stopRequested = false
+
     fun cancelAllTests() {
+        stopRequested = true
         MessageUtil.sendMsg2TestService(
             getApplication(),
             TestServiceMessage(key = AppConfig.MSG_MEASURE_CONFIG_CANCEL)
@@ -314,6 +317,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * Tests the real ping for all servers.
      */
     fun testAllRealPing() {
+        stopRequested = false
         Log.d(AppConfig.TAG, "TEST_PING: START, subscriptionId=$subscriptionId, serverCount=${_serversCache.size}")
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -345,6 +349,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         emptyList()
                     }
                     Log.d(AppConfig.TAG, "TEST_PING: sending MSG_MEASURE_CONFIG, subId=$testSubId, guids=${testServerGuids.size}")
+
+                    if (stopRequested) {
+                        Log.d(AppConfig.TAG, "TEST_PING: stop requested, aborting")
+                        withContext(Dispatchers.Main) { isTesting.value = false }
+                        return@launch
+                    }
 
                     try {
                         MessageUtil.sendMsg2TestService(
@@ -771,22 +781,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 AppConfig.MSG_MEASURE_CONFIG_BATCH -> {
+                    if (stopRequested) return
                     val update = intent.serializable<PingProgressUpdate>("content") ?: return
                     update.results.forEach { result ->
                         MmkvManager.encodeServerTestDelayMillis(result.guid, result.delay)
                     }
                     refreshPingInCache(update.results.map { it.guid })
                     if (!suppressPinSelected) sortServersCacheInPlace()
+                }
+                    refreshPingInCache(update.results.map { it.guid })
+                    if (!suppressPinSelected) sortServersCacheInPlace()
                     // publishSnapshot() already called inside refresh/sort above
                 }
 
                 AppConfig.MSG_MEASURE_CONFIG_NOTIFY -> {
+                    if (stopRequested) return
                     val content = intent.getStringExtra("content")
                     updateTestResultAction.value =
                         getApplication<AngApplication>().getString(R.string.connection_runing_task_left, content)
                 }
 
                 AppConfig.MSG_MEASURE_CONFIG_FINISH -> {
+                    if (stopRequested) return
                     val content = intent.getStringExtra("content")
                     if (content == "0") {
                         onTestsFinished()
