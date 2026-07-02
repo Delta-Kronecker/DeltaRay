@@ -9,20 +9,26 @@ object FailoverManager {
 
     private var job: Job? = null
     private var failoverActive = false
+    private var switching = false
     private var currentServerIndex = 0
     private var sortedServers = mutableListOf<String>()
 
     private const val PING_TIMEOUT_MS = 10_000L
     private const val PING_INTERVAL_MS = 5_000L
+    private const val INITIAL_DELAY_MS = 8_000L
 
     var onStatusChange: ((String) -> Unit)? = null
 
     fun start(context: Context) {
         if (failoverActive) return
         failoverActive = true
+        switching = false
         onStatusChange?.invoke("Failover: started")
 
         job = CoroutineScope(Dispatchers.IO).launch {
+            // Wait for VPN tunnel to fully establish
+            delay(INITIAL_DELAY_MS)
+
             sortedServers = getSortedServers()
             if (sortedServers.size < 2) {
                 withContext(Dispatchers.Main) {
@@ -46,6 +52,9 @@ object FailoverManager {
                     withContext(Dispatchers.Main) {
                         onStatusChange?.invoke("Failover: ${server.take(8)} TIMEOUT - switching")
                     }
+
+                    switching = true
+
                     sortedServers = getSortedServers()
                     val nextIdx = sortedServers.indexOfFirst { it != server }
                     if (nextIdx >= 0) {
@@ -58,11 +67,14 @@ object FailoverManager {
                         MmkvManager.setSelectServer(newServer)
                         currentServerIndex = nextIdx
                         V2RayServiceManager.startVService(context)
-                        delay(3000)
+                        // Wait for VPN to establish before next ping
+                        delay(INITIAL_DELAY_MS)
+                        switching = false
                         withContext(Dispatchers.Main) {
                             onStatusChange?.invoke("Failover: connected to ${newServer.take(8)}")
                         }
                     } else {
+                        switching = false
                         withContext(Dispatchers.Main) {
                             onStatusChange?.invoke("Failover: no backup server available")
                         }
@@ -95,6 +107,7 @@ object FailoverManager {
     }
 
     fun stop() {
+        if (switching) return
         failoverActive = false
         job?.cancel()
         job = null
