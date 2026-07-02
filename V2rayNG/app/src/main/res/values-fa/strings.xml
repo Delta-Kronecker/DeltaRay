@@ -332,7 +332,7 @@
     <string name="connection_test_error">اتصال به اینترنت شناسایی نشد: %s</string>
     <string name="connection_test_fail">اینترنت در دسترس نیست</string>
     <string name="connection_test_error_status_code">کد خطا: #%d</string>
-    <string name="connection_connected">متصل است، برای بررسی اتصال ضربه بزنید</string>
+    <string name="connection_connected">متصل</string>
     <string name="connection_not_connected">متصل نیست</string>
     <string name="connection_runing_task_left">تعداد وظایف آزمایشی در حال اجرا: %s</string>
 
@@ -434,6 +434,4 @@
 
     <string name="switch_server_not_connected">هنوز متصل نیست</string>
     <string name="switch_server_connected">سرعت کم است؟ کلیک کنید تا سرور عوض شود</string>
-    <string name="connection_connected">متصل</string>
-    <string name="connection_not_connected">متصل نیست</string>
 </resources>
