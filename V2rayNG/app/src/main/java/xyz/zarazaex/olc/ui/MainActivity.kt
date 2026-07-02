@@ -239,7 +239,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         mainViewModel.reloadServerList()
 
         val subsCount = MmkvManager.decodeSubscriptions().size
-        val subsCount = MmkvManager.decodeSubscriptions().size
         val isBooted = MmkvManager.decodeSettingsBool(AppConfig.PREF_IS_BOOTED)
         if (subsCount > 0 && !isBooted) {
             showStartupDialog()
