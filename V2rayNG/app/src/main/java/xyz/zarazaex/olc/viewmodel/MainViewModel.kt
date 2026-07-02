@@ -315,13 +315,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun testAllRealPing() {
         Log.d(AppConfig.TAG, "TEST_PING: START, subscriptionId=$subscriptionId, serverCount=${_serversCache.size}")
-        MessageUtil.sendMsg2TestService(
-            getApplication(),
-            TestServiceMessage(key = AppConfig.MSG_MEASURE_CONFIG_CANCEL)
-        )
-        Log.d(AppConfig.TAG, "TEST_PING: cancel message sent")
 
-        // Auto-deduplicate by IP before scanning so we don't waste time on dupes
         viewModelScope.launch(Dispatchers.IO) {
             val removed = removeDuplicateByIpAll()
             withContext(Dispatchers.Main) {
