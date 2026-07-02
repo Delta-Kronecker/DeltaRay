@@ -451,7 +451,7 @@ object SettingsManager {
         ensureDefaultValue(AppConfig.PREF_HEV_TUNNEL_RW_TIMEOUT, AppConfig.HEVTUN_RW_TIMEOUT)
         ensureDefaultValue(AppConfig.PREF_MUX_CONCURRENCY, "8")
         ensureDefaultValue(AppConfig.PREF_MUX_XUDP_CONCURRENCY, "8")
-        ensureDefaultValue(AppConfig.PREF_FRAGMENT_LENGTH, "50-100")
+        ensureDefaultValue(AppConfig.PREF_FRAGMENT_LENGTH, "100-200")
         ensureDefaultValue(AppConfig.PREF_FRAGMENT_INTERVAL, "10-20")
         
         ensureDefaultBoolValue(AppConfig.PREF_LOCAL_DNS_ENABLED, true)
@@ -559,7 +559,7 @@ object SettingsManager {
      * Removes any old/unknown subscriptions that don't match the expected set.
      */
     private fun ensureDefaultSubscription() {
-        val validSubIds = setOf("sub_best", "sub_vless", "sub_trojan", "sub_ss")
+        val validSubIds = setOf("sub_best", "sub_mahsa")
 
         val allSubs = decodeSubsList()
         for (subId in allSubs.toList()) {
@@ -569,10 +569,8 @@ object SettingsManager {
         }
 
         val defaultSubscriptions = listOf(
-            Triple("sub_best", "\u26A1 Best", AppConfig.DEFAULT_SUBSCRIPTION_BEST_URL),
-            Triple("sub_vless", "\uD83D\uDD25 Delta Vless", AppConfig.DEFAULT_SUBSCRIPTION_VLESS_URL),
-            Triple("sub_trojan", "\uD83D\uDD25 Delta Trojan", AppConfig.DEFAULT_SUBSCRIPTION_TROJAN_URL),
-            Triple("sub_ss", "\uD83D\uDD25 Delta Ss", AppConfig.DEFAULT_SUBSCRIPTION_SS_URL),
+            Triple("sub_best", "\u26A1 Delta Config", AppConfig.DEFAULT_SUBSCRIPTION_BEST_URL),
+            Triple("sub_mahsa", "\u26A1 Mahsa Config", AppConfig.DEFAULT_SUBSCRIPTION_VLESS_URL),
         )
 
         for ((id, name, url) in defaultSubscriptions) {
