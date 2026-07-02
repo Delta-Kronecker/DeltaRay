@@ -448,6 +448,34 @@ object V2RayServiceManager {
     }
 
     /**
+     * Measure delay via broadcast (works across processes).
+     * Sends MSG_MEASURE_DELAY to VPN service and waits for result.
+     */
+    private var pendingMeasureResult: kotlinx.coroutines.CompletableDeferred<Long>? = null
+
+    suspend fun measureDelayFromService(): Long {
+        val svc = getService() ?: return -1L
+        if (coreController.isRunning == false) return -1L
+
+        pendingMeasureResult = kotlinx.coroutines.CompletableDeferred()
+        MessageUtil.sendMsg2Service(svc, AppConfig.MSG_MEASURE_DELAY, "")
+
+        return try {
+            withTimeout(PING_TIMEOUT_MS) {
+                pendingMeasureResult!!.await()
+            }
+        } catch (e: Exception) {
+            -1L
+        } finally {
+            pendingMeasureResult = null
+        }
+    }
+
+    fun resolveMeasureResult(delay: Long) {
+        pendingMeasureResult?.complete(delay)
+    }
+
+    /**
          * Called when V2Ray core emits status information.
          * @param l Status code.
          * @param s Status message.

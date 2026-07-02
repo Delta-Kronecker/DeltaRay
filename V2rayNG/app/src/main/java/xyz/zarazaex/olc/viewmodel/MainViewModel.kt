@@ -766,6 +766,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             refreshPingInCache(listOf(guid))
                         }
                     }
+                    // Resolve pending failover measure request
+                    val delayMs = Regex("\\d+").find(content ?: "")?.value?.toLongOrNull() ?: -1L
+                    V2RayServiceManager.resolveMeasureResult(delayMs)
                 }
 
                 AppConfig.MSG_MEASURE_CONFIG_SUCCESS -> {

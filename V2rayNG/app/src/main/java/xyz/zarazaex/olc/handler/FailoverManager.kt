@@ -99,16 +99,7 @@ object FailoverManager {
 
     private suspend fun measurePingWithTimeout(): Long {
         return try {
-            withTimeout(PING_TIMEOUT_MS) {
-                withContext(Dispatchers.IO) {
-                    val ctrl = V2RayServiceManager.getCoreController()
-                    if (!ctrl.isRunning) return@withContext -1L
-                    val url = SettingsManager.getDelayTestUrl()
-                    ctrl.measureDelay(url)
-                }
-            }
-        } catch (e: TimeoutCancellationException) {
-            -1L
+            V2RayServiceManager.measureDelayFromService()
         } catch (e: Exception) {
             -1L
         }
