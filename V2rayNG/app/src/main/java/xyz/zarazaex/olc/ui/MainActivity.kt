@@ -189,6 +189,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         binding.btnConnect.setOnClickListener { handleConnectAction() }
         binding.layoutTest.setOnClickListener { handleLayoutTestClick() }
+        binding.btnSwitchServer.setOnClickListener { switchToNextServer() }
 
         binding.btnTelegram.setOnClickListener {
             openUrl("https://t.me/DeltaKroneckerGithub")
@@ -499,6 +500,43 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         }
     }
 
+    private fun switchToNextServer() {
+        val currentServer = MmkvManager.getSelectServer() ?: return
+
+        // Get all servers sorted by ping (best first)
+        val allSubs = MmkvManager.decodeSubscriptions()
+        val allServers = mutableListOf<Pair<String, Long>>()
+        for (sub in allSubs) {
+            val serverList = MmkvManager.decodeServerList(sub.guid)
+            for (guid in serverList) {
+                val delay = MmkvManager.decodeServerAffiliationInfo(guid)?.testDelayMillis ?: 0L
+                if (delay > 0) allServers.add(Pair(guid, delay))
+            }
+        }
+        val sorted = allServers.sortedBy { it.second }
+
+        // Find current server index and pick next one
+        val currentIndex = sorted.indexOfFirst { it.first == currentServer }
+        val nextIndex = if (currentIndex >= 0 && currentIndex < sorted.size - 1) {
+            currentIndex + 1
+        } else {
+            0
+        }
+        val nextServer = sorted[nextIndex].first
+
+        log("SWITCH: current=${currentServer.take(8)} next=${nextServer.take(8)} ping=${sorted[nextIndex].second}ms")
+
+        // Stop, switch, restart
+        lifecycleScope.launch {
+            FailoverManager.stop()
+            V2RayServiceManager.stopVService(this@MainActivity)
+            delay(1000)
+            MmkvManager.setSelectServer(nextServer)
+            V2RayServiceManager.startVService(this@MainActivity)
+            showStatus("Switched to server ${nextServer.take(8)}")
+        }
+    }
+
     private fun startV2RayWithPermission() {
         val isVpn = SettingsManager.isVpnMode()
         log("START_VPN: isVpnMode=$isVpn")
@@ -612,6 +650,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             binding.btnConnect.backgroundTintList = accentColor()
             binding.btnConnect.iconTint = onPrimary
             binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
+            binding.btnSwitchServer.visibility = android.view.View.VISIBLE
             startPulseAnimation(ring1, ring2)
             binding.tvTestState.text = getString(R.string.connection_connected)
             setStatusDot(DotState.CONNECTED)
@@ -621,6 +660,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             }
         } else {
             stopPulseAnimation(ring1, ring2)
+            binding.btnSwitchServer.visibility = android.view.View.GONE
             binding.tvTestState.text = getString(R.string.connection_not_connected)
             updateProgressFill(0)
             val secContainer = ColorStateList.valueOf(
