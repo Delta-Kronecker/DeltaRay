@@ -350,10 +350,12 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 }.start()
                 setStatusDot(DotState.LOADING)
             } else {
-                binding.btnConnect.isEnabled = true
-                binding.btnConnect.setIconResource(R.drawable.bolt_24)
-                if (!isOperationInProgress) {
-                    showStatus("Test completed")
+                if (!mainViewModel.stopRequested) {
+                    binding.btnConnect.isEnabled = true
+                    binding.btnConnect.setIconResource(R.drawable.bolt_24)
+                    if (!isOperationInProgress) {
+                        showStatus("Test completed")
+                    }
                 }
             }
         }
@@ -431,15 +433,12 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             FailoverManager.stop()
             connectJob?.cancel()
             connectJob = null
+            mainViewModel.cancelAllTests()
+            mainViewModel.suppressPinSelected = false
 
-            // Stop VPN service directly (stops everything)
             lifecycleScope.launch {
                 V2RayServiceManager.stopVService(this@MainActivity)
             }
-
-            // Also send cancel to test service
-            mainViewModel.cancelAllTests()
-            mainViewModel.suppressPinSelected = false
 
             isOperationInProgress = false
             showStatus("Stopped")

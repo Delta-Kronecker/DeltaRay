@@ -310,6 +310,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             getApplication(),
             TestServiceMessage(key = AppConfig.MSG_MEASURE_CONFIG_CANCEL)
         )
+        // Also try to stop the test service directly
+        try {
+            getApplication<AngApplication>().stopService(
+                android.content.Intent(getApplication(), xyz.zarazaex.olc.service.V2RayTestService::class.java)
+            )
+        } catch (e: Exception) {
+            Log.e(AppConfig.TAG, "Failed to stop test service", e)
+        }
         isTesting.value = false
     }
 
