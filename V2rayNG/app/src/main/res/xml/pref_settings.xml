@@ -178,7 +178,7 @@
         <EditTextPreference
             android:inputType="number"
             android:key="pref_socks_port"
-            android:summary="10808"
+            android:summary="10805"
             android:title="@string/title_pref_socks_port" />
 
         <EditTextPreference
