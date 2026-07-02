@@ -238,7 +238,69 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         setupViewModel()
         mainViewModel.reloadServerList()
 
+        val isBooted = MmkvManager.decodeSettingsBool(AppConfig.PREF_IS_BOOTED)
+        if (!isBooted) {
+            showStartupDialog()
+            importAllSubsOnStartup()
+        }
+
         checkAndRequestPermission(PermissionType.POST_NOTIFICATIONS) {
+        }
+    }
+
+    private var startupDialog: androidx.appcompat.app.AlertDialog? = null
+
+    private fun showStartupDialog() {
+        binding.btnConnect.isEnabled = false
+        binding.btnConnect.alpha = 0.5f
+        binding.spinnerGroup.isEnabled = false
+
+        val tv = TextView(this).apply {
+            text = "Downloading configs..."
+            setPadding(64, 48, 64, 16)
+            textSize = 16f
+        }
+        val progressBar = android.widget.ProgressBar(this).apply {
+            isIndeterminate = true
+            setPadding(64, 16, 64, 48)
+        }
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            addView(tv)
+            addView(progressBar)
+        }
+
+        startupDialog = MaterialAlertDialogBuilder(this)
+            .setTitle("DeltaRay")
+            .setView(container)
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun dismissStartupDialog() {
+        startupDialog?.dismiss()
+        startupDialog = null
+        binding.btnConnect.isEnabled = true
+        binding.btnConnect.alpha = 1.0f
+        binding.spinnerGroup.isEnabled = true
+        MmkvManager.encodeSettings(AppConfig.PREF_IS_BOOTED, true)
+    }
+
+    private fun importAllSubsOnStartup() {
+        log("STARTUP: importing all subscriptions")
+        setTestState(getString(R.string.connection_updating_profiles))
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result = AngConfigManager.updateConfigViaSubAll()
+            val removed = mainViewModel.removeDuplicateByIpAll()
+            log("STARTUP: sub update done: configCount=${result.configCount} removed=$removed")
+            launch(Dispatchers.Main) {
+                if (result.configCount > 0) {
+                    mainViewModel.reloadServerList()
+                    setupSpinner()
+                }
+                log("STARTUP: done. serverCount=${mainViewModel.serversCache.size}")
+                dismissStartupDialog()
+            }
         }
     }
 
