@@ -25,7 +25,7 @@ import xyz.zarazaex.olc.extension.serializable
 import xyz.zarazaex.olc.handler.AngConfigManager
 import xyz.zarazaex.olc.handler.CountryDetector
 import xyz.zarazaex.olc.handler.MmkvManager
-import xyz.zarazaex.olc.handler.V2RayServiceManager
+import xyz.zarazaex.olc.handler.FailoverManager
 import xyz.zarazaex.olc.handler.SettingsManager
 import xyz.zarazaex.olc.handler.SpeedtestManager
 import xyz.zarazaex.olc.util.MessageUtil
@@ -769,7 +769,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     // Resolve pending failover measure request
                     val delayMs = Regex("\\d+").find(content ?: "")?.value?.toLongOrNull() ?: -1L
-                    V2RayServiceManager.resolveMeasureResult(delayMs)
+                    FailoverManager.resolvePingResult(delayMs)
                 }
 
                 AppConfig.MSG_MEASURE_CONFIG_SUCCESS -> {
