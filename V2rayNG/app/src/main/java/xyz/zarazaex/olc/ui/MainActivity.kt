@@ -198,6 +198,26 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         binding.btnConnect.setOnClickListener { handleConnectAction() }
         binding.layoutTest.setOnClickListener { handleLayoutTestClick() }
 
+        binding.btnTelegram.setOnClickListener {
+            openUrl("https://t.me/DeltaKroneckerGithub")
+        }
+        binding.btnDonateIcon.setOnClickListener {
+            val donateAddress = "0x2a434FF74737be5B94634040D010a458507b0741"
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Donate")
+                .setMessage(getString(R.string.drawer_donate_text))
+                .setPositiveButton("Copy Address") { _, _ ->
+                    val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("donate", donateAddress))
+                    toast("Address copied")
+                }
+                .setNegativeButton("OK", null)
+                .show()
+        }
+        binding.btnSourceIcon.setOnClickListener {
+            openUrl("https://github.com/Delta-Kronecker/DeltaRay")
+        }
+
         mainViewModel.startListenBroadcast()
         mainViewModel.initAssets(assets)
 
@@ -577,6 +597,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         statusResetJob?.cancel()
         if (message.contains("Updated") && message.contains("config")) return
         if (message.contains("profiles")) return
+        if (message.startsWith("Failover:")) return
+        if (message == "Connected") return
         binding.tvTestState.text = message
         if (isOperationInProgress || mainViewModel.isTesting.value == true) return
         statusResetJob = lifecycleScope.launch {
@@ -748,18 +770,17 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     private fun updateSubsViaVpn() {
         lifecycleScope.launch(Dispatchers.IO) {
             delay(2000)
-            Log.d(AppConfig.TAG, "updateSubsViaVpn: starting post-connect subscription update")
+            log("SUB_UPDATE: starting post-connect subscription update")
             val result = mainViewModel.updateConfigViaSubAll()
             if (result.configCount > 0) {
                 val removed = mainViewModel.removeDuplicateByIpAll()
+                log("SUB_UPDATE: done. configCount=${result.configCount} success=${result.successCount} fail=${result.failureCount} removed=$removed")
                 withContext(Dispatchers.Main) {
                     mainViewModel.reloadServerList()
-                    val msg = if (removed > 0)
-                        "Subscriptions updated: ${result.configCount} profiles, removed $removed duplicate IPs"
-                    else
-                        "Subscriptions updated: ${result.configCount} profiles"
-                    showStatus(msg)
+                    setupSpinner()
                 }
+            } else {
+                log("SUB_UPDATE: no new configs")
             }
         }
     }

@@ -219,6 +219,7 @@
         app:initialExpandedChildrenCount="0">
         <CheckBoxPreference
             android:key="pref_mux_enabled"
+            android:defaultValue="true"
             android:summary="@string/summary_pref_mux_enabled"
             android:title="@string/title_pref_mux_enabled" />
 
@@ -248,11 +249,13 @@
         app:initialExpandedChildrenCount="0">
         <CheckBoxPreference
             android:key="pref_fragment_enabled"
+            android:defaultValue="true"
             android:title="@string/title_pref_fragment_enabled" />
 
         <EditTextPreference
             android:key="pref_fragment_length"
-            android:summary="50-100"
+            android:defaultValue="100-200"
+            android:summary="100-200"
             android:title="@string/title_pref_fragment_length" />
 
         <EditTextPreference
@@ -261,7 +264,7 @@
             android:title="@string/title_pref_fragment_interval" />
 
         <ListPreference
-            android:defaultValue="tlshello"
+            android:defaultValue="1-2"
             android:entries="@array/fragment_packets"
             android:entryValues="@array/fragment_packets"
             android:key="pref_fragment_packets"
