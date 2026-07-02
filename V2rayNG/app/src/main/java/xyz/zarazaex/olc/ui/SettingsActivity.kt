@@ -178,10 +178,10 @@ class SettingsActivity : BaseActivity() {
             updateMode(MmkvManager.decodeSettingsString(AppConfig.PREF_MODE, VPN))
 
             // Initialize mux-dependent UI states
-            updateMux(MmkvManager.decodeSettingsBool(AppConfig.PREF_MUX_ENABLED, true))
+            updateMux(MmkvManager.decodeSettingsBool(AppConfig.PREF_MUX_ENABLED, false))
 
             // Initialize fragment-dependent UI states
-            updateFragment(MmkvManager.decodeSettingsBool(AppConfig.PREF_FRAGMENT_ENABLED, true))
+            updateFragment(MmkvManager.decodeSettingsBool(AppConfig.PREF_FRAGMENT_ENABLED, false))
 
             // Initialize auto-update interval state
             autoUpdateInterval?.isEnabled = MmkvManager.decodeSettingsBool(AppConfig.SUBSCRIPTION_AUTO_UPDATE, false)

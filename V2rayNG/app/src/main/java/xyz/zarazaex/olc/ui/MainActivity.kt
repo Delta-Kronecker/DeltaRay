@@ -429,16 +429,14 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         if (isRunning || isTesting) {
             log("BTN: stopping (isRunning=$isRunning isTesting=$isTesting)")
             FailoverManager.stop()
-            if (isTesting) {
-                mainViewModel.cancelAllTests()
-                mainViewModel.suppressPinSelected = false
-                log("BTN: cancelled tests")
-            }
+            connectJob?.cancel()
+            connectJob = null
+            mainViewModel.cancelAllTests()
+            mainViewModel.suppressPinSelected = false
+            log("BTN: cancelled tests")
             if (isRunning) {
                 lifecycleScope.launch {
-                    log("BTN: calling stopVService")
                     V2RayServiceManager.stopVService(this@MainActivity)
-                    log("BTN: stopVService done")
                 }
             }
             isOperationInProgress = false
@@ -457,6 +455,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         connectJob = lifecycleScope.launch {
             try {
+                log("FLOW: waiting for test service to be ready...")
+                delay(2000)
+
                 log("FLOW: reloading server list")
                 showStatus("Testing all servers...")
                 binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
