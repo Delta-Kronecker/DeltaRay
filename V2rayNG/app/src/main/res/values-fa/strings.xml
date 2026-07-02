@@ -431,4 +431,9 @@
     </string-array>
 
     <string name="title_updating">در حال به‌روزرسانی…</string>
+
+    <string name="switch_server_not_connected">هنوز متصل نیست</string>
+    <string name="switch_server_connected">سرعت کم است؟ کلیک کنید تا سرور عوض شود</string>
+    <string name="connection_connected">متصل</string>
+    <string name="connection_not_connected">متصل نیست</string>
 </resources>
