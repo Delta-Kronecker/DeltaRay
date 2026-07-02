@@ -53,6 +53,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     private var isEasterEggActive = false
     private var connectJob: kotlinx.coroutines.Job? = null
     private var wasRunning = false
+    private var subsUpdatedAfterConnect = false
 
     val mainViewModel: MainViewModel by viewModels()
     @Volatile private var isOperationInProgress = false
@@ -392,7 +393,10 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             log("OBS isRunning=$isRunning wasRunning=$wasRunning")
             if (isRunning && !wasRunning) {
                 wasRunning = true
-                updateSubsViaVpn()
+                if (!subsUpdatedAfterConnect) {
+                    subsUpdatedAfterConnect = true
+                    updateSubsViaVpn()
+                }
                 FailoverManager.onStatusChange = { status ->
                     log(status)
                     runOnUiThread { showStatus(status) }
@@ -525,15 +529,23 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         val nextServer = sorted[nextIndex].first
 
         log("SWITCH: current=${currentServer.take(8)} next=${nextServer.take(8)} ping=${sorted[nextIndex].second}ms")
+        showStatus("Switching to ${nextServer.take(8)}...")
 
-        // Stop, switch, restart
+        // Stop, wait for core to fully stop, switch, restart
         lifecycleScope.launch {
             FailoverManager.stop()
             V2RayServiceManager.stopVService(this@MainActivity)
-            delay(1000)
+
+            // Wait for core to fully stop
+            var waitCount = 0
+            while (mainViewModel.isRunning.value == true && waitCount < 10) {
+                delay(500)
+                waitCount++
+            }
+            log("SWITCH: core stopped after ${waitCount * 500}ms")
+
             MmkvManager.setSelectServer(nextServer)
             V2RayServiceManager.startVService(this@MainActivity)
-            showStatus("Switched to server ${nextServer.take(8)}")
         }
     }
 
@@ -651,6 +663,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             binding.btnConnect.iconTint = onPrimary
             binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
             binding.btnSwitchServer.visibility = android.view.View.VISIBLE
+            binding.tvSwitchServer.text = "to slow? click to change the server"
             startPulseAnimation(ring1, ring2)
             binding.tvTestState.text = getString(R.string.connection_connected)
             setStatusDot(DotState.CONNECTED)
