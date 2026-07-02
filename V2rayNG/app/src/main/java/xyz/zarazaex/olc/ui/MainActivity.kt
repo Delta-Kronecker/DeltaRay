@@ -142,14 +142,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             requestActivityLauncher.launch(Intent(this, PerAppProxyActivity::class.java))
             binding.drawerLayout.closeDrawer(GravityCompat.START)
         }
-        findViewById<android.view.View>(R.id.drawer_telegram)?.setOnClickListener {
-            openUrl("https://t.me/DeltaKroneckerGithub")
-            binding.drawerLayout.closeDrawer(GravityCompat.START)
-        }
-        findViewById<android.view.View>(R.id.drawer_source)?.setOnClickListener {
-            openUrl("https://github.com/Delta-Kronecker/DeltaRay")
-            binding.drawerLayout.closeDrawer(GravityCompat.START)
-        }
         fun removeUnderlines(textView: android.widget.TextView?) {
             if (textView == null) return
             textView.movementMethod = android.text.method.LinkMovementMethod.getInstance()
@@ -237,21 +229,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             binding.logScroll.visibility = if (logVisible) android.view.View.VISIBLE else android.view.View.GONE
             binding.btnCopyLog.visibility = if (logVisible) android.view.View.VISIBLE else android.view.View.GONE
             if (logVisible) binding.drawerLog.text = "Hide Log" else binding.drawerLog.text = "Log"
-        }
-
-        binding.drawerDonate.setOnClickListener {
-            val donateAddress = "0x2a434FF74737be5B94634040D010a458507b0741"
-            MaterialAlertDialogBuilder(this)
-                .setTitle("Donate")
-                .setMessage(getString(R.string.drawer_donate_text))
-                .setPositiveButton("Copy Address") { _, _ ->
-                    val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("donate", donateAddress))
-                    toast("Address copied")
-                }
-                .setNegativeButton("OK", null)
-                .show()
-            binding.drawerLayout.closeDrawer(GravityCompat.START)
         }
 
         setupSpinner()
