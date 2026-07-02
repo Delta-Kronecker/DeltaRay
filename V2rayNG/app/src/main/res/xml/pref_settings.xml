@@ -224,7 +224,6 @@
 
         <CheckBoxPreference
             android:key="pref_fragment_enabled"
-            android:defaultValue="true"
             android:title="@string/title_pref_fragment_enabled" />
 
         <EditTextPreference
