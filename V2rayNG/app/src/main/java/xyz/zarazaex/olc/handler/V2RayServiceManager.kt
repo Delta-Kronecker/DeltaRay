@@ -19,10 +19,13 @@ import xyz.zarazaex.olc.service.V2RayVpnService
 import xyz.zarazaex.olc.util.MessageUtil
 import xyz.zarazaex.olc.util.Utils
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.CompletableDeferred
 import libv2ray.CoreCallbackHandler
 import libv2ray.CoreController
 import java.lang.ref.SoftReference
