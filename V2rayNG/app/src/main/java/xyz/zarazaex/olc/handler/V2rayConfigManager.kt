@@ -721,7 +721,7 @@ object V2rayConfigManager {
      */
     private fun getMoreOutbounds(v2rayConfig: V2rayConfig, subscriptionId: String): Boolean {
         //fragment proxy
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_FRAGMENT_ENABLED, false) == true) {
+        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_FRAGMENT_ENABLED, true) == true) {
             return false
         }
 
@@ -955,7 +955,7 @@ object V2rayConfigManager {
      */
     private fun updateOutboundFragment(v2rayConfig: V2rayConfig): Boolean {
         try {
-            if (MmkvManager.decodeSettingsBool(AppConfig.PREF_FRAGMENT_ENABLED, false) == false) {
+            if (MmkvManager.decodeSettingsBool(AppConfig.PREF_FRAGMENT_ENABLED, true) == false) {
                 return true
             }
             if (v2rayConfig.outbounds[0].streamSettings?.security != AppConfig.TLS
@@ -972,7 +972,7 @@ object V2rayConfigManager {
                 )
 
             var packets =
-                MmkvManager.decodeSettingsString(AppConfig.PREF_FRAGMENT_PACKETS) ?: "tlshello"
+                MmkvManager.decodeSettingsString(AppConfig.PREF_FRAGMENT_PACKETS) ?: "1-2"
             if (v2rayConfig.outbounds[0].streamSettings?.security == AppConfig.REALITY
                 && packets == "tlshello"
             ) {

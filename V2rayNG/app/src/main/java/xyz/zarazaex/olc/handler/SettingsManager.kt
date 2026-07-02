@@ -451,7 +451,7 @@ object SettingsManager {
         ensureDefaultValue(AppConfig.PREF_HEV_TUNNEL_RW_TIMEOUT, AppConfig.HEVTUN_RW_TIMEOUT)
         ensureDefaultValue(AppConfig.PREF_MUX_CONCURRENCY, "8")
         ensureDefaultValue(AppConfig.PREF_MUX_XUDP_CONCURRENCY, "8")
-        ensureDefaultValue(AppConfig.PREF_FRAGMENT_LENGTH, "50-100")
+        ensureDefaultValue(AppConfig.PREF_FRAGMENT_LENGTH, "100-200")
         ensureDefaultValue(AppConfig.PREF_FRAGMENT_INTERVAL, "10-20")
         
         ensureDefaultBoolValue(AppConfig.PREF_LOCAL_DNS_ENABLED, true)
