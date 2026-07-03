@@ -43,7 +43,8 @@ class V2RayVpnService : VpnService(), ServiceControl {
 
     private fun sendLog(msg: String) {
         try {
-            val intent = Intent("xyz.zarazaex.olc.action.LOG")
+            val intent = Intent("${packageName}.action.LOG")
+            intent.`package` = packageName
             intent.`package` = packageName
             intent.putExtra("log_msg", msg)
             sendBroadcast(intent)
