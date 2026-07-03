@@ -143,6 +143,10 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             requestActivityLauncher.launch(Intent(this, PerAppProxyActivity::class.java))
             binding.drawerLayout.closeDrawer(GravityCompat.START)
         }
+        findViewById<android.view.View>(R.id.check_update)?.setOnClickListener {
+            startActivity(Intent(this, CheckUpdateActivity::class.java))
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
+        }
         fun removeUnderlines(textView: android.widget.TextView?) {
             if (textView == null) return
             textView.movementMethod = android.text.method.LinkMovementMethod.getInstance()
@@ -793,6 +797,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         when (item.itemId) {
             R.id.per_app_proxy_settings -> requestActivityLauncher.launch(Intent(this, PerAppProxyActivity::class.java))
             R.id.settings -> requestActivityLauncher.launch(Intent(this, SettingsActivity::class.java))
+            R.id.check_update -> startActivity(Intent(this, CheckUpdateActivity::class.java))
         }
         binding.drawerLayout.closeDrawer(GravityCompat.START)
         return true
