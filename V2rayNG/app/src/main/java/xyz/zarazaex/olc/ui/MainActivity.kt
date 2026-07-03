@@ -509,6 +509,9 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     }
 
     private fun switchToNextServer() {
+        val isRunning = mainViewModel.isRunning.value == true
+        if (!isRunning) return
+
         val currentServer = MmkvManager.getSelectServer() ?: return
 
         // Get all servers sorted by ping (best first)
