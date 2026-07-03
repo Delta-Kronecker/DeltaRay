@@ -16,8 +16,8 @@ object FailoverManager {
 
     private const val PING_TIMEOUT_MS = 10_000L
     private const val PING_INTERVAL_MS = 5_000L
-    private const val INITIAL_DELAY_MS = 15_000L
-    private const val MAX_FAILURES_BEFORE_SWITCH = 3
+    private const val INITIAL_DELAY_MS = 10_000L
+    private const val MAX_FAILURES_BEFORE_SWITCH = 2
 
     var onStatusChange: ((String) -> Unit)? = null
 
