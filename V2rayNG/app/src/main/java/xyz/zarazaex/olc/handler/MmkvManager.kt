@@ -19,14 +19,14 @@ object MmkvManager {
 
     //region private
 
-    private const val ID_MAIN = "MAIN"
-    private const val ID_PROFILE_FULL_CONFIG = "PROFILE_FULL_CONFIG"
-    private const val ID_SERVER_RAW = "SERVER_RAW"
-    private const val ID_SERVER_AFF = "SERVER_AFF"
-    private const val ID_SUB = "SUB"
-    private const val ID_ASSET = "ASSET"
-    private const val ID_SETTING = "SETTING"
-    private const val ID_COUNTRY_CACHE = "COUNTRY_CACHE"
+    private const val ID_MAIN = "DR_MAIN"
+    private const val ID_PROFILE_FULL_CONFIG = "DR_PROFILE_FULL_CONFIG"
+    private const val ID_SERVER_RAW = "DR_SERVER_RAW"
+    private const val ID_SERVER_AFF = "DR_SERVER_AFF"
+    private const val ID_SUB = "DR_SUB"
+    private const val ID_ASSET = "DR_ASSET"
+    private const val ID_SETTING = "DR_SETTING"
+    private const val ID_COUNTRY_CACHE = "DR_COUNTRY_CACHE"
     private const val KEY_SELECTED_SERVER = "SELECTED_SERVER"
     private const val KEY_ANG_CONFIGS = "ANG_CONFIGS"
     private const val KEY_SUB_SERVER_PREFIX = "SUB_SERVERS_"

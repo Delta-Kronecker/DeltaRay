@@ -18,7 +18,7 @@ object AppConfig {
     fun broadcastLog(ctx: android.content.Context, msg: String) {
         val ts = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.US).format(java.util.Date())
         try {
-            val intent = android.content.Intent("xyz.zarazaex.olc.action.LOG")
+            val intent = android.content.Intent("$ANG_PACKAGE.action.LOG")
             intent.`package` = ctx.packageName
             intent.putExtra("log_msg", "$ts $msg")
             ctx.sendBroadcast(intent)
