@@ -83,13 +83,72 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         }
     }
 
+    private var pendingVpnIntent: android.content.Intent? = null
+
     private val requestVpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         log("VPN_PERM: resultCode=${it.resultCode} OK=${RESULT_OK}")
+        pendingVpnIntent = null
         if (it.resultCode == RESULT_OK) {
-            log("VPN_PERM: granted, calling startV2Ray")
-            startV2Ray()
+            log("VPN_PERM: granted, starting test flow")
+            // VPN permission granted, now start the test flow
+            binding.btnConnect.animate().scaleX(0.85f).scaleY(0.85f).setDuration(100).withEndAction {
+                binding.btnConnect.animate().scaleX(1f).scaleY(1f).setDuration(150).start()
+            }.start()
+
+            connectJob = lifecycleScope.launch {
+                try {
+                    log("FLOW: waiting for test service to be ready...")
+                    delay(2000)
+
+                    log("FLOW: reloading server list")
+                    showStatus("Testing all servers...")
+                    binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
+                    mainViewModel.suppressPinSelected = true
+
+                    mainViewModel.reloadServerList()
+                    var serverCount = mainViewModel.serversCache.size
+                    log("FLOW: serverList reloaded, count=$serverCount servers")
+
+                    if (serverCount == 0) {
+                        log("FLOW: no servers found, downloading subscriptions...")
+                        showStatus("Downloading configs...")
+                        val result = withContext(Dispatchers.IO) {
+                            AngConfigManager.updateConfigViaSubAll()
+                        }
+                        log("FLOW: sub download done: configCount=${result.configCount}")
+                        mainViewModel.reloadServerList()
+                        setupSpinner()
+                        serverCount = mainViewModel.serversCache.size
+                        log("FLOW: after download, serverCount=$serverCount")
+                    }
+
+                    if (serverCount == 0) {
+                        log("FLOW: NO SERVERS! aborting test")
+                        isOperationInProgress = false
+                        binding.btnConnect.setIconResource(R.drawable.bolt_24)
+                        applyRunningState(false)
+                        showStatus("No servers available")
+                        return@launch
+                    }
+
+                    log("FLOW: calling testAllRealPing()")
+                    mainViewModel.testAllRealPing()
+                    log("FLOW: testAllRealPing() returned")
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    log("FLOW: CANCELLED by user")
+                } catch (e: Exception) {
+                    log("FLOW: ERROR: ${e.message}")
+                    Log.e(AppConfig.TAG, "Error in handleConnectAction", e)
+                    isOperationInProgress = false
+                    binding.btnConnect.setIconResource(R.drawable.bolt_24)
+                    applyRunningState(false)
+                }
+            }
         } else {
             log("VPN_PERM: denied")
+            isOperationInProgress = false
+            binding.btnConnect.setIconResource(R.drawable.bolt_24)
+            applyRunningState(false)
         }
     }
     private val requestActivityLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -504,6 +563,18 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         if (isOperationInProgress) return
         isOperationInProgress = true
+
+        // Request VPN permission early if needed
+        val isVpn = SettingsManager.isVpnMode()
+        if (isVpn) {
+            val vpnIntent = VpnService.prepare(this)
+            if (vpnIntent != null) {
+                log("BTN: requesting VPN permission before test")
+                pendingVpnIntent = vpnIntent
+                requestVpnPermission.launch(vpnIntent)
+                return
+            }
+        }
 
         binding.btnConnect.animate().scaleX(0.85f).scaleY(0.85f).setDuration(100).withEndAction {
             binding.btnConnect.animate().scaleX(1f).scaleY(1f).setDuration(150).start()
