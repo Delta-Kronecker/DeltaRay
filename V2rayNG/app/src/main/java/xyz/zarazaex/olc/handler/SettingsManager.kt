@@ -559,7 +559,7 @@ object SettingsManager {
      * Removes any old/unknown subscriptions that don't match the expected set.
      */
     private fun ensureDefaultSubscription() {
-        val validSubIds = setOf("sub_best", "sub_mahsa")
+        val validSubIds = setOf("sub_best")
 
         val allSubs = decodeSubsList()
         for (subId in allSubs.toList()) {
@@ -570,7 +570,6 @@ object SettingsManager {
 
         val defaultSubscriptions = listOf(
             Triple("sub_best", "\u26A1 Delta Config", AppConfig.DEFAULT_SUBSCRIPTION_BEST_URL),
-            Triple("sub_mahsa", "\u26A1 Mahsa Config", AppConfig.DEFAULT_SUBSCRIPTION_VLESS_URL),
         )
 
         for ((id, name, url) in defaultSubscriptions) {
