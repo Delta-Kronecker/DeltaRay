@@ -205,9 +205,23 @@ object V2RayServiceManager {
             return false
         }
         AppConfig.broadcastLog(service, "CORE: startCoreLoop called, isRunning=${coreController.isRunning}")
+
+        // Wait for core to fully stop if it's still running
         if (coreController.isRunning) {
-            Log.w(AppConfig.TAG, "StartCore-Manager: Core already running")
-            return false
+            Log.w(AppConfig.TAG, "StartCore-Manager: Core still running, waiting...")
+            AppConfig.broadcastLog(service, "CORE: waiting for core to stop...")
+            var waitCount = 0
+            while (coreController.isRunning && waitCount < 20) {
+                Thread.sleep(500)
+                waitCount++
+            }
+            if (coreController.isRunning) {
+                Log.e(AppConfig.TAG, "StartCore-Manager: Core still running after wait")
+                AppConfig.broadcastLog(service, "CORE: ERROR core still running after ${waitCount * 500}ms")
+                return false
+            }
+            Log.i(AppConfig.TAG, "StartCore-Manager: Core stopped after ${waitCount * 500}ms")
+            AppConfig.broadcastLog(service, "CORE: core stopped after ${waitCount * 500}ms")
         }
 
         val guid = MmkvManager.getSelectServer()
