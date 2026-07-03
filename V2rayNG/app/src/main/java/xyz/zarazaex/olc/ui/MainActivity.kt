@@ -38,6 +38,7 @@ import xyz.zarazaex.olc.handler.FailoverManager
 import xyz.zarazaex.olc.handler.MmkvManager
 import xyz.zarazaex.olc.handler.SettingsChangeManager
 import xyz.zarazaex.olc.handler.SettingsManager
+import xyz.zarazaex.olc.handler.UpdateCheckerManager
 import xyz.zarazaex.olc.handler.V2RayServiceManager
 import xyz.zarazaex.olc.util.MessageUtil
 import xyz.zarazaex.olc.util.Utils
@@ -419,7 +420,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     private fun checkForUpdatesOnStartup() {
         lifecycleScope.launch {
             try {
-                val result = withContext(Dispatchers.IO) {
+                val result: xyz.zarazaex.olc.dto.CheckUpdateResult = withContext(Dispatchers.IO) {
                     UpdateCheckerManager.checkForUpdate(false)
                 }
                 if (result.hasUpdate) {
