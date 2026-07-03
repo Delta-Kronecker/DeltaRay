@@ -7,7 +7,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "xyz.zarazaex.olc"
+        applicationId = "xyz.deltakronecker.deltaray"
         minSdk = 29
         targetSdk = 36
         
