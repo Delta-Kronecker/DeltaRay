@@ -109,7 +109,10 @@ class CheckUpdateActivity : BaseActivity() {
             .setTitle(titleStr)
             .setMessage(message)
             .setPositiveButton(R.string.update_now) { _, _ ->
-                result.downloadUrl?.let { downloadAndInstall(it) }
+                result.downloadUrl?.let {
+                    val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(it))
+                    startActivity(intent)
+                }
             }
             .create()
         dialog.show()
