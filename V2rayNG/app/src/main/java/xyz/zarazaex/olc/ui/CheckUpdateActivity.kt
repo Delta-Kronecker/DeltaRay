@@ -81,8 +81,9 @@ class CheckUpdateActivity : BaseActivity() {
             return
         }
 
-        toast(R.string.update_downloading)
         showLoading()
+        binding.layoutCheckUpdate.isEnabled = false
+        binding.tvVersion.text = "Downloading..."
 
         lifecycleScope.launch {
             try {
@@ -96,6 +97,7 @@ class CheckUpdateActivity : BaseActivity() {
                 toastError(e.message ?: getString(R.string.update_download_failed))
             } finally {
                 hideLoading()
+                binding.layoutCheckUpdate.isEnabled = true
             }
         }
     }
