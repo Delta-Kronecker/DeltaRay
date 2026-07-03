@@ -249,6 +249,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         checkAndRequestPermission(PermissionType.POST_NOTIFICATIONS) {
         }
+
+        checkForUpdatesOnStartup()
     }
 
     private var startupDialog: androidx.appcompat.app.AlertDialog? = null
@@ -412,6 +414,41 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             }
             applyRunningState(isRunning)
         }
+    }
+
+    private fun checkForUpdatesOnStartup() {
+        lifecycleScope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    UpdateCheckerManager.checkForUpdate(false)
+                }
+                if (result.hasUpdate) {
+                    log("UPDATE: new version ${result.latestVersion} available")
+                    showUpdateNotification(result)
+                }
+            } catch (e: Exception) {
+                Log.e(AppConfig.TAG, "Failed to check for updates", e)
+            }
+        }
+    }
+
+    private fun showUpdateNotification(result: xyz.zarazaex.olc.dto.CheckUpdateResult) {
+        val channelId = "update_channel"
+        val nm = getSystemService(android.app.NotificationManager::class.java)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(channelId, "Update", android.app.NotificationManager.IMPORTANCE_DEFAULT)
+            nm.createNotificationChannel(channel)
+        }
+        val intent = Intent(this, CheckUpdateActivity::class.java)
+        val pendingIntent = android.app.PendingIntent.getActivity(this, 0, intent, android.app.PendingIntent.FLAG_IMMUTABLE)
+        val notification = androidx.core.app.NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.drawable.ic_check_update_24dp)
+            .setContentTitle("DeltaRay")
+            .setContentText("New version ${result.latestVersion} is available")
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+        nm.notify(1001, notification)
     }
 
     private fun importAllSubsOnStartup() {
