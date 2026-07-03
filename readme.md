@@ -26,9 +26,8 @@
 - **متن‌باز**: تمام کد منبع برنامه در GitHub موجود است و هر کسی می‌تواند آن را بررسی کند
 - **بدون ردیابی**: هیچ اطلاعات شخصی یا لاگ اتصال ذخیره نمی‌شود
 - **بدون تبلیغات**: هیچ تبلیغاتی در برنامه وجود ندارد
-- **بدون خرید درون‌برنامه‌ای**: برنامه کاملاً رایگان است
-- **امنیت بالا**: از پروتکل‌های رمزنگاری قوی وی تو ری استفاده می‌شود
-- **کد قابل بررسی**: هر توسعه‌دهنده‌ای می‌تواند کد را مطالعه و تأیید کند
+- **امنیت بالا**: از پروتکل‌های رمزنگاری قوی استفاده می‌شود
+- **کد قابل بررسی**: هر فردی می تواند کد برنامه را بررسی کند تغییر دهد و خودش فایل نصبی را بسازد
 
 ### هدف اصلی
 
@@ -65,17 +64,17 @@
 ### مراحل ساخت
 
 ```bash
-# کلون مخزن
+# Clone the repository
 git clone https://github.com/Delta-Kronecker/DeltaRay.git
 cd DeltaRay
 
-# آپدیت submodules
+# Update submodules
 git submodule update --init --recursive
 
-# ساخت کتابخانه hev-socks5-tunnel
+# Build hev-socks5-tunnel library
 bash compile-hevtun.sh
 
-# ساخت libv2ray با gomobile
+# Build libv2ray with gomobile
 cd AndroidLibXrayLite
 go install golang.org/x/mobile/cmd/gomobile@latest
 go install golang.org/x/mobile/cmd/gobind@latest
@@ -85,7 +84,7 @@ gomobile bind -v -androidapi 24 -trimpath -ldflags='-s -w -buildid=' -o libv2ray
 cp libv2ray.aar ../V2rayNG/app/libs/
 cd ..
 
-# ساخت APK
+# Build APK
 cd V2rayNG
 chmod 755 gradlew
 ./gradlew assembleRelease
@@ -123,7 +122,6 @@ DeltaRay is a free, open-source, and secure VPN app forked from v2rayNG.
 - **Open Source**: All source code is available on GitHub for anyone to review
 - **No Tracking**: No personal data or connection logs are stored
 - **No Ads**: Zero advertisements in the app
-- **No In-App Purchases**: Completely free
 - **Strong Encryption**: Uses v2ray's robust encryption protocols
 - **Auditable Code**: Any developer can read and verify the code
 
