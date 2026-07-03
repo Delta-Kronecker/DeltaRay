@@ -418,7 +418,15 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         log("STARTUP: importing all subscriptions")
         setTestState(getString(R.string.connection_updating_profiles))
         lifecycleScope.launch(Dispatchers.IO) {
-            val result = AngConfigManager.updateConfigViaSubAll()
+            var result = AngConfigManager.updateConfigViaSubAll()
+            var retryCount = 0
+            while (result.configCount == 0 && retryCount < 5) {
+                retryCount++
+                log("STARTUP: no configs found, retry $retryCount/5 in 3s...")
+                delay(3000)
+                result = AngConfigManager.updateConfigViaSubAll()
+                log("STARTUP: retry result: configCount=${result.configCount}")
+            }
             val removed = mainViewModel.removeDuplicateByIpAll()
             log("STARTUP: sub update done: configCount=${result.configCount} removed=$removed")
             launch(Dispatchers.Main) {
