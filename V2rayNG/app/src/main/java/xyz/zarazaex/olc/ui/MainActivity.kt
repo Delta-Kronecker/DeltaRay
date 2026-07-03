@@ -279,7 +279,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         mainViewModel.startListenBroadcast()
         mainViewModel.initAssets(assets)
 
-        val logFilter = android.content.IntentFilter("xyz.zarazaex.olc.action.LOG")
+        val logFilter = android.content.IntentFilter("${packageName}.action.LOG")
         registerReceiver(logReceiver, logFilter, android.content.Context.RECEIVER_NOT_EXPORTED)
 
         binding.btnCopyLog.setOnClickListener {

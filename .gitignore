@@ -75,3 +75,8 @@ material-design-icons
 .kirograph/kirograph.db
 .kirograph/.session-id
 .kirograph/token-savings.jsonl
+
+# Build output
+bin/
+# Root project source
+src/

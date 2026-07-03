@@ -2,4 +2,4 @@
 
 <h3>Telegram Channel</h3>
 
-<p><a href="https://t.me/openlibrecommunity">openlibrecommunity</a></p>
+<p><a href="https://t.me/DeltaKroneckerGithub">DeltaKroneckerGithub</a></p>
