@@ -482,8 +482,21 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 mainViewModel.suppressPinSelected = true
 
                 mainViewModel.reloadServerList()
-                val serverCount = mainViewModel.serversCache.size
+                var serverCount = mainViewModel.serversCache.size
                 log("FLOW: serverList reloaded, count=$serverCount servers")
+
+                if (serverCount == 0) {
+                    log("FLOW: no servers found, downloading subscriptions...")
+                    showStatus("Downloading configs...")
+                    val result = withContext(Dispatchers.IO) {
+                        AngConfigManager.updateConfigViaSubAll()
+                    }
+                    log("FLOW: sub download done: configCount=${result.configCount}")
+                    mainViewModel.reloadServerList()
+                    setupSpinner()
+                    serverCount = mainViewModel.serversCache.size
+                    log("FLOW: after download, serverCount=$serverCount")
+                }
 
                 if (serverCount == 0) {
                     log("FLOW: NO SERVERS! aborting test")
