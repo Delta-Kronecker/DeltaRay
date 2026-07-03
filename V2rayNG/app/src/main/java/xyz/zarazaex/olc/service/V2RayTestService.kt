@@ -38,10 +38,14 @@ class V2RayTestService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.i(AppConfig.TAG, "TEST_SVC: onStartCommand intent=$intent")
+        AppConfig.broadcastLog(this, "TEST_SVC: onStartCommand")
         val message = intent?.serializable<TestServiceMessage>("content")
-        Log.d(AppConfig.TAG, "TEST_SVC: onStartCommand message=${message?.key}")
+        Log.i(AppConfig.TAG, "TEST_SVC: message key=${message?.key}")
+        AppConfig.broadcastLog(this, "TEST_SVC: message key=${message?.key}")
         if (message == null) {
             Log.e(AppConfig.TAG, "TEST_SVC: message is null!")
+            AppConfig.broadcastLog(this, "TEST_SVC: ERROR message is null")
             return super.onStartCommand(intent, flags, startId)
         }
         when (message.key) {
@@ -55,11 +59,13 @@ class V2RayTestService : Service() {
                 }
 
                 Log.d(AppConfig.TAG, "TEST_SVC: MSG_MEASURE_CONFIG, guidsList.size=${guidsList.size}")
+                AppConfig.broadcastLog(this, "TEST_SVC: MSG_MEASURE_CONFIG, guidsList.size=${guidsList.size}")
 
                 if (guidsList.isNotEmpty()) {
                     lateinit var worker: RealPingWorkerService
                     worker = RealPingWorkerService(this, guidsList) { status ->
                         Log.d(AppConfig.TAG, "TEST_SVC: worker finished with status=$status")
+                        AppConfig.broadcastLog(this, "TEST_SVC: worker finished status=$status")
                         MessageUtil.sendMsg2UI(this@V2RayTestService, AppConfig.MSG_MEASURE_CONFIG_FINISH, status)
                         activeWorkers.remove(worker)
                     }
