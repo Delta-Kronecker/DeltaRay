@@ -51,7 +51,7 @@ class RealPingWorkerService(
 
     fun start() {
         Log.d(AppConfig.TAG, "PING_WORKER: start() called, ${guids.size} configs")
-        AppConfig.broadcastLog(context, "PING_WORKER: start, ${guids.size} configs")
+        MessageUtil.sendMsg2UI(context, AppConfig.MSG_MEASURE_CONFIG_NOTIFY, "PING_WORKER: start ${guids.size} configs")
         scope.launch(Dispatchers.IO) {
             while (isActive) {
                 delay(FLUSH_INTERVAL_MS)

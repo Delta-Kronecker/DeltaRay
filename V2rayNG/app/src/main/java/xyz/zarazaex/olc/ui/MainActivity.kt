@@ -62,7 +62,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     private var groupNames = mutableListOf<String>()
     private var groupIds = mutableListOf<String>()
     private val logMessages = mutableListOf<String>()
-    private val maxLogLines = 100
+    private val maxLogLines = 200
 
     private fun log(msg: String) {
         val ts = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.US).format(java.util.Date())

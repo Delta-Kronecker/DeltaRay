@@ -791,6 +791,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 AppConfig.MSG_MEASURE_CONFIG_BATCH -> {
                     if (stopRequested) return
                     val update = intent.serializable<PingProgressUpdate>("content") ?: return
+                    Log.d(AppConfig.TAG, "TEST_PING: BATCH received ${update.results.size} results, finished=${update.finished}/${update.total}")
                     update.results.forEach { result ->
                         MmkvManager.encodeServerTestDelayMillis(result.guid, result.delay)
                     }

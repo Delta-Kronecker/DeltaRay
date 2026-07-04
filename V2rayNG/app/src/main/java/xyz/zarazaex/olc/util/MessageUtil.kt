@@ -42,14 +42,14 @@ object MessageUtil {
      */
     fun sendMsg2TestService(ctx: Context, message: TestServiceMessage) {
         try {
-            Log.i(AppConfig.TAG, "MSG: sendMsg2TestService key=${message.key}")
+            Log.i(AppConfig.TAG, "MSG: sendMsg2TestService key=${message.key} subId=${message.subscriptionId} guids=${message.serverGuids.size}")
             val intent = Intent()
             intent.component = ComponentName(ctx, V2RayTestService::class.java)
             intent.putExtra("content", message)
             ctx.startService(intent)
             Log.i(AppConfig.TAG, "MSG: sendMsg2TestService OK")
         } catch (e: Exception) {
-            Log.e(AppConfig.TAG, "MSG: Failed to send message to test service: ${e.message}", e)
+            Log.e(AppConfig.TAG, "MSG: FAILED: ${e.message}", e)
         }
     }
 
