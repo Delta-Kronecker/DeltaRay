@@ -384,11 +384,12 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 mainViewModel.sortByTestResults()
                 mainViewModel.reloadServerList()
 
-                if (firstReachable != null && firstReachable.guid != currentServer) {
-                    log("OBS: best server is ${firstReachable.guid}, saving for next connect")
+                if (firstReachable != null) {
                     MmkvManager.setSelectServer(firstReachable.guid)
+                    log("OBS: connecting to best server ${firstReachable.guid}")
+                    startV2RayWithPermission()
                 } else {
-                    log("OBS: current server is already the best")
+                    log("OBS: no reachable servers found")
                 }
             }
         }
@@ -560,17 +561,12 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     return@launch
                 }
 
-                log("FLOW: starting VPN immediately...")
-                showStatus("Connecting...")
+                log("FLOW: starting test...")
                 binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
                 binding.btnConnect.isEnabled = true
-                V2RayServiceManager.startVService(this@MainActivity)
-
-                log("FLOW: starting background test...")
-                showStatus("Testing servers...")
                 mainViewModel.suppressPinSelected = true
                 mainViewModel.testAllRealPing()
-                log("FLOW: testAllRealPing() completed")
+                log("FLOW: testAllRealPing() returned, VPN will connect after test finishes via observer")
             } catch (e: kotlinx.coroutines.CancellationException) {
                 log("FLOW: CANCELLED by user")
             } catch (e: Exception) {
