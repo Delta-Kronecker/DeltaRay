@@ -561,12 +561,23 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     return@launch
                 }
 
+                log("FLOW: starting test service process...")
+                try {
+                    val testSvcIntent = android.content.Intent(this@MainActivity, xyz.zarazaex.olc.service.V2RayTestService::class.java)
+                    startService(testSvcIntent)
+                    log("FLOW: test service startService OK")
+                } catch (e: Exception) {
+                    log("FLOW: test service startService FAILED: ${e.message}")
+                }
+                delay(3000)
+                log("FLOW: test service should be ready now")
+
                 log("FLOW: starting test...")
                 binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
                 binding.btnConnect.isEnabled = true
                 mainViewModel.suppressPinSelected = true
                 mainViewModel.testAllRealPing()
-                log("FLOW: testAllRealPing() returned, VPN will connect after test finishes via observer")
+                log("FLOW: testAllRealPing() sent")
             } catch (e: kotlinx.coroutines.CancellationException) {
                 log("FLOW: CANCELLED by user")
             } catch (e: Exception) {
