@@ -837,7 +837,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 AppConfig.MSG_MEASURE_CONFIG_FINISH -> {
                     if (stopRequested) return
-                    val content = intent.getStringExtra("content")
+                    val content = intent.getStringExtra("content") ?: "0"
+                    Log.d(AppConfig.TAG, "TEST_PING: FINISH content=$content")
                     if (content == "0") {
                         onTestsFinished()
                     } else {

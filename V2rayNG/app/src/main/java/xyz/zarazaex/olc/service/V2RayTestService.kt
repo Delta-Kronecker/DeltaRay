@@ -65,7 +65,7 @@ class V2RayTestService : Service() {
                     worker = RealPingWorkerService(this, guidsList) { status ->
                         Log.d(AppConfig.TAG, "TEST_SVC: worker finished with status=$status")
                         MessageUtil.sendMsg2UI(this@V2RayTestService, AppConfig.MSG_MEASURE_CONFIG_NOTIFY, "TEST_SVC: worker done status=$status")
-                        MessageUtil.sendMsg2UI(this@V2RayTestService, AppConfig.MSG_MEASURE_CONFIG_FINISH, status)
+                        MessageUtil.sendMsg2UI(this@V2RayTestService, AppConfig.MSG_MEASURE_CONFIG_FINISH, status.toString())
                         activeWorkers.remove(worker)
                     }
                     activeWorkers.add(worker)
