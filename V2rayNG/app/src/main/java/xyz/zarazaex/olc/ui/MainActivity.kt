@@ -334,24 +334,20 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
     private fun setupViewModel() {
         mainViewModel.updateTestResultAction.observe(this) { result ->
             log("OBS updateTestResult: $result")
-            if (result != null) {
-                val match = Regex("(\\d+)/(\\d+)").find(result)
-                if (match != null) {
-                    val done = match.groupValues[1].toIntOrNull() ?: 0
-                    val total = match.groupValues[2].toIntOrNull() ?: 1
-                    val pct = (done * 100 / total).coerceIn(0, 100)
-                    binding.tvTestState.text = "$pct%"
-                    updateProgressFill(pct)
-                } else if (result.contains("ms")) {
-                    val msMatch = Regex("(\\d+)\\s*ms").find(result)
-                    val ms = msMatch?.groupValues?.get(1) ?: ""
-                    if (ms.isNotEmpty()) {
-                        binding.tvTestState.text = "Connected ${ms}ms"
-                    } else {
-                        binding.tvTestState.text = result
-                    }
-                } else {
-                    binding.tvTestState.text = result
+            if (result == null) return@observe
+            if (mainViewModel.isTesting.value != true && !isOperationInProgress) return@observe
+            val match = Regex("(\\d+)/(\\d+)").find(result)
+            if (match != null) {
+                val done = match.groupValues[1].toIntOrNull() ?: 0
+                val total = match.groupValues[2].toIntOrNull() ?: 1
+                val pct = (done * 100 / total).coerceIn(0, 100)
+                binding.tvTestState.text = "$pct%"
+                updateProgressFill(pct)
+            } else if (result.contains("ms")) {
+                val msMatch = Regex("(\\d+)\\s*ms").find(result)
+                val ms = msMatch?.groupValues?.get(1) ?: ""
+                if (ms.isNotEmpty()) {
+                    binding.tvTestState.text = "Connected ${ms}ms"
                 }
             }
         }
@@ -369,9 +365,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 log("OBS isTesting=false, btn re-enabled")
                 binding.btnConnect.isEnabled = true
                 binding.btnConnect.setIconResource(R.drawable.bolt_24)
-                if (!isOperationInProgress) {
-                    showStatus("Test completed")
-                }
             }
         }
 
@@ -394,10 +387,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 if (firstReachable != null && firstReachable.guid != currentServer) {
                     log("OBS: best server is ${firstReachable.guid}, saving for next connect")
                     MmkvManager.setSelectServer(firstReachable.guid)
-                    showStatus("Test done. Best server saved.")
                 } else {
                     log("OBS: current server is already the best")
-                    showStatus("Test completed")
                 }
             }
         }
@@ -502,7 +493,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             }
 
             isOperationInProgress = false
-            showStatus("Stopped")
+            binding.tvTestState.text = getString(R.string.connection_not_connected)
             binding.btnConnect.isEnabled = true
             binding.btnConnect.setIconResource(R.drawable.bolt_24)
             applyRunningState(false)
@@ -737,22 +728,10 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
     private fun showStatus(message: String) {
         statusResetJob?.cancel()
-        if (message.contains("Updated") && message.contains("config")) return
-        if (message.contains("profiles")) return
-        if (message.startsWith("Failover:")) return
-        if (message == "Connected") return
-        if (message == "Test completed") return
-        if (message == "Test done. Best server saved.") return
+        val isProgress = message.matches(Regex("\\d+%"))
+        val isPingResult = message.contains("ms")
+        if (!isProgress && !isPingResult) return
         binding.tvTestState.text = message
-        if (isOperationInProgress || mainViewModel.isTesting.value == true) return
-        statusResetJob = lifecycleScope.launch {
-            delay(3000)
-            val isRunning = mainViewModel.isRunning.value == true
-            binding.tvTestState.text = getString(
-                if (isRunning) R.string.connection_connected
-                else R.string.connection_not_connected
-            )
-        }
     }
 
     private fun showStatus(resId: Int) = showStatus(getString(resId))
@@ -777,13 +756,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             binding.btnConnect.backgroundTintList = accentColor()
             binding.btnConnect.iconTint = onPrimary
             binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
-            if (mainViewModel.isTesting.value == true) {
-                binding.tvSwitchServer.text = getString(R.string.switch_server_not_connected)
-                binding.tvTestState.text = getString(R.string.connection_test_testing)
-            } else {
-                binding.tvSwitchServer.text = getString(R.string.switch_server_connected)
-                binding.tvTestState.text = getString(R.string.connection_connected)
-            }
+            binding.tvSwitchServer.text = getString(R.string.switch_server_connected)
             startPulseAnimation(ring1, ring2)
             setStatusDot(DotState.CONNECTED)
             lifecycleScope.launch {
