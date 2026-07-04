@@ -556,6 +556,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
             isOperationInProgress = false
             showStatus("Stopped")
+            binding.btnConnect.isEnabled = true
             binding.btnConnect.setIconResource(R.drawable.bolt_24)
             applyRunningState(false)
             return
@@ -563,6 +564,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         if (isOperationInProgress) return
         isOperationInProgress = true
+        binding.btnConnect.isEnabled = false
 
         // Request VPN permission early if needed
         val isVpn = SettingsManager.isVpnMode()
