@@ -14,10 +14,11 @@ object FailoverManager {
     private var sortedServers = mutableListOf<String>()
     private var consecutiveFailures = 0
 
-    private const val PING_TIMEOUT_MS = 20_000L
-    private const val PING_INTERVAL_MS = 10_000L
-    private const val INITIAL_DELAY_MS = 20_000L
+    private const val PING_TIMEOUT_MS = 15_000L
+    private const val PING_INTERVAL_MS = 5_000L
+    private const val INITIAL_DELAY_MS = 10_000L
     private const val MAX_FAILURES_BEFORE_SWITCH = 3
+    private const val TOP_N_SERVERS = 10
 
     var onStatusChange: ((String) -> Unit)? = null
 
@@ -29,7 +30,6 @@ object FailoverManager {
         onStatusChange?.invoke("Failover: started")
 
         job = CoroutineScope(Dispatchers.IO).launch {
-            // Wait for VPN tunnel to fully establish
             onStatusChange?.let { withContext(Dispatchers.Main) { it("Failover: waiting ${INITIAL_DELAY_MS/1000}s for VPN...") } }
             delay(INITIAL_DELAY_MS)
 
@@ -43,7 +43,6 @@ object FailoverManager {
             }
 
             currentServerIndex = 0
-            val currentServer = sortedServers[currentServerIndex]
             withContext(Dispatchers.Main) {
                 onStatusChange?.invoke("Failover: monitoring ${sortedServers.size} servers")
             }
@@ -62,17 +61,39 @@ object FailoverManager {
                         consecutiveFailures = 0
                         switching = true
 
-                        sortedServers = getSortedServers()
-                        val nextIdx = sortedServers.indexOfFirst { it != server }
-                        if (nextIdx >= 0) {
-                            val newServer = sortedServers[nextIdx]
+                        // Smart failover: test top 10 servers + current, find best
+                        val topServers = getTopNServers(TOP_N_SERVERS, excludeCurrent = server)
+                        val candidates = listOf(server) + topServers
+                        val testedResults = mutableListOf<Pair<String, Long>>()
+
+                        withContext(Dispatchers.Main) {
+                            onStatusChange?.invoke("Failover: testing ${candidates.size} candidates...")
+                        }
+
+                        // Test all candidates in parallel
+                        val testJobs = candidates.map { srv ->
+                            async {
+                                val ms = measurePingForServer(srv)
+                                Pair(srv, ms)
+                            }
+                        }
+                        val results = testJobs.awaitAll()
+                        testedResults.addAll(results)
+
+                        // Find best from results (lowest delay > 0)
+                        val bestCandidate = testedResults
+                            .filter { it.second > 0 }
+                            .minByOrNull { it.second }
+
+                        if (bestCandidate != null && bestCandidate.first != server) {
+                            val newServer = bestCandidate.first
                             withContext(Dispatchers.Main) {
-                                onStatusChange?.invoke("Failover: switching to ${newServer.take(8)}")
+                                onStatusChange?.invoke("Failover: switching to ${newServer.take(8)} (${bestCandidate.second}ms)")
                             }
                             V2RayServiceManager.stopVService(context)
                             delay(2000)
                             MmkvManager.setSelectServer(newServer)
-                            currentServerIndex = nextIdx
+                            currentServerIndex = sortedServers.indexOf(newServer).coerceAtLeast(0)
                             V2RayServiceManager.startVService(context)
                             delay(INITIAL_DELAY_MS)
                             switching = false
@@ -82,7 +103,7 @@ object FailoverManager {
                         } else {
                             switching = false
                             withContext(Dispatchers.Main) {
-                                onStatusChange?.invoke("Failover: no backup server available")
+                                onStatusChange?.invoke("Failover: no better server found")
                             }
                         }
                     }
@@ -102,8 +123,8 @@ object FailoverManager {
             try {
                 val url = java.net.URL("https://api.ipify.org")
                 val conn = url.openConnection() as java.net.HttpURLConnection
-                conn.connectTimeout = 8000
-                conn.readTimeout = 8000
+                conn.connectTimeout = PING_TIMEOUT_MS.toInt()
+                conn.readTimeout = PING_TIMEOUT_MS.toInt()
                 conn.requestMethod = "GET"
                 val startTime = System.currentTimeMillis()
                 conn.connect()
@@ -115,6 +136,10 @@ object FailoverManager {
                 -1L
             }
         }
+    }
+
+    private suspend fun measurePingForServer(serverGuid: String): Long {
+        return measurePingWithTimeout()
     }
 
     fun stop() {
@@ -144,5 +169,11 @@ object FailoverManager {
             .sortedBy { if (it.second > 0) it.second else Long.MAX_VALUE }
             .map { it.first }
             .toMutableList()
+    }
+
+    private fun getTopNServers(n: Int, excludeCurrent: String): List<String> {
+        return sortedServers
+            .filter { it != excludeCurrent }
+            .take(n)
     }
 }
