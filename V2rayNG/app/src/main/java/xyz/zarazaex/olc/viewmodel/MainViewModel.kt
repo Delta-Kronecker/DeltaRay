@@ -305,9 +305,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     @Volatile var stopRequested = false
 
     fun resetState() {
+        Log.i(AppConfig.TAG, "RESET: resetting all state")
         isTesting.value = false
         stopRequested = false
         suppressPinSelected = false
+        isRunning.value = false
+        // Kill any leftover test service
+        try {
+            getApplication<android.app.Application>().stopService(
+                android.content.Intent(getApplication(), xyz.zarazaex.olc.service.V2RayTestService::class.java)
+            )
+            Log.i(AppConfig.TAG, "RESET: test service stopped")
+        } catch (e: Exception) {
+            Log.e(AppConfig.TAG, "RESET: failed to stop test service: ${e.message}")
+        }
+        // Kill any leftover VPN service
+        try {
+            getApplication<android.app.Application>().stopService(
+                android.content.Intent(getApplication(), xyz.zarazaex.olc.service.V2RayVpnService::class.java)
+            )
+            Log.i(AppConfig.TAG, "RESET: VPN service stopped")
+        } catch (e: Exception) {
+            Log.e(AppConfig.TAG, "RESET: failed to stop VPN service: ${e.message}")
+        }
+    }
     }
 
     fun cancelAllTests() {
@@ -741,9 +762,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             withContext(Dispatchers.Main) {
-                reloadServerList()   // rebuilds _serversCache + publishSnapshot
+                reloadServerList()
                 isTesting.value = false
                 liteTestFinished.value = true
+                // Keep true for a moment so observer can catch it
+                kotlinx.coroutines.delay(2000)
                 liteTestFinished.value = false
             }
         }

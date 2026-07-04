@@ -410,7 +410,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         }
 
         mainViewModel.isTesting.observe(this) { testing ->
-            log("OBS isTesting=$testing")
+            log("OBS isTesting=$testing isOpInProgress=$isOperationInProgress")
             if (testing) {
                 binding.btnConnect.isEnabled = true
                 binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
@@ -419,12 +419,14 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 }.start()
                 setStatusDot(DotState.LOADING)
             } else {
-                if (!mainViewModel.stopRequested) {
-                    binding.btnConnect.isEnabled = true
-                    binding.btnConnect.setIconResource(R.drawable.bolt_24)
-                    if (!isOperationInProgress) {
-                        showStatus("Test completed")
-                    }
+                log("OBS isTesting=false, btn re-enabled")
+                binding.btnConnect.isEnabled = true
+                binding.btnConnect.setIconResource(R.drawable.bolt_24)
+                if (!isOperationInProgress) {
+                    showStatus("Test completed")
+                }
+            }
+        }
                 }
             }
         }
