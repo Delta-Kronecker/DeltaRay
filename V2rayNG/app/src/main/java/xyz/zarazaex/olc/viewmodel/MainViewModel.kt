@@ -329,7 +329,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             Log.e(AppConfig.TAG, "RESET: failed to stop VPN service: ${e.message}")
         }
     }
-    }
 
     fun cancelAllTests() {
         stopRequested = true

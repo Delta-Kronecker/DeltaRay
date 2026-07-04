@@ -427,9 +427,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 }
             }
         }
-                }
-            }
-        }
 
         mainViewModel.liteTestFinished.observe(this) { finished ->
             log("OBS liteTestFinished=$finished isOpInProgress=$isOperationInProgress")
