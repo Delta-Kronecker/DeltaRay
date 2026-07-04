@@ -575,6 +575,7 @@ object SettingsManager {
 
         val defaultSubscriptions = listOf(
             Triple("sub_best", "\u26A1 Delta Kronecker \u26A1", AppConfig.DEFAULT_SUBSCRIPTION_BEST_URL),
+            Triple("sub_warp", "\u26A1 Delta Warp \u26A1", AppConfig.DEFAULT_SUBSCRIPTION_WARP_URL),
         )
 
         for ((id, name, url) in defaultSubscriptions) {

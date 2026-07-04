@@ -150,6 +150,7 @@ object AppConfig {
 
     /** Default subscription URLs */
     const val DEFAULT_SUBSCRIPTION_BEST_URL = "https://github.com/Delta-Kronecker/Sub/raw/refs/heads/main/config/all_configs.txt"
+    const val DEFAULT_SUBSCRIPTION_WARP_URL = "https://github.com/Delta-Kronecker/WARP-Config/raw/refs/heads/main/ALL.txt"
     const val APP_PROMOTION_URL = "aHR0cHM6Ly85LjIzNDQ1Ni54eXovYWJjLmh0bWw="
     const val TG_CHANNEL_URL = "https://t.me/github_2dust"
     const val DELAY_TEST_URL = "https://api.ipify.org"

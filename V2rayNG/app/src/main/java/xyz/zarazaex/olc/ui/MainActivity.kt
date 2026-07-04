@@ -89,61 +89,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         log("VPN_PERM: resultCode=${it.resultCode} OK=${RESULT_OK}")
         pendingVpnIntent = null
         if (it.resultCode == RESULT_OK) {
-            log("VPN_PERM: granted, starting test flow")
-            // VPN permission granted, now start the test flow
-            binding.btnConnect.animate().scaleX(0.85f).scaleY(0.85f).setDuration(100).withEndAction {
-                binding.btnConnect.animate().scaleX(1f).scaleY(1f).setDuration(150).start()
-            }.start()
-
-            connectJob = lifecycleScope.launch {
-                try {
-                    log("FLOW: waiting for test service to be ready...")
-                    delay(2000)
-
-                    log("FLOW: reloading server list")
-                    showStatus("Testing all servers...")
-                    binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
-                    mainViewModel.suppressPinSelected = true
-
-                    mainViewModel.reloadServerList()
-                    var serverCount = mainViewModel.serversCache.size
-                    log("FLOW: serverList reloaded, count=$serverCount servers")
-
-                    if (serverCount == 0) {
-                        log("FLOW: no servers found, downloading subscriptions...")
-                        showStatus("Downloading configs...")
-                        val result = withContext(Dispatchers.IO) {
-                            AngConfigManager.updateConfigViaSubAll()
-                        }
-                        log("FLOW: sub download done: configCount=${result.configCount}")
-                        mainViewModel.reloadServerList()
-                        setupSpinner()
-                        serverCount = mainViewModel.serversCache.size
-                        log("FLOW: after download, serverCount=$serverCount")
-                    }
-
-                    if (serverCount == 0) {
-                        log("FLOW: NO SERVERS! aborting test")
-                        isOperationInProgress = false
-                        binding.btnConnect.setIconResource(R.drawable.bolt_24)
-                        applyRunningState(false)
-                        showStatus("No servers available")
-                        return@launch
-                    }
-
-                    log("FLOW: calling testAllRealPing()")
-                    mainViewModel.testAllRealPing()
-                    log("FLOW: testAllRealPing() returned")
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    log("FLOW: CANCELLED by user")
-                } catch (e: Exception) {
-                    log("FLOW: ERROR: ${e.message}")
-                    Log.e(AppConfig.TAG, "Error in handleConnectAction", e)
-                    isOperationInProgress = false
-                    binding.btnConnect.setIconResource(R.drawable.bolt_24)
-                    applyRunningState(false)
-                }
-            }
+            log("VPN_PERM: granted, starting VPN immediately")
+            startConnectFlow()
         } else {
             log("VPN_PERM: denied")
             isOperationInProgress = false
@@ -437,7 +384,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     .filter { (MmkvManager.decodeServerAffiliationInfo(it.guid)?.testDelayMillis ?: 0L) > 0L }
                     .minByOrNull { MmkvManager.decodeServerAffiliationInfo(it.guid)?.testDelayMillis ?: Long.MAX_VALUE }
 
-                log("OBS liteTestFinished: firstReachable=${firstReachable?.guid}")
+                val currentServer = MmkvManager.getSelectServer()
+                log("OBS liteTestFinished: firstReachable=${firstReachable?.guid} current=$currentServer")
                 if (firstReachable != null) {
                     MmkvManager.setSelectServer(firstReachable.guid)
                 }
@@ -446,11 +394,13 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 mainViewModel.sortByTestResults()
                 mainViewModel.reloadServerList()
 
-                if (firstReachable != null) {
-                    showStatus("Connecting to fastest server")
-                    startV2RayWithPermission()
+                if (firstReachable != null && firstReachable.guid != currentServer) {
+                    log("OBS: switching to faster server ${firstReachable.guid}")
+                    showStatus("Switching to fastest server")
+                    restartV2Ray()
                 } else {
-                    showStatus("No servers available!")
+                    log("OBS: current server is already the best")
+                    showStatus("Connected")
                 }
             }
         }
@@ -582,15 +532,18 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             binding.btnConnect.animate().scaleX(1f).scaleY(1f).setDuration(150).start()
         }.start()
 
+        startConnectFlow()
+    }
+
+    private fun startConnectFlow() {
+        binding.btnConnect.animate().scaleX(0.85f).scaleY(0.85f).setDuration(100).withEndAction {
+            binding.btnConnect.animate().scaleX(1f).scaleY(1f).setDuration(150).start()
+        }.start()
+
         connectJob = lifecycleScope.launch {
             try {
-                log("FLOW: waiting for test service to be ready...")
+                log("FLOW: waiting for service to be ready...")
                 delay(2000)
-
-                log("FLOW: reloading server list")
-                showStatus("Testing all servers...")
-                binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
-                mainViewModel.suppressPinSelected = true
 
                 mainViewModel.reloadServerList()
                 var serverCount = mainViewModel.serversCache.size
@@ -610,23 +563,33 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 }
 
                 if (serverCount == 0) {
-                    log("FLOW: NO SERVERS! aborting test")
+                    log("FLOW: NO SERVERS! aborting")
                     isOperationInProgress = false
+                    binding.btnConnect.isEnabled = true
                     binding.btnConnect.setIconResource(R.drawable.bolt_24)
                     applyRunningState(false)
                     showStatus("No servers available")
                     return@launch
                 }
 
-                log("FLOW: calling testAllRealPing()")
+                log("FLOW: starting VPN immediately...")
+                showStatus("Connecting...")
+                binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
+                binding.btnConnect.isEnabled = true
+                V2RayServiceManager.startVService(this@MainActivity)
+
+                log("FLOW: starting background test...")
+                showStatus("Testing servers...")
+                mainViewModel.suppressPinSelected = true
                 mainViewModel.testAllRealPing()
-                log("FLOW: testAllRealPing() returned")
+                log("FLOW: testAllRealPing() completed")
             } catch (e: kotlinx.coroutines.CancellationException) {
                 log("FLOW: CANCELLED by user")
             } catch (e: Exception) {
                 log("FLOW: ERROR: ${e.message}")
-                Log.e(AppConfig.TAG, "Error in handleConnectAction", e)
+                Log.e(AppConfig.TAG, "Error in startConnectFlow", e)
                 isOperationInProgress = false
+                binding.btnConnect.isEnabled = true
                 binding.btnConnect.setIconResource(R.drawable.bolt_24)
                 applyRunningState(false)
             }
