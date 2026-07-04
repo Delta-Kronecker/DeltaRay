@@ -386,21 +386,18 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                 val currentServer = MmkvManager.getSelectServer()
                 log("OBS liteTestFinished: firstReachable=${firstReachable?.guid} current=$currentServer")
-                if (firstReachable != null) {
-                    MmkvManager.setSelectServer(firstReachable.guid)
-                }
 
                 mainViewModel.suppressPinSelected = false
                 mainViewModel.sortByTestResults()
                 mainViewModel.reloadServerList()
 
                 if (firstReachable != null && firstReachable.guid != currentServer) {
-                    log("OBS: switching to faster server ${firstReachable.guid}")
-                    showStatus("Switching to fastest server")
-                    restartV2Ray()
+                    log("OBS: best server is ${firstReachable.guid}, saving for next connect")
+                    MmkvManager.setSelectServer(firstReachable.guid)
+                    showStatus("Test done. Best server saved.")
                 } else {
                     log("OBS: current server is already the best")
-                    showStatus("Connected")
+                    showStatus("Test completed")
                 }
             }
         }
@@ -551,7 +548,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
                 if (serverCount == 0) {
                     log("FLOW: no servers found, downloading subscriptions...")
-                    showStatus("Downloading configs...")
+                    log("FLOW: downloading configs...")
                     val result = withContext(Dispatchers.IO) {
                         AngConfigManager.updateConfigViaSubAll()
                     }
@@ -636,15 +633,14 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         log("SWITCH: current=${currentServer.take(8)} next=${nextServer.take(8)} ping=${sorted[nextIndex].second}ms")
         showStatus("Switching to ${nextServer.take(8)}...")
 
-        // Stop, wait for core to fully stop, switch, restart
+        // Quick switch: stop core, swap config, restart core
         lifecycleScope.launch {
             FailoverManager.stop()
             binding.btnConnect.isEnabled = false
 
-            log("SWITCH: stopping VPN")
+            log("SWITCH: stopping core")
             V2RayServiceManager.stopVService(this@MainActivity)
 
-            // Wait for core to fully stop
             var waitCount = 0
             while (mainViewModel.isRunning.value == true && waitCount < 20) {
                 delay(500)
@@ -652,14 +648,10 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             }
             log("SWITCH: core stopped after ${waitCount * 500}ms")
 
-            // Extra wait to ensure clean state
-            delay(1000)
-
             MmkvManager.setSelectServer(nextServer)
-            log("SWITCH: starting new VPN with ${nextServer.take(8)}")
+            log("SWITCH: starting VPN with ${nextServer.take(8)}")
             V2RayServiceManager.startVService(this@MainActivity)
 
-            // Wait for VPN to start
             var startWait = 0
             while (mainViewModel.isRunning.value == false && startWait < 10) {
                 delay(500)
@@ -749,6 +741,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         if (message.contains("profiles")) return
         if (message.startsWith("Failover:")) return
         if (message == "Connected") return
+        if (message == "Test completed") return
+        if (message == "Test done. Best server saved.") return
         binding.tvTestState.text = message
         if (isOperationInProgress || mainViewModel.isTesting.value == true) return
         statusResetJob = lifecycleScope.launch {
@@ -783,9 +777,14 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             binding.btnConnect.backgroundTintList = accentColor()
             binding.btnConnect.iconTint = onPrimary
             binding.btnConnect.setIconResource(R.drawable.ic_stop_24dp)
-            binding.tvSwitchServer.text = getString(R.string.switch_server_connected)
+            if (mainViewModel.isTesting.value == true) {
+                binding.tvSwitchServer.text = getString(R.string.switch_server_not_connected)
+                binding.tvTestState.text = getString(R.string.connection_test_testing)
+            } else {
+                binding.tvSwitchServer.text = getString(R.string.switch_server_connected)
+                binding.tvTestState.text = getString(R.string.connection_connected)
+            }
             startPulseAnimation(ring1, ring2)
-            binding.tvTestState.text = getString(R.string.connection_connected)
             setStatusDot(DotState.CONNECTED)
             lifecycleScope.launch {
                 delay(2000)

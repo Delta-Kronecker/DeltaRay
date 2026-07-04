@@ -333,6 +333,55 @@ object V2RayServiceManager {
     }
 
     /**
+     * Hot-switches the server config without destroying the VPN interface.
+     * Stops core loop, immediately starts with new config on the same VPN tunnel.
+     */
+    fun switchServerHot(newGuid: String, vpnInterface: ParcelFileDescriptor?): Boolean {
+        val service = getService() ?: return false
+        if (!coreController.isRunning) return false
+
+        Log.i(AppConfig.TAG, "StartCore-Manager: switchServerHot to $newGuid")
+        AppConfig.broadcastLog(service, "CORE: switchServerHot to $newGuid")
+
+        try {
+            coreController.stopLoop()
+            Log.i(AppConfig.TAG, "StartCore-Manager: old core stopped for hot switch")
+        } catch (e: Exception) {
+            Log.e(AppConfig.TAG, "StartCore-Manager: failed to stop for hot switch: ${e.message}")
+            return false
+        }
+
+        MmkvManager.setSelectServer(newGuid)
+        currentConfig = MmkvManager.decodeServerConfig(newGuid)
+
+        val result = V2rayConfigManager.getV2rayConfig(service, newGuid)
+        if (!result.status) {
+            Log.e(AppConfig.TAG, "StartCore-Manager: hot switch failed to get config")
+            return false
+        }
+
+        var tunFd = vpnInterface?.fd ?: 0
+        if (SettingsManager.isUsingHevTun()) {
+            tunFd = 0
+        }
+
+        try {
+            coreController.startLoop(result.content, tunFd)
+            if (coreController.isRunning) {
+                Log.i(AppConfig.TAG, "StartCore-Manager: hot switch OK, new server=$newGuid")
+                AppConfig.broadcastLog(service, "CORE: hot switch OK isRunning=true")
+                NotificationManager.showNotification(currentConfig)
+                NotificationManager.startSpeedNotification(currentConfig)
+                MessageUtil.sendMsg2UI(service, AppConfig.MSG_STATE_RUNNING, "")
+                return true
+            }
+        } catch (e: Exception) {
+            Log.e(AppConfig.TAG, "StartCore-Manager: hot switch startLoop failed: ${e.message}")
+        }
+        return false
+    }
+
+    /**
      * Queries the statistics for a given tag and link.
      * @param tag The tag to query.
      * @param link The link to query.
