@@ -336,15 +336,15 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             log("OBS updateTestResult: $result")
             if (result == null) return@observe
             if (mainViewModel.isTesting.value != true && !isOperationInProgress) return@observe
-            val match = Regex("(\\d+)/(\\d+)").find(result)
-            if (match != null) {
-                val done = match.groupValues[1].toIntOrNull() ?: 0
-                val total = match.groupValues[2].toIntOrNull() ?: 1
+            if (result.matches(Regex("Tested \\d+/\\d+"))) {
+                val parts = result.removePrefix("Tested ").split("/")
+                val done = parts[0].toIntOrNull() ?: 0
+                val total = parts[1].toIntOrNull() ?: 1
                 val pct = (done * 100 / total).coerceIn(0, 100)
                 binding.tvTestState.text = "$pct%"
                 updateProgressFill(pct)
-            } else if (result.contains("ms")) {
-                val msMatch = Regex("(\\d+)\\s*ms").find(result)
+            } else {
+                val msMatch = Regex("Connection took (\\d+)ms").find(result)
                 val ms = msMatch?.groupValues?.get(1) ?: ""
                 if (ms.isNotEmpty()) {
                     binding.tvTestState.text = "Connected ${ms}ms"
@@ -586,7 +586,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
     private fun handleLayoutTestClick() {
         if (mainViewModel.isRunning.value == true) {
-            setTestState(getString(R.string.connection_test_testing))
             mainViewModel.testCurrentServerRealPing()
         }
     }
@@ -720,21 +719,15 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         }
     }
 
-    private var statusResetJob: kotlinx.coroutines.Job? = null
-
     private fun setTestState(content: String?) {
         binding.tvTestState.text = content
     }
 
     private fun showStatus(message: String) {
-        statusResetJob?.cancel()
-        val isProgress = message.matches(Regex("\\d+%"))
-        val isPingResult = message.contains("ms")
-        if (!isProgress && !isPingResult) return
-        binding.tvTestState.text = message
     }
 
-    private fun showStatus(resId: Int) = showStatus(getString(resId))
+    private fun showStatus(resId: Int) {
+    }
 
     private fun accentColor(): ColorStateList {
         val typedValue = android.util.TypedValue()
@@ -777,9 +770,6 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             binding.btnConnect.backgroundTintList = secContainer
             binding.btnConnect.iconTint = onSecContainer
             binding.btnConnect.setIconResource(R.drawable.bolt_24)
-            if (mainViewModel.isTesting.value != true && statusResetJob?.isActive != true) {
-                setTestState(getString(R.string.connection_not_connected))
-            }
             setStatusDot(DotState.IDLE)
         }
     }
