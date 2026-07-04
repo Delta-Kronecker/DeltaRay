@@ -304,6 +304,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      */
     @Volatile var stopRequested = false
 
+    fun resetState() {
+        isTesting.value = false
+        stopRequested = false
+        suppressPinSelected = false
+    }
+
     fun cancelAllTests() {
         stopRequested = true
         MessageUtil.sendMsg2TestService(

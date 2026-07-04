@@ -278,6 +278,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         mainViewModel.startListenBroadcast()
         mainViewModel.initAssets(assets)
+        mainViewModel.resetState()
 
         val logFilter = android.content.IntentFilter("${packageName}.action.LOG")
         registerReceiver(logReceiver, logFilter, android.content.Context.RECEIVER_NOT_EXPORTED)
@@ -642,7 +643,10 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
     private fun switchToNextServer() {
         val isRunning = mainViewModel.isRunning.value == true
-        if (!isRunning) return
+        if (!isRunning) {
+            log("SWITCH: not running, skip")
+            return
+        }
 
         val currentServer = MmkvManager.getSelectServer() ?: return
 
@@ -673,18 +677,34 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         // Stop, wait for core to fully stop, switch, restart
         lifecycleScope.launch {
             FailoverManager.stop()
+            binding.btnConnect.isEnabled = false
+
+            log("SWITCH: stopping VPN")
             V2RayServiceManager.stopVService(this@MainActivity)
 
             // Wait for core to fully stop
             var waitCount = 0
-            while (mainViewModel.isRunning.value == true && waitCount < 10) {
+            while (mainViewModel.isRunning.value == true && waitCount < 20) {
                 delay(500)
                 waitCount++
             }
             log("SWITCH: core stopped after ${waitCount * 500}ms")
 
+            // Extra wait to ensure clean state
+            delay(1000)
+
             MmkvManager.setSelectServer(nextServer)
+            log("SWITCH: starting new VPN with ${nextServer.take(8)}")
             V2RayServiceManager.startVService(this@MainActivity)
+
+            // Wait for VPN to start
+            var startWait = 0
+            while (mainViewModel.isRunning.value == false && startWait < 10) {
+                delay(500)
+                startWait++
+            }
+            log("SWITCH: VPN started=${mainViewModel.isRunning.value}, waited ${startWait * 500}ms")
+            binding.btnConnect.isEnabled = true
         }
     }
 
