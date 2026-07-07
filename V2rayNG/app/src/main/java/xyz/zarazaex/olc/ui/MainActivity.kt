@@ -47,6 +47,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelectedListener {
     private val binding by lazy { ActivityMainBinding.inflate(layoutInflater) }
@@ -623,68 +624,88 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             return
         }
 
-        log("SWITCH: ${candidates.size} candidates, trying each...")
+        log("SWITCH: testing ${candidates.size} candidates in parallel...")
         binding.btnConnect.isEnabled = false
 
         lifecycleScope.launch {
-            for ((guid, _) in candidates) {
-                log("SWITCH: trying ${guid.take(8)}...")
+            try {
+                val delayTestUrl = xyz.zarazaex.olc.handler.SettingsManager.getDelayTestUrl()
 
-                // Stop current VPN
-                FailoverManager.stop()
-                V2RayServiceManager.stopVService(this@MainActivity)
-                var waitCount = 0
-                while (mainViewModel.isRunning.value == true && waitCount < 20) {
-                    delay(500)
-                    waitCount++
+                // Prepare configs for all candidates
+                val items = candidates.mapNotNull { (guid, _) ->
+                    withContext(Dispatchers.IO) {
+                        try {
+                            val configResult = xyz.zarazaex.olc.handler.V2rayConfigManager.getV2rayConfig4Speedtest(this@switchToNextServer@MainActivity, guid)
+                            if (configResult.status) {
+                                xyz.zarazaex.olc.service.RealPingWorkerService.PingItem(guid, configResult.content)
+                            } else {
+                                log("SWITCH: ${guid.take(8)} config failed")
+                                null
+                            }
+                        } catch (e: Exception) {
+                            log("SWITCH: ${guid.take(8)} prepare failed: ${e.message}")
+                            null
+                        }
+                    }
                 }
 
-                // Start VPN with candidate
-                MmkvManager.setSelectServer(guid)
-                V2RayServiceManager.startVService(this@MainActivity)
-                var startWait = 0
-                while (mainViewModel.isRunning.value == false && startWait < 10) {
-                    delay(500)
-                    startWait++
-                }
-                if (mainViewModel.isRunning.value != true) {
-                    log("SWITCH: ${guid.take(8)} failed to start")
-                    continue
-                }
-
-                // Measure ping through tunnel
-                delay(1000)
-                val delay = withContext(Dispatchers.IO) {
-                    try {
-                        val url = xyz.zarazaex.olc.handler.SettingsManager.getDelayTestUrl()
-                        V2RayServiceManager.getCoreController().measureDelay(url)
-                    } catch (e: Exception) { -1L }
-                }
-
-                if (delay > 0) {
-                    log("SWITCH: ${guid.take(8)} OK ${delay}ms - connected!")
+                if (items.isEmpty()) {
+                    log("SWITCH: no configs prepared")
                     binding.btnConnect.isEnabled = true
                     return@launch
-                } else {
-                    log("SWITCH: ${guid.take(8)} failed ping")
                 }
-            }
 
-            // None worked — reconnect original
-            log("SWITCH: none responded, reconnecting original")
-            FailoverManager.stop()
-            V2RayServiceManager.stopVService(this@MainActivity)
-            var waitCount = 0
-            while (mainViewModel.isRunning.value == true && waitCount < 20) {
-                delay(500)
-                waitCount++
-            }
-            MmkvManager.setSelectServer(currentServer)
-            V2RayServiceManager.startVService(this@MainActivity)
-            var startWait = 0
-            while (mainViewModel.isRunning.value == false && startWait < 10) {
-                delay(500)
-                startWait++
+                log("SWITCH: testing ${items.size} configs in parallel...")
+
+                // Use first responding server
+                val bestGuid = kotlinx.coroutines.CompletableDeferred<String?>()
+                val resultsMap = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+                xyz.zarazaex.olc.handler.V2RayNativeManager.measureOutboundDelayBatch(
+                    xyz.zarazaex.olc.util.JsonUtil.toJson(items),
+                    delayTestUrl,
+                    object : libv2ray.PingCallback {
+                        override fun onResult(guid: String?, delay: Long) {
+                            if (guid != null && delay > 0) {
+                                log("SWITCH: ${guid.take(8)} OK ${delay}ms")
+                                resultsMap[guid] = delay
+                                if (!bestGuid.isCompleted) {
+                                    bestGuid.complete(guid)
+                                }
+                            } else if (guid != null) {
+                                log("SWITCH: ${guid.take(8)} failed")
+                            }
+                        }
+                    }
+                )
+
+                // Wait up to 15s for first good result
+                val winner = withTimeoutOrNull(15000L) { bestGuid.await() }
+
+                if (winner != null) {
+                    log("SWITCH: winner=${winner.take(8)} ${resultsMap[winner]}ms, reconnecting...")
+
+                    FailoverManager.stop()
+                    V2RayServiceManager.stopVService(this@switchToNextServer@MainActivity)
+                    var waitCount = 0
+                    while (mainViewModel.isRunning.value == true && waitCount < 20) {
+                        delay(500)
+                        waitCount++
+                    }
+
+                    MmkvManager.setSelectServer(winner)
+                    V2RayServiceManager.startVService(this@switchToNextServer@MainActivity)
+                    var startWait = 0
+                    while (mainViewModel.isRunning.value == false && startWait < 10) {
+                        delay(500)
+                        startWait++
+                    }
+                    log("SWITCH: connected to ${winner.take(8)}")
+                } else {
+                    log("SWITCH: none responded, keeping current server")
+                }
+            } catch (e: Exception) {
+                log("SWITCH: error: ${e.message}")
             }
             binding.btnConnect.isEnabled = true
         }
