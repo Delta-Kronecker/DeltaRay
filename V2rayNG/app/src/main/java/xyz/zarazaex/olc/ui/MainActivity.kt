@@ -335,8 +335,8 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
         mainViewModel.updateTestResultAction.observe(this) { result ->
             log("OBS updateTestResult: $result")
             if (result == null) return@observe
-            if (mainViewModel.isTesting.value != true && !isOperationInProgress) return@observe
             if (result.matches(Regex("Tested \\d+/\\d+"))) {
+                if (mainViewModel.isTesting.value != true && !isOperationInProgress) return@observe
                 val parts = result.removePrefix("Tested ").split("/")
                 val done = parts[0].toIntOrNull() ?: 0
                 val total = parts[1].toIntOrNull() ?: 1
@@ -346,7 +346,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
             } else {
                 val msMatch = Regex("Connection took (\\d+)ms").find(result)
                 val ms = msMatch?.groupValues?.get(1) ?: ""
-                if (ms.isNotEmpty()) {
+                if (ms.isNotEmpty() && mainViewModel.isRunning.value == true) {
                     binding.tvTestState.text = "Connected ${ms}ms"
                 }
             }
@@ -606,55 +606,86 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
 
         val currentServer = MmkvManager.getSelectServer() ?: return
 
-        // Get all servers sorted by ping (best first)
+        // Get top 10 servers sorted by initial test ping (best first), exclude current
         val allSubs = MmkvManager.decodeSubscriptions()
         val allServers = mutableListOf<Pair<String, Long>>()
         for (sub in allSubs) {
             val serverList = MmkvManager.decodeServerList(sub.guid)
             for (guid in serverList) {
+                if (guid == currentServer) continue
                 val delay = MmkvManager.decodeServerAffiliationInfo(guid)?.testDelayMillis ?: 0L
                 if (delay > 0) allServers.add(Pair(guid, delay))
             }
         }
-        val sorted = allServers.sortedBy { it.second }
-
-        // Find current server index and pick next one
-        val currentIndex = sorted.indexOfFirst { it.first == currentServer }
-        val nextIndex = if (currentIndex >= 0 && currentIndex < sorted.size - 1) {
-            currentIndex + 1
-        } else {
-            0
+        val candidates = allServers.sortedBy { it.second }.take(10)
+        if (candidates.isEmpty()) {
+            log("SWITCH: no candidates, skip")
+            return
         }
-        val nextServer = sorted[nextIndex].first
 
-        log("SWITCH: current=${currentServer.take(8)} next=${nextServer.take(8)} ping=${sorted[nextIndex].second}ms")
-        showStatus("Switching to ${nextServer.take(8)}...")
+        log("SWITCH: ${candidates.size} candidates, trying each...")
+        binding.btnConnect.isEnabled = false
 
-        // Quick switch: stop core, swap config, restart core
         lifecycleScope.launch {
+            for ((guid, _) in candidates) {
+                log("SWITCH: trying ${guid.take(8)}...")
+
+                // Stop current VPN
+                FailoverManager.stop()
+                V2RayServiceManager.stopVService(this@MainActivity)
+                var waitCount = 0
+                while (mainViewModel.isRunning.value == true && waitCount < 20) {
+                    delay(500)
+                    waitCount++
+                }
+
+                // Start VPN with candidate
+                MmkvManager.setSelectServer(guid)
+                V2RayServiceManager.startVService(this@MainActivity)
+                var startWait = 0
+                while (mainViewModel.isRunning.value == false && startWait < 10) {
+                    delay(500)
+                    startWait++
+                }
+                if (mainViewModel.isRunning.value != true) {
+                    log("SWITCH: ${guid.take(8)} failed to start")
+                    continue
+                }
+
+                // Measure ping through tunnel
+                delay(1000)
+                val delay = withContext(Dispatchers.IO) {
+                    try {
+                        val url = xyz.zarazaex.olc.handler.SettingsManager.getDelayTestUrl()
+                        V2RayServiceManager.getCoreController().measureDelay(url)
+                    } catch (e: Exception) { -1L }
+                }
+
+                if (delay > 0) {
+                    log("SWITCH: ${guid.take(8)} OK ${delay}ms - connected!")
+                    binding.btnConnect.isEnabled = true
+                    return@launch
+                } else {
+                    log("SWITCH: ${guid.take(8)} failed ping")
+                }
+            }
+
+            // None worked — reconnect original
+            log("SWITCH: none responded, reconnecting original")
             FailoverManager.stop()
-            binding.btnConnect.isEnabled = false
-
-            log("SWITCH: stopping core")
             V2RayServiceManager.stopVService(this@MainActivity)
-
             var waitCount = 0
             while (mainViewModel.isRunning.value == true && waitCount < 20) {
                 delay(500)
                 waitCount++
             }
-            log("SWITCH: core stopped after ${waitCount * 500}ms")
-
-            MmkvManager.setSelectServer(nextServer)
-            log("SWITCH: starting VPN with ${nextServer.take(8)}")
+            MmkvManager.setSelectServer(currentServer)
             V2RayServiceManager.startVService(this@MainActivity)
-
             var startWait = 0
             while (mainViewModel.isRunning.value == false && startWait < 10) {
                 delay(500)
                 startWait++
             }
-            log("SWITCH: VPN started=${mainViewModel.isRunning.value}, waited ${startWait * 500}ms")
             binding.btnConnect.isEnabled = true
         }
     }
