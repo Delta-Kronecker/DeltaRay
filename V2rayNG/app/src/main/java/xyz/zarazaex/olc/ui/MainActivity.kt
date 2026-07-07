@@ -635,7 +635,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 val items = candidates.mapNotNull { (guid, _) ->
                     withContext(Dispatchers.IO) {
                         try {
-                            val configResult = xyz.zarazaex.olc.handler.V2rayConfigManager.getV2rayConfig4Speedtest(this@switchToNextServer@MainActivity, guid)
+                            val configResult = xyz.zarazaex.olc.handler.V2rayConfigManager.getV2rayConfig4Speedtest(this@MainActivity, guid)
                             if (configResult.status) {
                                 xyz.zarazaex.olc.service.RealPingWorkerService.PingItem(guid, configResult.content)
                             } else {
@@ -686,7 +686,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     log("SWITCH: winner=${winner.take(8)} ${resultsMap[winner]}ms, reconnecting...")
 
                     FailoverManager.stop()
-                    V2RayServiceManager.stopVService(this@switchToNextServer@MainActivity)
+                    V2RayServiceManager.stopVService(this@MainActivity)
                     var waitCount = 0
                     while (mainViewModel.isRunning.value == true && waitCount < 20) {
                         delay(500)
@@ -694,7 +694,7 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                     }
 
                     MmkvManager.setSelectServer(winner)
-                    V2RayServiceManager.startVService(this@switchToNextServer@MainActivity)
+                    V2RayServiceManager.startVService(this@MainActivity)
                     var startWait = 0
                     while (mainViewModel.isRunning.value == false && startWait < 10) {
                         delay(500)
