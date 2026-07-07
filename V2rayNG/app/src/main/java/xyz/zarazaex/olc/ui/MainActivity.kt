@@ -661,23 +661,26 @@ class MainActivity : HelperBaseActivity(), NavigationView.OnNavigationItemSelect
                 val bestGuid = kotlinx.coroutines.CompletableDeferred<String?>()
                 val resultsMap = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
-                xyz.zarazaex.olc.handler.V2RayNativeManager.measureOutboundDelayBatch(
-                    xyz.zarazaex.olc.util.JsonUtil.toJson(items),
-                    delayTestUrl,
-                    object : libv2ray.PingCallback {
-                        override fun onResult(guid: String?, delay: Long) {
-                            if (guid != null && delay > 0) {
-                                log("SWITCH: ${guid.take(8)} OK ${delay}ms")
-                                resultsMap[guid] = delay
-                                if (!bestGuid.isCompleted) {
-                                    bestGuid.complete(guid)
+                // Run blocking batch ping on IO thread to avoid ANR
+                withContext(Dispatchers.IO) {
+                    xyz.zarazaex.olc.handler.V2RayNativeManager.measureOutboundDelayBatch(
+                        xyz.zarazaex.olc.util.JsonUtil.toJson(items),
+                        delayTestUrl,
+                        object : libv2ray.PingCallback {
+                            override fun onResult(guid: String?, delay: Long) {
+                                if (guid != null && delay > 0) {
+                                    log("SWITCH: ${guid.take(8)} OK ${delay}ms")
+                                    resultsMap[guid] = delay
+                                    if (!bestGuid.isCompleted) {
+                                        bestGuid.complete(guid)
+                                    }
+                                } else if (guid != null) {
+                                    log("SWITCH: ${guid.take(8)} failed")
                                 }
-                            } else if (guid != null) {
-                                log("SWITCH: ${guid.take(8)} failed")
                             }
                         }
-                    }
-                )
+                    )
+                }
 
                 // Wait up to 15s for first good result
                 val winner = withTimeoutOrNull(15000L) { bestGuid.await() }
