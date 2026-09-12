@@ -1,0 +1,54 @@
+# IDE
+.idea/
+.vscode/
+.cursor/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Android / Gradle (на будущее)
+.gradle/
+**/build/
+**/local.properties
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Secrets
+*.jks
+*.keystore
+.env
+.env.*
+
+# Private research / competitor analysis — never commit
+research/
+docs/research/
+.private/
+docs/private/
+
+# Claude Code local (personal, never commit)
+.claude/
+CLAUDE.md
+
+# Night autonomous session reports (personal, never commit)
+docs/night-reports/
+
+# §097 — local sing-box-lx core AAR (dev-only, not committed)
+app/android/app/libs/
+
+# Отладочные логи probe/e2e (случайно закоммичены в §285, удалены)
+*.log
+
+# Архивы форумных тем — локальные, в гит не идут (личные данные пользователей).
+# Игнорируется весь каталог; отслеживаемые README.md и browser_snippet.js
+# остаются в репозитории (правило игнорирования на них не распространяется).
+docs/forum/
+
+# Локальная рабочая папка — работа с форумом (архивы тем, скрипты снятия),
+# черновики, выгрузки. Личные данные пользователей, в репозиторий не идёт.
+/localworkspace/

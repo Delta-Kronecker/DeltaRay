@@ -1,0 +1,202 @@
+import 'package:flutter/material.dart';
+
+import '../../../services/l10n/locale_controller.dart';
+
+/// Таб "Directions": proxy-groups + default-fallback + Auto tuning. Все тайлы
+/// собираются в экране и приходят сюда готовыми списками — поведение
+/// идентично исходному inline-ListView.
+class RoutingDirectionsTab extends StatelessWidget {
+  const RoutingDirectionsTab({
+    super.key,
+    required this.bottomPad,
+    required this.groupTiles,
+    required this.directionCount,
+    required this.onAddDirection,
+    required this.routeFinalTile,
+  });
+
+  final double bottomPad;
+  final List<Widget> groupTiles;
+  final int directionCount;
+
+  /// §393 A3 — лимита на количество Направлений больше нет; callback
+  /// остаётся nullable ради общей идиомы «disabled кнопки».
+  final VoidCallback? onAddDirection;
+
+  final Widget routeFinalTile;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: EdgeInsets.fromLTRB(12, 12, 12, bottomPad),
+      children: [
+        Text(
+          getLocalText.s(
+            "Enabled directions appear in the selector on the home screen. Tap a direction to edit its nodes, filter and auto twin.",
+          ),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...groupTiles,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: TextButton.icon(
+            onPressed: onAddDirection,
+            icon: const Icon(Icons.add, size: 18),
+            label: Text(
+              getLocalText.s("Add direction  (%d)", directionCount),
+            ),
+          ),
+        ),
+        const Divider(height: 24),
+        routeFinalTile,
+      ],
+    );
+  }
+}
+
+/// Таб "Presets": каталог готовых правил.
+class RoutingPresetsTab extends StatelessWidget {
+  const RoutingPresetsTab({
+    super.key,
+    required this.bottomPad,
+    required this.catalogTiles,
+  });
+
+  final double bottomPad;
+  final List<Widget> catalogTiles;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: EdgeInsets.fromLTRB(12, 12, 12, bottomPad),
+      children: [
+        Text(
+          getLocalText.s(
+            "Ready-made rules you can copy into Rules, then edit freely.",
+          ),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...catalogTiles,
+      ],
+    );
+  }
+}
+
+/// Таб "Rules": unified custom routing (spec §030).
+///
+/// NB: ListView с горизонтальными paddings'ами 0 — чтобы тайлы растягивались
+/// edge-to-edge. Интро и Add-button сами дают себе 12px через Padding.
+class RoutingRulesTab extends StatelessWidget {
+  const RoutingRulesTab({
+    super.key,
+    required this.bottomPad,
+    required this.itemCount,
+    required this.onReorder,
+    required this.itemKey,
+    required this.itemBuilder,
+    required this.onAdd,
+  });
+
+  final double bottomPad;
+  final int itemCount;
+  final ReorderCallback onReorder;
+  final Key Function(int index) itemKey;
+  final Widget Function(int index) itemBuilder;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: EdgeInsets.only(top: 12, bottom: bottomPad),
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            getLocalText.s(
+              "Route or block by app / domain / IP / port / protocol, or remote .srs rule-set.",
+            ),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        ReorderableListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          buildDefaultDragHandles: false,
+          itemCount: itemCount,
+          onReorderItem: onReorder,
+          itemBuilder: (ctx, i) =>
+              KeyedSubtree(key: itemKey(i), child: itemBuilder(i)),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: TextButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add, size: 18),
+            label: Text(getLocalText.s("Add rule")),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// §396 — кнопка ⋮ в AppBar экрана Routing: экспорт/импорт правил файлом.
+/// Экран показывает её только на активном табе Rules (гейт по индексу таба
+/// в `routing_screen.dart`) — на Directions/Presets меню про правила сбивало бы
+/// с толку.
+class RulesMenuButton extends StatelessWidget {
+  const RulesMenuButton({
+    super.key,
+    required this.canExport,
+    required this.onExport,
+    required this.onImport,
+  });
+
+  /// false (правил нет) → пункт Export серый (не прячем: discoverability
+  /// дороже).
+  final bool canExport;
+  final VoidCallback onExport;
+  final VoidCallback onImport;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert),
+      tooltip: getLocalText.s("Rules menu"),
+      onSelected: (v) {
+        if (v == 'export') onExport();
+        if (v == 'import') onImport();
+      },
+      itemBuilder: (_) => [
+        PopupMenuItem<String>(
+          value: 'export',
+          enabled: canExport,
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.upload_file_outlined, size: 20),
+            title: Text(getLocalText.s("Export rules...")),
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'import',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.file_open_outlined, size: 20),
+            title: Text(getLocalText.s("Import rules...")),
+          ),
+        ),
+      ],
+    );
+  }
+}

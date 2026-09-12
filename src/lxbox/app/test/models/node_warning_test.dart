@@ -1,0 +1,112 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:lxbox/models/node_warning.dart';
+
+void main() {
+  group('NodeWarning equality', () {
+    test('same subclass + same fields == equal', () {
+      expect(
+        const UnsupportedTransportWarning('xhttp', 'httpupgrade'),
+        const UnsupportedTransportWarning('xhttp', 'httpupgrade'),
+      );
+    });
+
+    // §279 — равенство по runtimeType + полям данных (не по отрендеренной
+    // строке): dedup-гранулярность та же, но переживает смену локали.
+    test('same subclass + different fields != equal', () {
+      expect(
+        const UnsupportedTransportWarning('xhttp', 'httpupgrade') ==
+            const UnsupportedTransportWarning('xhttp', 'ws'),
+        isFalse,
+      );
+      expect(
+        const XhttpParamResetWarning(
+                'session_placement', XhttpResetReason.invalidEnumValue,
+                value: 'a') ==
+            const XhttpParamResetWarning(
+                'session_placement', XhttpResetReason.invalidEnumValue,
+                value: 'b'),
+        isFalse,
+      );
+    });
+
+    // §279 — XhttpResetReason: message() обязан воспроизводить дословно
+    // те же English-фразы, что были free-text до enum'а.
+    test('XhttpParamResetWarning renders verbatim from enum reason', () {
+      expect(
+        const XhttpParamResetWarning(
+                'session_placement', XhttpResetReason.invalidEnumValue,
+                value: 'bogus')
+            .renderEn(),
+        'XHTTP "session_placement" reset to default — value "bogus" is not '
+        'a valid session_placement (would otherwise break the whole config).',
+      );
+      expect(
+        const XhttpParamResetWarning(
+                'uplink_http_method', XhttpResetReason.getRequiresPacketUp)
+            .renderEn(),
+        'XHTTP "uplink_http_method" reset to default — GET requires '
+        'packet-up mode (would otherwise break the whole config).',
+      );
+    });
+
+    test('different subclasses != equal', () {
+      expect(
+        const UnsupportedTransportWarning('xhttp', 'httpupgrade') ==
+            const UnsupportedProtocolWarning('xhttp'),
+        isFalse,
+      );
+    });
+
+    test('severity maps per type', () {
+      expect(const MissingFieldWarning('sni').severity, WarningSeverity.error);
+      // info, не warning — провайдеры часто намеренно ставят флаг (REALITY,
+      // self-signed, IP-литералы); UI красит серым, не пугает.
+      expect(const InsecureTlsWarning().severity, WarningSeverity.info);
+      expect(const DeprecatedFlowWarning('xtls').severity, WarningSeverity.info);
+    });
+
+    test('exhaustive switch compiles', () {
+      const NodeWarning w = UnsupportedTransportWarning('xhttp', 'httpupgrade');
+      final label = switch (w) {
+        UnsupportedTransportWarning() => 'transport',
+        UnsupportedProtocolWarning() => 'protocol',
+        MissingFieldWarning() => 'field',
+        DeprecatedFlowWarning() => 'flow',
+        VisionWithTransportWarning() => 'vision_transport',
+        InsecureTlsWarning() => 'tls',
+        NaiveBuildTagWarning() => 'naive_build',
+        XhttpParamResetWarning() => 'xhttp_reset',
+        // §416 — header-placement без режима: дописан mode: packet-up
+        XhttpModeForcedPacketUpWarning() => 'xhttp_mode_forced_packet_up',
+        UnknownFingerprintWarning() => 'fingerprint',
+        EchIgnoredWarning() => 'ech_ignored',
+        UnknownObfsWarning() => 'obfs_unknown',
+        MissingObfsPasswordWarning() => 'obfs_no_password',
+        // §368 — импорт sing-box JSON
+        DetourCycleBrokenWarning() => 'detour_cycle',
+        DetourTargetMissingWarning() => 'detour_missing',
+        DetourToGroupWarning() => 'detour_group',
+        DetourChainTooDeepWarning() => 'detour_deep',
+        // §404 — импорт Xray JSON: недостижимый dialerProxy
+        DialerProxyUnusableWarning() => 'dialer_proxy_unusable',
+        SelectorAsAutoWarning() => 'selector_as_auto',
+        GroupMemberMissingWarning() => 'group_member_missing',
+        // SPEC 103 — деградации, помеченные кодом на обеих сторонах контракта
+        WsEarlyDataConvertedWarning() => 'ws_early_data_converted',
+        RealityShortIdInvalidWarning() => 'reality_short_id_invalid',
+        NaivePaddingIgnoredWarning() => 'naive_padding_ignored',
+        TuicCongestionInvalidWarning() => 'tuic_congestion_invalid',
+        AwgHeaderInvalidWarning() => 'awg_header_invalid',
+        Awg3FieldInvalidWarning() => 'awg3_field_invalid',
+        Awg3HeaderKeyInvalidWarning() => 'awg3_header_key_invalid',
+        Awg3PaddingTooShortWarning() => 'awg3_padding_too_short',
+        Awg3RandomTrailersWideHeadersWarning() =>
+          'awg3_random_trailers_wide_headers',
+        MasqueVhttpInvalidWarning() => 'masque_vhttp_invalid',
+        AnyTlsMinIdleInvalidWarning() => 'anytls_min_idle_invalid',
+        PacketEncodingUnknownWarning() => 'packet_encoding_unknown',
+      };
+      expect(label, 'transport');
+    });
+  });
+}

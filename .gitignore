@@ -1,0 +1,19 @@
+# DeltaRay — combined repo (LxBox + ZeroDPI in one APK).
+# Prefer keeping per-project ignores inside src/<project>/.gitignore; this
+# file only holds root-level generated artifacts.
+
+# Android NDK auto-downloaded by src/zerodpi/build.py
+.ndk/
+
+# IDE
+.idea/
+.vscode/
+
+# Local secrets / machine-specific paths (never commit)
+key.properties
+local.properties
+*.jks
+*.keystore
+
+# Misc
+*.log

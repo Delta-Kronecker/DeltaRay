@@ -1,0 +1,248 @@
+//! Platform packet-interception backends.
+//!
+//! Pick the right backend at compile time:
+//! - on Linux/Android: [`linux::NfqInterceptor`]
+//! - on Windows: [`windows::WinDivertInterceptor`]
+//!
+//! Both implement [`zerodpi_core::interceptor::PacketInterceptor`].
+//!
+//! Socket-only bypass configurations (`BYPASS_METHOD = ["tls_frag"]`) never
+//! open these backends; a method list containing other methods alongside
+//! `tls_frag` still requires interception. See the `BYPASS_METHOD` docs in
+//! zerodpi-core for the list syntax and combination limits.
+
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    feature = "packet-interception"
+))]
+pub mod linux;
+#[cfg(windows)]
+pub mod windows;
+
+use anyhow::Result;
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    not(feature = "packet-interception")
+))]
+use zerodpi_core::interceptor::{
+    FilterSpec, InterceptorShutdown, PacketHandler, PacketInterceptor,
+};
+
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    feature = "packet-interception"
+))]
+pub use linux::NfqInterceptor as DefaultInterceptor;
+
+#[cfg(windows)]
+pub use windows::WinDivertInterceptor as DefaultInterceptor;
+
+#[cfg(not(any(target_os = "linux", target_os = "android", windows)))]
+compile_error!("zerodpi-platform: no interceptor backend for this target OS");
+
+/// Placeholder interceptor used by Android app rootless artifacts that are
+/// intentionally built without NFQUEUE support.
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    not(feature = "packet-interception")
+))]
+pub struct PacketInterceptionUnavailable;
+
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    not(feature = "packet-interception")
+))]
+pub use PacketInterceptionUnavailable as DefaultInterceptor;
+
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    not(feature = "packet-interception")
+))]
+impl PacketInterceptor for PacketInterceptionUnavailable {
+    fn open(_filter: FilterSpec) -> Result<Self> {
+        anyhow::bail!("{}", packet_interception_access_error())
+    }
+
+    fn run_until<H: PacketHandler>(
+        self,
+        _handler: H,
+        _shutdown: InterceptorShutdown,
+    ) -> Result<()> {
+        anyhow::bail!("{}", packet_interception_access_error())
+    }
+}
+
+/// Return an actionable startup error when the current process cannot use the
+/// platform packet interception backend.
+pub fn ensure_packet_interception_access() -> Result<()> {
+    if has_packet_interception_access() {
+        return Ok(());
+    }
+
+    anyhow::bail!("{}", packet_interception_access_error())
+}
+
+#[cfg(windows)]
+fn packet_interception_access_error() -> &'static str {
+    "ZeroDPI needs Administrator privileges for packet interception via WinDivert. \
+     Start PowerShell or Command Prompt with \"Run as administrator\" and run ZeroDPI again. \
+     To run without Administrator privileges, use BYPASS_METHOD = \"tls_frag\" / \"ccs_prefix\" \
+     or MODE = \"ip_bypass\"."
+}
+
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    feature = "packet-interception"
+))]
+fn packet_interception_access_error() -> &'static str {
+    "ZeroDPI needs root privileges or CAP_NET_ADMIN for packet interception via NFQUEUE. \
+     Run ZeroDPI with sudo/root, grant CAP_NET_ADMIN to the binary, or use \
+     BYPASS_METHOD = \"tls_frag\" / \"ccs_prefix\" or MODE = \"ip_bypass\"."
+}
+
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    not(feature = "packet-interception")
+))]
+fn packet_interception_access_error() -> &'static str {
+    "This ZeroDPI artifact was built without packet interception support. \
+     It can run rootless modes such as MODE = \"ip_bypass\", scan-only modes, \
+     or BYPASS_METHOD = \"tls_frag\" / \"ccs_prefix\" where supported. NFQUEUE modes need an \
+     artifact built with the packet-interception feature and root/CAP_NET_ADMIN."
+}
+
+#[cfg(windows)]
+fn has_packet_interception_access() -> bool {
+    use std::ffi::c_void;
+    use std::mem::size_of;
+    use std::ptr::null_mut;
+
+    type Bool = i32;
+    type Dword = u32;
+    type Handle = *mut c_void;
+
+    const TOKEN_QUERY: Dword = 0x0008;
+    const TOKEN_ELEVATION_CLASS: Dword = 20;
+
+    #[repr(C)]
+    struct TokenElevation {
+        token_is_elevated: Dword,
+    }
+
+    #[link(name = "advapi32")]
+    extern "system" {
+        fn OpenProcessToken(
+            process_handle: Handle,
+            desired_access: Dword,
+            token_handle: *mut Handle,
+        ) -> Bool;
+        fn GetTokenInformation(
+            token_handle: Handle,
+            token_information_class: Dword,
+            token_information: *mut c_void,
+            token_information_length: Dword,
+            return_length: *mut Dword,
+        ) -> Bool;
+    }
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn GetCurrentProcess() -> Handle;
+        fn CloseHandle(object: Handle) -> Bool;
+    }
+
+    unsafe {
+        let mut token = null_mut();
+        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) == 0 {
+            return false;
+        }
+
+        let mut elevation = TokenElevation {
+            token_is_elevated: 0,
+        };
+        let mut return_length = 0;
+        let ok = GetTokenInformation(
+            token,
+            TOKEN_ELEVATION_CLASS,
+            &mut elevation as *mut TokenElevation as *mut c_void,
+            size_of::<TokenElevation>() as Dword,
+            &mut return_length,
+        ) != 0;
+        let _ = CloseHandle(token);
+
+        ok && elevation.token_is_elevated != 0
+    }
+}
+
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    feature = "packet-interception"
+))]
+fn has_packet_interception_access() -> bool {
+    extern "C" {
+        fn geteuid() -> u32;
+    }
+
+    (unsafe { geteuid() == 0 }) || has_effective_cap_net_admin()
+}
+
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    not(feature = "packet-interception")
+))]
+fn has_packet_interception_access() -> bool {
+    false
+}
+
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    feature = "packet-interception"
+))]
+fn has_effective_cap_net_admin() -> bool {
+    effective_capabilities_from_status("/proc/self/status")
+        .map(|caps| caps & (1_u64 << 12) != 0)
+        .unwrap_or(false)
+}
+
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    feature = "packet-interception"
+))]
+fn effective_capabilities_from_status(path: &str) -> Option<u64> {
+    let status = std::fs::read_to_string(path).ok()?;
+    status.lines().find_map(parse_effective_capabilities_line)
+}
+
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    feature = "packet-interception"
+))]
+fn parse_effective_capabilities_line(line: &str) -> Option<u64> {
+    let value = line.strip_prefix("CapEff:")?.trim();
+    u64::from_str_radix(value, 16).ok()
+}
+
+#[cfg(all(
+    test,
+    any(target_os = "linux", target_os = "android"),
+    feature = "packet-interception"
+))]
+mod tests {
+    use super::parse_effective_capabilities_line;
+
+    #[test]
+    fn parses_effective_capabilities_line() {
+        assert_eq!(
+            parse_effective_capabilities_line("CapEff:\t0000000000001000"),
+            Some(1 << 12)
+        );
+    }
+
+    #[test]
+    fn ignores_non_effective_capabilities_line() {
+        assert_eq!(
+            parse_effective_capabilities_line("CapPrm:\t0000000000001000"),
+            None
+        );
+    }
+}
