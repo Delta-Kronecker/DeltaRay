@@ -231,19 +231,28 @@ jobs:
         shell: bash
         run: |
           LOG="$GITHUB_WORKSPACE/build/flutter-build.log"
-          if [ ! -f "$LOG" ]; then
+          if [ -f "$LOG" ]; then
+            echo "::group::tail"
+            tail -160 "$LOG" | sed 's/%/%25/g; s/\r$//'
+            echo "::endgroup::"
+            cp "$LOG" "$GITHUB_WORKSPACE/diag-flutter-build.log"
+          else
             echo "::error::flutter-build.log was not produced"
+            touch "$GITHUB_WORKSPACE/diag-flutter-build.log"
+          fi
+          # Exfiltrate the full log to a remote branch (check-run annotations
+          # are capped at 10 per step, so the branch is the reliable channel).
+          cd "$GITHUB_WORKSPACE"
+          git config user.name "ci-runner"
+          git config user.email "ci-runner@users.noreply.github.com"
+          git add --force diag-flutter-build.log
+          if git diff --cached --quiet; then
+            echo "no log change; skipping branch push"
             exit 0
           fi
-          echo "::group::tail"
-          tail -160 "$LOG" | sed 's/%/%25/g; s/\r$//'
-          echo "::endgroup::"
-          # Re-emit the tail as workflow annotations so failures are visible
-          # through the API even when job-log downloads are unavailable.
-          tail -140 "$LOG" | while IFS= read -r line; do
-            line="${line//%/ %25}"
-            echo "::warning title=flutter-build.log,file=build/flutter-build.log::$line"
-          done
+          git commit --quiet -m "diag: flutter build log (run $GITHUB_RUN_ID)"
+          git push --force origin "HEAD:refs/heads/diag/$GITHUB_RUN_NUMBER" 2>&1 | tail -3
+          echo "diagnostics pushed to refs/heads/diag/$GITHUB_RUN_NUMBER"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
