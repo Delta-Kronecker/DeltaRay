@@ -23,10 +23,12 @@ echo "==> [1/2] sing-box-lx core (libbox.aar)"
 bash "$REPO_ROOT/src/lxbox/scripts/fetch-libbox.sh"
 
 echo "==> [2/2] ZeroDPI Android runtime ($RUNTIME / $ABI)"
-"$PY" "$REPO_ROOT/src/zerodpi/build.py" --platform android \
-  --android-app-abi "$ABI" \
-  --android-app-runtime "$RUNTIME" \
-  --android-app-build-type debug \
-  --android-skip-apk
+# build.py must be run from the ZeroDPI tree (cargo subprocesses inherit cwd).
+( cd "$REPO_ROOT/src/zerodpi" \
+  && "$PY" build.py --platform android \
+       --android-app-abi "$ABI" \
+       --android-app-runtime "$RUNTIME" \
+       --android-app-build-type debug \
+       --android-skip-apk )
 
 echo "---> runtime ready at: $REPO_ROOT/src/zerodpi/dist/android-app/$RUNTIME"
