@@ -237,9 +237,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ti
     homeReturnObserver.setHandler(_onReturnToHome);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      // Единый стартовый визард: notification → battery → add-tile,
-      // последовательно (см. startup_wizard.dart). Раньше эти промпты шли
-      // параллельно через unawaited и наезжали друг на друга.
+      // Единый стартовый визард: осталось только согласие на автопроверку
+      // обновлений (§395). Permission-промпты вынесены из онбординга:
+      // notification спрашиваем в момент ручного старта VPN, battery/tile —
+      // только ручные кнопки в App Settings (см. startup_wizard.dart).
       unawaited(StartupWizard(context, _vpn).run());
       // §105 — cold-start: на этот момент статус туннеля обычно ещё не
       // пришёл от native (connectedSince=null) → no-op; реальный показ
@@ -885,6 +886,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ti
     // старым с диска был бы тихой подменой. Показываем sheet с виновниками
     // и не стартуем — юзер устраняет причину сам.
     if (_showDetourCycleSheetIfAny()) return;
+    // Перенос пермишн-диалогов из онбординга: notification спрашиваем в момент
+    // ручного старта (persist-флаг → один раз). VPN-consent поднимает сам
+    // `start()` через VpnService.prepare; battery/tile — только ручные кнопки
+    // в App Settings.
+    if (mounted) await maybeShowNotificationPermissionDialog(context);
     await _controller.start();
     // §166 — snackbar ошибки теперь централизован в _onControllerChange
     // (любой источник lastError → всплывашка снизу). Здесь дубль убран.
@@ -946,6 +952,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ti
     // §254 — detour-цикл в свежей пересборке → sheet + отмена старта (см.
     // _rebuildAndStart).
     if (_showDetourCycleSheetIfAny()) return;
+    // Notification-permission из онбординга перенесён сюда — момент ручного
+    // старта VPN из UI, не открытие приложения (см. startup_wizard.dart).
+    if (mounted) await maybeShowNotificationPermissionDialog(context);
     // Обновление подписок теперь через AutoUpdater (см. services/subscription/
     // auto_updater.dart) — 4 триггера, общая логика. При Start никакого
     // синхронного HTTP-fetch'а не делаем: если подписки протухли, trigger 2
