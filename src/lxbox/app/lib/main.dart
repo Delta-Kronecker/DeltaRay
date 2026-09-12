@@ -114,6 +114,10 @@ void main() async {
     // порядок сохранён. Идемпотентна, ДО первого билда — билдер читает
     // цепочки уже в порядке общего списка.
     await SettingsStorage.migrateChainOrderIfNeeded();
+    // Дефолтная подписка: на чистой установке пишем стартовый sub-линк.
+    // Идемпотентна, no-op после первой записи `server_lists`. До первого
+    // билда — bootstrap в home пересоберёт конфиг уже с этой подпиской.
+    await SettingsStorage.seedDefaultSubscriptionIfNeeded();
     // §229 — вызов one-shot ремапа preset_id (§228) убран: миграция удалена,
     // отработала у всех, кто обновлялся начиная с v2.10.0.
     // §043 — pump sing-box logs из Kotlin EventChannel "lxbox/coreLog" в

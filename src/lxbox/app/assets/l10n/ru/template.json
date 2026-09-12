@@ -569,8 +569,8 @@
   "outbound": {
     "value": "исходящий канал"
   },
-  "system (default), gvisor (userspace), mixed": {
-    "value": "system (по умолчанию), gvisor (пользовательское пространство), mixed"
+  "system, gvisor (default, userspace), mixed": {
+    "value": "system, gvisor (по умолчанию, пользовательское пространство), mixed"
   },
   "system name": {
     "value": "системное имя"
