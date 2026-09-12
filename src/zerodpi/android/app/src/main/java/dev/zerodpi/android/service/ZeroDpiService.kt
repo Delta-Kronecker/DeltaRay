@@ -92,9 +92,9 @@ data class PickSessionUi(
 data class ZeroDpiServiceState(
     val status: RuntimeStatus = RuntimeStatus.Stopped,
     val rootStatus: RootStatus = RootStatus.Needed,
-    val mode: String = "sni_spoof",
-    val bypassMethod: String = "wrong_seq",
-    val listener: String = "127.0.0.1:44444",
+    val mode: String = "ip_bypass_plus",
+    val bypassMethod: String = "tls_frag",
+    val listener: String = "127.0.0.1:40443",
     val activeTarget: String = "None",
     val activeTargetScore: Int? = null,
     val scanProgress: ScanProgressInfo? = null,

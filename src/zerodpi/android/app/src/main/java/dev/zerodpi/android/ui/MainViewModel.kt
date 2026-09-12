@@ -1315,7 +1315,7 @@ class MainViewModel(
                 configEditor.valueFor("BYPASS_METHOD"),
             ).ifBlank { current.bypassMethod }
             val listenHost = configEditor.valueFor("LISTEN_HOST").ifBlank { "127.0.0.1" }
-            val listenPort = configEditor.valueFor("LISTEN_PORT").ifBlank { "44444" }
+            val listenPort = configEditor.valueFor("LISTEN_PORT").ifBlank { "40443" }
 
             current.copy(
                 rootStatus = if (configEditor.rootRequirement.requiresRoot) {

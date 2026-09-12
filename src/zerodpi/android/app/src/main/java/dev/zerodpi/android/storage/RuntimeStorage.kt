@@ -221,7 +221,7 @@ class RuntimeStorage(context: Context) {
         if (pin == null) {
             return this
         }
-        val mode = readTomlString(this, "MODE") ?: "sni_spoof"
+        val mode = readTomlString(this, "MODE") ?: "ip_bypass_plus"
         val expectedKind = TargetPickPolicy.pinKindForMode(mode) ?: return this
         if (pin.kind != expectedKind) {
             return this
