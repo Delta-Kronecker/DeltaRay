@@ -26,7 +26,6 @@ android {
 
     defaultConfig {
         minSdk = 23
-        targetSdk = 36
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -50,10 +49,14 @@ android {
     }
 
     sourceSets {
-        getByName("main") {
+        named("main") {
             zeroDpiRuntimeDir.orNull?.let { runtimeDir ->
-                assets.setSrcDirs(listOf(runtimeDir.resolve("assets")))
-                jniLibs.srcDir(runtimeDir.resolve("jniLibs"))
+                assets {
+                    directories.add(runtimeDir.resolve("assets"))
+                }
+                jniLibs {
+                    directories.add(runtimeDir.resolve("jniLibs"))
+                }
             }
         }
     }
