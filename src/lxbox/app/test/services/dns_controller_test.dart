@@ -125,14 +125,24 @@ void main() {
     });
 
     test('сохранённый выбор юзера побеждает дефолт', () async {
-      await SettingsStorage.setVar('dns_final', 'google_doh');
+      // Пул шаблона после правки — один сервер (google_udp); юзерский выбор
+      // проверяем на inline-сервере, который тоже в каталоге (availableTags).
+      await SettingsStorage.saveDnsServers([
+        {
+          'enabled': true,
+          'kind': 'inline',
+          'tag': 'my_dns',
+          'body': {'type': 'udp'},
+        },
+      ]);
+      await SettingsStorage.setVar('dns_final', 'my_dns');
       await SettingsStorage.setVar(
-          'dns_default_domain_resolver', 'cloudflare_udp');
+          'dns_default_domain_resolver', 'my_dns');
 
       final snap = await DnsController.load();
 
-      expect(snap.dnsFinal, 'google_doh');
-      expect(snap.defaultResolver, 'cloudflare_udp');
+      expect(snap.dnsFinal, 'my_dns');
+      expect(snap.defaultResolver, 'my_dns');
     });
 
     test('исчезнувший тег сбрасывается на шаблонный дефолт, не на литерал',

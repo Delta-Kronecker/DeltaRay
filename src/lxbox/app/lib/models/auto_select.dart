@@ -214,7 +214,7 @@ class AutoSelectParams {
   final bool interruptExistConnections;
 
   const AutoSelectParams({
-    this.url = 'https://cp.cloudflare.com/generate_204',
+    this.url = 'https://www.google.com/generate_204',
     this.interval = '15m',
     this.tolerance = 50,
     this.idleTimeout = '30m',
