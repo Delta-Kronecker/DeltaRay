@@ -10,45 +10,20 @@
       {
         "description": "Google DNS (via VPN)",
         "enabled": true,
-        "vars": [
+"vars": [
           {
             "name": "outbound",
             "type": "outbound",
             "default_value": "vpn-1",
             "title": "Outbound",
             "tooltip": "Which direction carries DNS queries to this server"
-          },
-          {
-            "name": "dns_ip",
-            "type": "enum",
-            "title": "UDP server IP",
-            "tooltip": "Google Public DNS address. IPv4 — universal; IPv6 — if your network supports it.",
-            "default_value": "8.8.8.8",
-            "options": [
-              {
-                "title": "8.8.8.8 · Primary v4",
-                "value": "8.8.8.8"
-              },
-              {
-                "title": "8.8.4.4 · Secondary v4",
-                "value": "8.8.4.4"
-              },
-              {
-                "title": "2001:4860:4860::8888 · Primary v6",
-                "value": "2001:4860:4860::8888"
-              },
-              {
-                "title": "2001:4860:4860::8844 · Secondary v6",
-                "value": "2001:4860:4860::8844"
-              }
-            ]
           }
         ],
         "server": {
-          "type": "udp",
-          "tag": "google_udp",
-          "server_port": 53,
-          "server": "@dns_ip",
+          "type": "tls",
+          "tag": "google_tls",
+          "server": "dns.google",
+          "server_port": 853,
           "detour": "@outbound"
         }
       }
@@ -368,22 +343,22 @@
           ]
         },
         {
-          "name": "dns_default_domain_resolver",
+"name": "dns_default_domain_resolver",
           "type": "text",
-          "default_value": "google_udp",
+          "default_value": "google_tls",
           "required": true,
           "wizard_ui": "fix",
           "title": "Default domain resolver",
-          "tooltip": "Used by routing engine to resolve hostnames internally (outbound endpoints, routing rules). Not the resolver apps use.\n\n  • google_udp — default; fast plain UDP to 8.8.8.8 (Google DNS)"
+          "tooltip": "Used by routing engine to resolve hostnames internally (outbound endpoints, routing rules). Not the resolver apps use.\n\n  • google_tls — default; encrypted DNS-over-TLS to dns.google:853 (Google DNS)"
         },
         {
-          "name": "dns_final",
+"name": "dns_final",
           "type": "text",
-          "default_value": "google_udp",
+          "default_value": "google_tls",
           "required": true,
           "wizard_ui": "fix",
           "title": "DNS final",
-          "tooltip": "Default fallback DNS server. Used when an app's DNS query doesn't match any DNS rule.\n\n  • google_udp — default; fast plain UDP to 8.8.8.8 (Google DNS)"
+          "tooltip": "Default fallback DNS server. Used when an app's DNS query doesn't match any DNS rule.\n\n  • google_tls — default; encrypted DNS-over-TLS to dns.google:853 (Google DNS)"
         }
       ]
     },
