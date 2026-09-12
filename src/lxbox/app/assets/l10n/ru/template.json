@@ -2,12 +2,6 @@
   "0.0.0.0 — all interfaces (LAN)": {
     "value": "0.0.0.0 — все интерфейсы (LAN)"
   },
-  "1.0.0.1 · Secondary v4": {
-    "value": "1.0.0.1 · Резервный v4"
-  },
-  "1.1.1.1 · Primary v4": {
-    "value": "1.1.1.1 · Основной v4"
-  },
   "127.0.0.1 — this device only": {
     "value": "127.0.0.1 — только это устройство"
   },
@@ -19,12 +13,6 @@
   },
   "2001:4860:4860::8888 · Primary v6": {
     "value": "2001:4860:4860::8888 · Основной v6"
-  },
-  "2606:4700:4700::1001 · Secondary v6": {
-    "value": "2606:4700:4700::1001 · Резервный v6"
-  },
-  "2606:4700:4700::1111 · Primary v6": {
-    "value": "2606:4700:4700::1111 · Основной v6"
   },
   "2a02:6b8:0:1::feed:bad · Safe v6 alt": {
     "value": "2a02:6b8:0:1::feed:bad · Безопасный v6 альт."
@@ -61,12 +49,6 @@
   },
   "8.8.8.8 · Primary v4": {
     "value": "8.8.8.8 · Основной v4"
-  },
-  "AdGuard Family · ad + adult": {
-    "value": "AdGuard Family · реклама + 18+"
-  },
-  "AdGuard · ad block": {
-    "value": "AdGuard · блокировка рекламы"
   },
   "Add an IPv6 address to the tunnel. Off by default — turn on only if your network has working IPv6. Turning on sets resolution to prefer IPv4, turning off forces IPv4-only — you can change the strategy in DNS Settings.": {
     "value": "Добавить туннелю IPv6-адрес. По умолчанию выключено — включайте, только если в вашей сети работает IPv6. Включение переводит резолв в режим «предпочитать IPv4», выключение — в «только IPv4»; стратегию можно поменять в настройках DNS."
@@ -110,18 +92,6 @@
   "Cloudflare": {
     "value": "Cloudflare"
   },
-  "Cloudflare DoT": {
-    "value": "Cloudflare DoT"
-  },
-  "Cloudflare Public DNS address for DNS-over-TLS (port 853).": {
-    "value": "Адрес Cloudflare Public DNS для DNS-over-TLS (порт 853)."
-  },
-  "Cloudflare Public DNS address. IPv4 — universal; IPv6 — if your network supports it.": {
-    "value": "Адрес Cloudflare Public DNS. IPv4 — универсально; IPv6 — если ваша сеть его поддерживает."
-  },
-  "Cloudflare UDP": {
-    "value": "Cloudflare UDP"
-  },
   "Connection and routing behavior": {
     "value": "Поведение подключений и маршрутизации"
   },
@@ -140,17 +110,11 @@
   "DNS resolution strategy": {
     "value": "Стратегия резолва DNS"
   },
-  "DNS server used to resolve the Safe DNS hostname itself (AdGuard profiles use a domain address).": {
-    "value": "DNS-сервер, который резолвит сам домен безопасного DNS (профили AdGuard используют доменный адрес)."
-  },
-  "DNS-over-TLS with built-in blocking: malware (Quad9), ads (AdGuard), or ads + adult (AdGuard Family).": {
-    "value": "DNS-over-TLS со встроенной блокировкой: вредоносное ПО (Quad9), реклама (AdGuard) или реклама и контент 18+ (AdGuard Family)."
-  },
   "Default domain resolver": {
     "value": "Резолвер доменов по умолчанию"
   },
-  "Default fallback DNS server. Used when an app's DNS query doesn't match any DNS rule.\n\n  • dns_shield — default; races 9 providers, answers from whichever replies first\n  • google_doh, cloudflare_dot — encrypted, single provider\n  • cloudflare_udp, google_udp — fast plain UDP\n\nlocal_dns_resolver (system DNS) is safe here.": {
-    "value": "Резервный DNS-сервер по умолчанию. Используется, когда DNS-запрос приложения не совпал ни с одним DNS-правилом.\n\n  • dns_shield — по умолчанию; опрашивает 9 провайдеров наперегонки, отвечает тот, кто первым откликнулся\n  • google_doh, cloudflare_dot — шифрованные, один провайдер\n  • cloudflare_udp, google_udp — быстрый обычный UDP\n\nlocal_dns_resolver (системный DNS) здесь безопасен."
+  "Default fallback DNS server. Used when an app's DNS query doesn't match any DNS rule.\n\n  • google_udp — default; fast plain UDP to 8.8.8.8 (Google DNS)": {
+    "value": "Резервный DNS-сервер по умолчанию. Используется, когда DNS-запрос приложения не совпал ни с одним DNS-правилом.\n\n  • google_udp — по умолчанию; быстрый обычный UDP к 8.8.8.8 (Google DNS)"
   },
   "Detect protocol and domain from packets for accurate routing.\n⚠️ WARNING: turning this off stops protocol matching (e.g. BitTorrent, TLS, QUIC), and domain matching too unless FakeIP is on.": {
     "value": "Определять протокол и домен из пакетов для точной маршрутизации.\n⚠️ ВНИМАНИЕ: выключение прекращает сопоставление по протоколу (например BitTorrent, TLS, QUIC), а без включённого FakeIP — и по домену."
@@ -158,17 +122,8 @@
   "Direct": {
     "value": "Напрямую"
   },
-  "DoH server IP": {
-    "value": "IP-адрес DoH-сервера"
-  },
-  "DoT server IP": {
-    "value": "IP-адрес DoT-сервера"
-  },
   "Domain name resolution": {
     "value": "Разрешение доменных имён"
-  },
-  "Domain resolver": {
-    "value": "Резолвер домена"
   },
   "Enable IPv6": {
     "value": "Включить IPv6"
@@ -205,18 +160,6 @@
   },
   "Google DNS (direct)": {
     "value": "Google DNS (напрямую)"
-  },
-  "Google DoH": {
-    "value": "Google DoH"
-  },
-  "Google DoT": {
-    "value": "Google DoT"
-  },
-  "Google Public DNS IP for IP-based DoH. TLS SNI is pinned to dns.google.": {
-    "value": "IP-адрес Google Public DNS для DoH по IP. TLS SNI закреплён как dns.google."
-  },
-  "Google Public DNS address for DNS-over-TLS (port 853).": {
-    "value": "Адрес Google Public DNS для DNS-over-TLS (порт 853)."
   },
   "Google Public DNS address. IPv4 — universal; IPv6 — if your network supports it.": {
     "value": "Адрес Google Public DNS. IPv4 — универсально; IPv6 — если ваша сеть его поддерживает."
@@ -353,9 +296,6 @@
   "Proxy — local port only, no TUN": {
     "value": "Прокси — только локальный порт, без TUN"
   },
-  "Quad9 · anti-malware": {
-    "value": "Quad9 · защита от вредоносного ПО"
-  },
   "RU DNS group (UDP via direction + DoT via vpn-1 + direct DoH)": {
     "value": "Группа DNS для RU (UDP через Направление + DoT через vpn-1 + прямой DoH)"
   },
@@ -416,12 +356,6 @@
   "SOCKS5 only": {
     "value": "Только SOCKS5"
   },
-  "Safe DNS (DoT)": {
-    "value": "Безопасный DNS (DoT)"
-  },
-  "Safe profile": {
-    "value": "Профиль защиты"
-  },
   "Selectel (RU)": {
     "value": "Selectel (RU)"
   },
@@ -448,9 +382,6 @@
   },
   "Strict route": {
     "value": "Строгий маршрут"
-  },
-  "System DNS": {
-    "value": "Системный DNS"
   },
   "TLS Fragment": {
     "value": "Фрагментация TLS"
@@ -503,8 +434,8 @@
   "Unknown traffic": {
     "value": "Неизвестный трафик"
   },
-  "Used by routing engine to resolve hostnames internally (outbound endpoints, routing rules). Not the resolver apps use.\n\n  • dns_shield — default; races 9 providers, answers from whichever replies first\n  • cloudflare_udp, google_udp — fast plain UDP\n  • google_doh — encrypted\n\n⚠ local_dns_resolver here leaks lookups to your ISP — system DNS bypasses the VPN.": {
-    "value": "Используется движком маршрутизации для внутреннего резолва имён (адреса серверов, правила маршрутизации). Это не резолвер для приложений.\n\n  • dns_shield — по умолчанию; опрашивает 9 провайдеров наперегонки, отвечает тот, кто первым откликнулся\n  • cloudflare_udp, google_udp — быстрый обычный UDP\n  • google_doh — шифрованный\n\n⚠ Избегайте здесь local_dns_resolver — системный DNS отдаёт эти запросы провайдеру в обход VPN."
+  "Used by routing engine to resolve hostnames internally (outbound endpoints, routing rules). Not the resolver apps use.\n\n  • google_udp — default; fast plain UDP to 8.8.8.8 (Google DNS)": {
+    "value": "Используется движком маршрутизации для внутреннего резолва имён (адреса серверов, правила маршрутизации). Это не резолвер для приложений.\n\n  • google_udp — по умолчанию; быстрый обычный UDP к 8.8.8.8 (Google DNS)"
   },
   "Username for proxy auth (when auth is on).": {
     "value": "Имя пользователя для авторизации на прокси (когда она включена)."
@@ -574,15 +505,6 @@
   },
   "system name": {
     "value": "системное имя"
-  },
-  "Shield DNS (multi-provider group)": {
-    "value": "Shield DNS (группа из нескольких провайдеров)"
-  },
-  "OpenDNS UDP (direct)": {
-    "value": "OpenDNS UDP (напрямую)"
-  },
-  "Quad9 DoH (via VPN, anti-malware)": {
-    "value": "Quad9 DoH (через VPN, антивредонос)"
   },
   "Google push (FCM)": {
     "value": "Google-пуши (FCM)"

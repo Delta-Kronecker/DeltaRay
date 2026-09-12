@@ -131,7 +131,7 @@ int clampDirectionPool(int v) => v < 1 ? 1 : v;
 /// `tag` двойника НЕ хранится — производный (`direction.autoTag`).
 class DirectionAuto {
   const DirectionAuto({
-    this.url = 'https://cp.cloudflare.com/generate_204',
+    this.url = 'https://www.google.com/generate_204',
     // §272 — 15m вместо 5m: на mobile каждый цикл проб дайлит узлы (будит
     // спящие, SPEC 020); с passive_check пробы при живом трафике и так
     // пропускаются, interval задаёт лишь скорость реакции на смерть узла.
@@ -205,7 +205,7 @@ class DirectionAuto {
             .toList()
         : kDefaultStickyHash;
     return DirectionAuto(
-      url: json['url'] as String? ?? 'https://cp.cloudflare.com/generate_204',
+      url: json['url'] as String? ?? 'https://www.google.com/generate_204',
       interval: json['interval'] as String? ?? '5m',
       tolerance: clampDirectionTolerance((json['tolerance'] as num?)?.toInt() ?? 50),
       idleTimeout: json['idle_timeout'] as String? ?? '30m',
