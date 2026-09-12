@@ -52,10 +52,10 @@ android {
         named("main") {
             zeroDpiRuntimeDir.orNull?.let { runtimeDir ->
                 assets {
-                    directories.add(runtimeDir.resolve("assets"))
+                    directories.add(runtimeDir.resolve("assets").path)
                 }
                 jniLibs {
-                    directories.add(runtimeDir.resolve("jniLibs"))
+                    directories.add(runtimeDir.resolve("jniLibs").path)
                 }
             }
         }
