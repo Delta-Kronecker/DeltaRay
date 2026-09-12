@@ -123,9 +123,11 @@ jobs:
           targets: aarch64-linux-android
 
       - name: Build ZeroDPI Android runtime (full / arm64-v8a)
+        working-directory: src/zerodpi
         shell: bash
         run: |
-          python3 src/zerodpi/build.py --platform android \
+          set -euo pipefail
+          python3 build.py --platform android \
             --android-app-abi arm64-v8a \
             --android-app-runtime full \
             --android-app-build-type debug \
