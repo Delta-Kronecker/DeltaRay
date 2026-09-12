@@ -1,10 +1,7 @@
 package dev.zerodpi.android
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -25,10 +22,6 @@ class MainActivity : ComponentActivity() {
     private var pendingImportKind: RuntimeFileKind? = null
     private var pendingExportKind: RuntimeFileKind? = null
     private var pendingSupportBundleIncludeLists: Boolean = false
-    private val notificationPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-            // Permission denial is non-fatal; Android will still keep service state visible in-app.
-        }
     private val importRuntimeFileLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
             val kind = pendingImportKind
@@ -56,7 +49,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestNotificationPermissionIfNeeded()
 
         setContent {
             val state by viewModel.uiState.collectAsState()
@@ -112,15 +104,6 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.refreshProfilesFromDiskOnForeground()
-    }
-
-    private fun requestNotificationPermissionIfNeeded() {
-        if (
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
     }
 
     private fun launchRuntimeFileImport(kind: RuntimeFileKind) {
