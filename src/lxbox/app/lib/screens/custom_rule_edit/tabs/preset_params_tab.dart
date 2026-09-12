@@ -1,0 +1,458 @@
+import 'package:flutter/material.dart';
+
+import '../../../models/parser_config.dart' show WizardVar;
+import '../../../widgets/outbound_picker.dart';
+import '../edit_controller.dart';
+import 'params_tab.dart' show ParamsTabActions;
+import '../../../services/l10n/locale_controller.dart';
+
+/// §053 Stage 3 — Params tab для preset-ветки (§033 / §045).
+///
+/// Если preset null — broken-preset fallback с Delete-кнопкой.
+/// Иначе — banner с preset.label + Name/Switch + список var-widgets.
+class PresetParamsTab extends StatelessWidget {
+  const PresetParamsTab({
+    super.key,
+    required this.outboundOptions,
+    required this.actions,
+  });
+
+  final List<OutboundOption> outboundOptions;
+  final ParamsTabActions actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = CustomRuleEditScope.of(context);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final preset = c.preset;
+
+    if (preset == null) {
+      return ListView(
+        padding: EdgeInsets.fromLTRB(
+            16, 16, 16, MediaQuery.of(context).padding.bottom + 24),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: cs.errorContainer.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.warning_amber_outlined,
+                      color: cs.error, size: 18),
+                  const SizedBox(width: 6),
+                  Text(getLocalText.s("Preset not found"),
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600, color: cs.error)),
+                ]),
+                const SizedBox(height: 4),
+                Text(
+                  getLocalText.s("Preset \"%s\" no longer exists in this version of the app. The rule will be skipped when the config is generated. Delete it or update to a newer version that still has this preset.", c.initial.presetId),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          OutlinedButton.icon(
+            icon: Icon(Icons.delete_outline, size: 18, color: cs.error),
+            label: Text(getLocalText.s("Delete rule"),
+                style: TextStyle(color: cs.error)),
+            onPressed: actions.onDelete,
+          ),
+        ],
+      );
+    }
+
+    // Hidden-vars (wizard_ui: hidden) не редактируются юзером — их значение
+    // приходит из default_value при раскрытии пресета. Из редактора исключаем.
+    // §265 — ref-vars ПОКАЗЫВАЕМ, но подставляем определение целевой глобали
+    // (type/options/title/tooltip из секции-владельца, резолвлено контроллером
+    // в refVarDefs), сохраняя `ref` — контрол читает/пишет глобальный userVars,
+    // не varsValues. Битая ссылка (нет в refVarDefs) → пропускаем.
+    final visibleVars = <WizardVar>[];
+    for (final v in preset.vars) {
+      if (v.wizardUI == 'hidden') continue;
+      if (v.isRef) {
+        final g = c.refVarDefs[v.ref];
+        if (g == null) continue;
+        visibleVars.add(WizardVar(
+          name: g.name,
+          type: g.type,
+          defaultValue: g.defaultValue,
+          wizardUI: g.wizardUI,
+          options: g.options,
+          title: g.title,
+          tooltip: g.tooltip,
+          required: g.required,
+          ref: v.ref, // помечаем как ref → контрол пойдёт в globalVars
+        ));
+      } else {
+        visibleVars.add(v);
+      }
+    }
+
+    return ListView(
+      padding: EdgeInsets.fromLTRB(
+          16, 16, 16, MediaQuery.of(context).padding.bottom + 24),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: cs.primaryContainer.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Icon(Icons.push_pin_outlined, size: 16, color: cs.primary),
+                const SizedBox(width: 6),
+                Text(getLocalText.s("Based on preset"),
+                    style: TextStyle(fontSize: 12, color: cs.primary)),
+                // §231 — чип «DNS»: пресет трогает DNS-настройки (сервер/правило).
+                if (preset.touchesDns) ...[
+                  const Spacer(),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      border:
+                          Border.all(color: cs.primary.withValues(alpha: 0.5)),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.dns_outlined, size: 12, color: cs.primary),
+                      const SizedBox(width: 3),
+                      // l10n-exempt: acronym, same in all locales
+                      Text('DNS',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: cs.primary)),
+                    ]),
+                  ),
+                ],
+              ]),
+              const SizedBox(height: 4),
+              Text(preset.label,
+                  style: theme.textTheme.bodyLarge
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+              if (preset.description.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(preset.description,
+                    style: TextStyle(
+                        fontSize: 12, color: cs.onSurfaceVariant)),
+              ],
+            ],
+          ),
+        ),
+        // §231 — инфо-блок: пресет затрагивает DNS. Глядя на правило, юзер
+        // должен понимать, что оно вносит сущности в DNS Settings.
+        // Нейтрально-информативный стиль (как баннер «Based on preset») —
+        // НЕ warning/error: это фича правила, а не проблема.
+        if (preset.touchesDns) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: cs.primaryContainer.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.dns_outlined, size: 16, color: cs.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    getLocalText.s("This rule changes DNS settings — it adds a DNS server and/or a DNS rule. See DNS Settings."),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              // §264 — имя пресета read-only: юзер его не правит. §279 —
+              // показываем LIVE display-имя (label локализованного шаблона +
+              // порядковый суффикс копии, передан RoutingScreen'ом), а не
+              // сохранённый снапшот из nameCtrl: снапшот заморожен на локали
+              // создания. nameCtrl не трогаем — save сохраняет снапшот.
+              child: TextFormField(
+                key: ValueKey('preset-name-${c.displayName ?? preset.label}'),
+                initialValue: c.displayName ??
+                    (preset.label.isNotEmpty ? preset.label : c.initial.name),
+                readOnly: true,
+                decoration: InputDecoration(
+                  border: const OutlineInputBorder(),
+                  labelText: getLocalText.s("Name"),
+                  isDense: true,
+                  prefixIcon: const Icon(Icons.lock_outline, size: 18),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Switch(
+              value: c.enabled,
+              // §264 — locked-пресет нельзя выключить (disabled и в редакторе).
+              onChanged: preset.locked ? null : c.setEnabled,
+            ),
+          ],
+        ),
+        // PARAMETERS секция показывается только если у preset'а есть vars.
+        // Для preset'ов без vars (e.g. Block Ads, BitTorrent direct) — пусто;
+        // показывать заголовок без контента — шум. Hidden-vars (wizard_ui:
+        // hidden, e.g. магическая dns_server у FakeIP) не редактируются юзером —
+        // их значение приходит из default_value; из редактора их исключаем,
+        // иначе рисуется мёртвый контрол (dropdown из одного пункта).
+        if (visibleVars.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          Text(getLocalText.s("PARAMETERS"),
+              style: theme.textTheme.titleSmall?.copyWith(
+                  color: cs.primary, fontWeight: FontWeight.w600)),
+          const Divider(),
+          for (final v in visibleVars)
+            _PresetVarWidget(
+              v: v,
+              outboundOptions: outboundOptions,
+              onBoolVarFailed: actions.onBoolVarFailed,
+            ),
+        ],
+        const SizedBox(height: 24),
+        const Divider(),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          icon: const Icon(Icons.save, size: 18),
+          label: Text(getLocalText.s("Save")),
+          onPressed: actions.onSave,
+        ),
+      ],
+    );
+  }
+}
+
+/// Один var-widget из preset (одно поле PARAMETERS-секции). Тип решается
+/// `v.type`: outbound / dns_servers / enum / bool. Unsupported тип →
+/// error-text (видим в Params tab — пресет шаблона требует апдейт).
+class _PresetVarWidget extends StatelessWidget {
+  const _PresetVarWidget({
+    required this.v,
+    required this.outboundOptions,
+    required this.onBoolVarFailed,
+  });
+
+  final WizardVar v;
+  final List<OutboundOption> outboundOptions;
+  final void Function(String varDisplay) onBoolVarFailed;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = CustomRuleEditScope.of(context);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final preset = c.preset!;
+    final label = v.title.isNotEmpty ? v.title : v.name;
+    final subtitle = v.required
+        ? v.tooltip
+        : (v.tooltip.isEmpty ? '(optional)' : '${v.tooltip} · (optional)');
+
+    Widget control;
+    switch (v.type) {
+      case 'outbound':
+        // §265 — ref-var: значение/запись через глобальный userVars.
+        final current = v.isRef
+            ? (c.globalVars[v.ref] ?? v.defaultValue)
+            : (c.varsValues[v.name] ?? v.defaultValue);
+        control = OutboundPicker(
+          value: current,
+          options: outboundOptions,
+          onChanged: (val) =>
+              v.isRef ? c.setGlobalVar(v.ref, val) : c.setVarValue(v.name, val),
+          dense: false,
+        );
+      case 'dns_servers':
+        // Семантика (§033): varsValues содержит ключ → explicit выбор
+        // (включая пустую строку = "— default DNS" для optional); ключ
+        // отсутствует → применяется `default_value` пресета.
+        // §265 — ref-var: значение из глобального userVars.
+        final String currentKey;
+        if (v.isRef) {
+          currentKey = c.globalVars[v.ref] ?? v.defaultValue;
+        } else {
+          final hasExplicit = c.varsValues.containsKey(v.name);
+          final stored = c.varsValues[v.name];
+          currentKey = hasExplicit ? (stored ?? '') : v.defaultValue;
+        }
+        final items = <DropdownMenuItem<String>>[];
+        if (!v.required) {
+          items.add(DropdownMenuItem<String>(
+            value: '',
+            child: Text(getLocalText.s("— (default DNS)"),
+                style: const TextStyle(
+                    fontSize: 13, fontStyle: FontStyle.italic)),
+          ));
+        }
+        for (final s in preset.dnsServers) {
+          final tag = s['tag'] as String?;
+          if (tag == null || tag.isEmpty) continue;
+          final descr = (s['description'] as String?) ?? tag;
+          items.add(DropdownMenuItem<String>(
+            value: tag,
+            child: Text(descr, style: const TextStyle(fontSize: 13)),
+          ));
+        }
+        final effectiveKey = items.any((i) => i.value == currentKey)
+            ? currentKey
+            : (items.isNotEmpty ? items.first.value! : '');
+        control = DropdownButton<String>(
+          isExpanded: true,
+          isDense: false,
+          value: effectiveKey,
+          items: items,
+          onChanged: (val) {
+            if (val == null) return;
+            v.isRef ? c.setGlobalVar(v.ref, val) : c.setVarValue(v.name, val);
+          },
+        );
+      case 'enum':
+        // §265 — ref-var: значение из глобального userVars (globalVars),
+        // запись через setGlobalVar; обычная var — из varsValues/setVarValue.
+        final String currentKey;
+        if (v.isRef) {
+          currentKey = c.globalVars[v.ref] ?? v.defaultValue;
+        } else {
+          final hasExplicit = c.varsValues.containsKey(v.name);
+          final stored = c.varsValues[v.name];
+          currentKey = hasExplicit ? (stored ?? '') : v.defaultValue;
+        }
+        final items = <DropdownMenuItem<String>>[];
+        if (!v.required) {
+          items.add(DropdownMenuItem<String>(
+            value: '',
+            child: Text(getLocalText.s("— (none)"),
+                style: const TextStyle(
+                    fontSize: 13, fontStyle: FontStyle.italic)),
+          ));
+        }
+        for (final o in v.options) {
+          items.add(DropdownMenuItem<String>(
+            value: o.value,
+            child: Text(o.title, style: const TextStyle(fontSize: 13)),
+          ));
+        }
+        final effectiveKey = items.any((i) => i.value == currentKey)
+            ? currentKey
+            : (items.isNotEmpty ? items.first.value! : '');
+        control = DropdownButton<String>(
+          isExpanded: true,
+          isDense: false,
+          value: effectiveKey,
+          items: items,
+          onChanged: (val) {
+            if (val == null) return;
+            if (v.isRef) {
+              c.setGlobalVar(v.ref, val);
+            } else {
+              c.setVarValue(v.name, val);
+            }
+          },
+        );
+      case 'bool':
+        // §045: bool var → Switch; storage хранит "true"/"false" string'ом.
+        // Если var управляет remote rule_set'ом (`enabled: "@<v.name>"`):
+        // toggle-on auto-downloads .srs; на fail откатываем + caller
+        // показывает snackbar через `onBoolVarFailed`.
+        // §265 — ref-var (напр. resolve_enabled): значение из globalVars
+        // (userVars), запись через setGlobalVar; обычная — varsValues.
+        final String raw;
+        if (v.isRef) {
+          raw = c.globalVars[v.ref] ?? v.defaultValue;
+        } else {
+          final hasExplicit = c.varsValues.containsKey(v.name);
+          final stored = c.varsValues[v.name];
+          raw = hasExplicit ? (stored ?? '') : v.defaultValue;
+        }
+        final current = raw.toLowerCase() == 'true';
+        final downloading = c.boolVarDownloading.contains(v.name);
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: theme.textTheme.bodyLarge),
+                    if (subtitle.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(subtitle,
+                            style: TextStyle(
+                                fontSize: 12, color: cs.onSurfaceVariant)),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              if (downloading)
+                const SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: Padding(
+                    padding: EdgeInsets.all(8),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              else
+                Switch(
+                  value: current,
+                  onChanged: (val) async {
+                    // §265 — ref-var пишем в глобальный userVars.
+                    if (v.isRef) {
+                      await c.setGlobalVar(v.ref, val ? 'true' : 'false');
+                      return;
+                    }
+                    final failed = await c.onBoolVarToggle(v, val);
+                    if (failed) onBoolVarFailed(label);
+                  },
+                ),
+            ],
+          ),
+        );
+      default:
+        control = Text(
+          getLocalText.s("(unsupported var type: %s)", v.type),
+          style: TextStyle(fontSize: 12, color: cs.error),
+        );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(label, style: theme.textTheme.bodyLarge),
+          if (subtitle.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(subtitle,
+                  style: TextStyle(
+                      fontSize: 12, color: cs.onSurfaceVariant)),
+            ),
+          const SizedBox(height: 8),
+          control,
+        ],
+      ),
+    );
+  }
+}

@@ -1,0 +1,266 @@
+# DeltaRay — CI/CD for the combined L×Box + ZeroDPI APK.
+#
+# Triggers:
+#   1) Tag push (v*):            checks → build → GitHub Release with APK
+#   2) push main / PR → main:    checks only
+#   3) workflow_dispatch:        checks | build (+release if run on a tag)
+#
+# Build plan:
+#   * ZeroDPI Rust runtime is cross-compiled (build.py --android-skip-apk)
+#     into src/zerodpi/dist/android-app/full (jniLibs + assets).
+#   * The L×Box Flutter app embeds ZeroDPI as an Android library module
+#     (:zerodpi) and picks the runtime from $ZERODPI_RUNTIME_DIR.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v*"
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  meta:
+    name: Meta
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      is_release: ${{ steps.meta.outputs.is_release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Compute version
+        id: meta
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          else
+            # Non-tag build: pin to the last release tag, Git-versioned.
+            TAG="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)"
+            if [ -n "$TAG" ]; then
+              SINCE="$(git rev-list "${TAG}..HEAD" --count)"
+              VERSION="${TAG#v}-dev.${SINCE}"
+            else
+              VERSION="dev-$(git rev-parse --short=7 HEAD)"
+            fi
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/lxbox/app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Flutter version pin
+        id: flutter_pin
+        run: echo "version=$(tr -d '[:space:]' < android/flutter.version)" >> "$GITHUB_OUTPUT"
+
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ steps.flutter_pin.outputs.version }}
+          cache: true
+
+      - name: Dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+  android:
+    name: Build APK
+    if: startsWith(github.ref, 'refs/tags/v') ||
+        github.event_name == 'workflow_dispatch'
+    needs: [meta]
+    runs-on: ubuntu-latest
+    env:
+      ZERODPI_RUNTIME_DIR: ${{ github.workspace }}/src/zerodpi/dist/android-app/full
+      ZERODPI_ABI: arm64-v8a
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Rust toolchain (Android target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Build ZeroDPI Android runtime (full / arm64-v8a)
+        shell: bash
+        run: |
+          python3 src/zerodpi/build.py --platform android \
+            --android-app-abi arm64-v8a \
+            --android-app-runtime full \
+            --android-app-build-type debug \
+            --android-skip-apk
+        env:
+          CARGO_TERM_COLOR: always
+
+      - name: Fetch sing-box-lx core (libbox.aar)
+        working-directory: src/lxbox
+        run: ./scripts/fetch-libbox.sh
+
+      - name: Flutter version pin
+        id: flutter_pin
+        working-directory: src/lxbox/app
+        run: echo "version=$(tr -d '[:space:]' < android/flutter.version)" >> "$GITHUB_OUTPUT"
+
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ steps.flutter_pin.outputs.version }}
+          cache: true
+
+      - name: Inject release version from tag
+        working-directory: src/lxbox/app
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.meta.outputs.version }}"
+          VERSION="${VERSION#v}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            VERSION="0.0.0-${VERSION}"
+            CODE_VERSION="0.0.0"
+          else
+            CODE_VERSION="$VERSION"
+          fi
+          BUILD_NUMBER=$(../scripts/version-code.sh "$CODE_VERSION" arm64-v8a)
+          sed -i.bak -E "s/^version: .*/version: $VERSION+$BUILD_NUMBER/" pubspec.yaml
+          rm -f pubspec.yaml.bak
+          echo "Injected: $VERSION+$BUILD_NUMBER"
+          {
+            echo "VERSION_NAME=$VERSION"
+            echo "CODE_VERSION=$CODE_VERSION"
+          } >> "$GITHUB_ENV"
+
+      - name: Dependencies
+        working-directory: src/lxbox/app
+        run: flutter pub get
+
+      - name: Android release keystore (optional)
+        working-directory: src/lxbox/app
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            echo "No ANDROID_KEYSTORE_BASE64 secret; release APK will use debug signing."
+            exit 0
+          fi
+          : "${ANDROID_KEYSTORE_PASSWORD:?Set ANDROID_KEYSTORE_PASSWORD when BASE64 is set}"
+          : "${ANDROID_KEY_PASSWORD:?Set ANDROID_KEY_PASSWORD when BASE64 is set}"
+          : "${ANDROID_KEY_ALIAS:?Set ANDROID_KEY_ALIAS when BASE64 is set}"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/upload-keystore.jks
+          {
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyPassword=$ANDROID_KEY_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "storeFile=upload-keystore.jks"
+          } > android/key.properties
+
+      - name: Build combined APK (arm64-v8a)
+        working-directory: src/lxbox/app
+        env:
+          LXBOX_ABI_FILTER: arm64-v8a
+        shell: bash
+        run: |
+          set -euo pipefail
+          CODE=$(../scripts/version-code.sh "$CODE_VERSION" arm64-v8a)
+          flutter build apk --release \
+            --target-platform android-arm64 \
+            --build-name "$VERSION_NAME" --build-number "$CODE"
+          OUT=build/app/outputs/flutter-apk
+          mv "$OUT/app-release.apk" "$OUT/app-arm64-v8a-release.apk"
+          ls -la "$OUT"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apks-release
+          path: src/lxbox/app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          if-no-files-found: error
+          retention-days: ${{ startsWith(github.ref, 'refs/tags/') && 1 || 30 }}
+
+  release:
+    name: Create Release
+    needs: [meta, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: needs.meta.outputs.is_release == 'true'
+    steps:
+      - name: Checkout (for release notes)
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: RELEASE_NOTES.md
+          sparse-checkout-cone-mode: false
+
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apks-release
+          path: release-artifacts
+
+      - name: Prepare APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.meta.outputs.version }}"
+          SRC=$(find release-artifacts/ -name "app-arm64-v8a-release.apk" -type f | head -1)
+          if [ -z "$SRC" ]; then
+            echo "ERROR: arm64-v8a APK not found!"
+            exit 1
+          fi
+          cp "$SRC" "DeltaRay-${VERSION}-arm64-v8a.apk"
+          ls -la DeltaRay-*.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.meta.outputs.tag }}
+          name: DeltaRay ${{ needs.meta.outputs.version }}
+          draft: false
+          files: |
+            DeltaRay-${{ needs.meta.outputs.version }}-arm64-v8a.apk
+          body_path: RELEASE_NOTES.md

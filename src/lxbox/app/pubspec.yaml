@@ -1,0 +1,78 @@
+name: lxbox
+description: L×Box — Android VPN client (sing-box / libbox CommandClient).
+publish_to: 'none'
+
+version: 2.23.1+22301500
+# ↑ ФИКСИРОВАННЫЙ placeholder. НЕ редактируется вручную и НЕ бампится в git.
+# Реальная версия вычисляется из git-состояния В МОМЕНТ СБОРКИ и переписывает
+# эту строку прямо перед `flutter build` (файл в репо остаётся 0.0.0+1):
+#   • CI release build (.github/workflows/ci.yml → "Inject release version") —
+#     `version: ${tag#v}+${git rev-list --count HEAD}`.
+#   • Локальная сборка (scripts/build-local-apk.sh) — `git describe --tags --abbrev=0`
+#     для versionName и `rev-list --count <TAG>` (пин к тегу, §186 — против
+#     downgrade-блока при установке релиза) для versionCode.
+# Runtime берёт версию из APK-манифеста через PackageInfo (lib/services/version_info.dart),
+# а не из этой строки — потому placeholder в git безвреден.
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations: # §285 — Global*Localizations (Flutter chrome строки)
+    sdk: flutter
+  intl: any # §279 — версию пинит flutter_localizations
+  cupertino_icons: ^1.0.8
+  http: ^1.2.2
+  cryptography: ^2.7.0 # §025 — X25519 keygen; §130 — ECDSA P-256 keygen для MASQUE-WARP
+  asn1lib: ^1.5.0 # §130 — SEC1/PKIX DER-сериализация ECDSA-ключей (контракт с ядром MASQUE)
+  json5: ^0.8.2
+  file_picker: ^11.0.2
+  path_provider: ^2.1.5
+  shared_preferences: ^2.3.4
+  share_plus: ^10.1.4
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+  device_info_plus: ^10.1.2
+  package_info_plus: ^8.0.2
+  connectivity_plus: ^6.0.5
+  collection: ^1.18.0
+  crypto: ^3.0.3 # §283 — sha256 для identity-хеша ноды подписки
+  pointycastle: ^4.0.0 # §130 — ECDSA P-256 keygen (pure-Dart, работает на Android; cryptography P-256 keygen не реализует)
+  re_editor: ^0.10.0
+  flutter_zxing: ^2.3.0 # §382 — QR-сканер (ZXing-C++ через FFI; §380 FOSS)
+  camera: ^0.12.0 # §382 — типы CameraController/CameraException в исходе сканера
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  analyzer: any # §279 — AST-checkers tool/l10n (версию диктует Dart SDK)
+  flutter_launcher_icons: ^0.14.4
+  build_runner: ^2.4.13
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/wizard_template.json
+    - assets/l10n/ru/ # §285 — русская локализация (ui.json + template.json; английский базовый, в коде)
+    - assets/donate.json # §362/§423 — способы поддержки: единственный источник, бандлится и раздаётся с GitHub
+    - assets/support.json # §356/§422 — лента сообщений автора: единственный источник, бандлится и раздаётся с GitHub
+    - assets/warp_endpoints.json # §136 — WARP endpoint/SNI random pools
+    - assets/icons/app_icon.png
+    - assets/icons/cloudflare.png # §025 — официальный логотип Cloudflare (Simple Icons, CC0)
+
+# Иконка из sing-box Launcher (macOS .app Resources/app.icns → PNG 1024²).
+flutter_launcher_icons:
+  image_path: assets/icons/app_icon.png
+  android: true
+  ios: true
+  macos:
+    generate: true
+  windows:
+    generate: true
+  web:
+    generate: true

@@ -1,0 +1,549 @@
+# LxBox — CI/CD
+#
+# Ветки:
+#   - develop — основная ветка разработки (все feature/fix PR'ы)
+#   - main    — только релизные коммиты (merge из develop + тег vX.Y.Z)
+# См. docs/RELEASE_PROCESS.md для полного протокола.
+#
+# 1) Tag push (v*):            checks → build → GitHub Release → publish-manifest
+# 2) push develop / main:      checks only
+# 3) PR → develop / main:      checks only
+# 4) workflow_dispatch:        checks | build | release (ручной)
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+    tags:
+      - "v*"
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      run_mode:
+        description: "checks | build | release"
+        required: true
+        default: "checks"
+        type: choice
+        options: [checks, build, release]
+      test_path:
+        description: "Pinpoint run: test path(s) relative to app/ (e.g. test/screens/startup_wizard_test.dart). Empty = full suite. Skips analyze for speed."
+        required: false
+        default: ""
+        type: string
+      test_name:
+        description: "Filter by test/group name (--name, substring). Runs only matching — handy to start with a specific group inside a file. Works only together with test_path."
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  meta:
+    name: Meta
+    if: startsWith(github.ref, 'refs/tags/v') ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.run_mode != 'checks')
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      is_release: ${{ steps.meta.outputs.is_release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Compute version
+        id: meta
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event.inputs.run_mode }}" == "release" ]]; then
+            # §219 — release-режим требует HEAD ровно на теге, иначе
+            # git describe даёт 'vX.Y.Z-N-gSHA' → вводящая в заблуждение
+            # pre-release версия. Падаем явно, а не собираем мусорный тег.
+            if ! VERSION="$(git describe --tags --exact-match 2>/dev/null)"; then
+              echo "::error::run_mode=release, но HEAD не на теге. Пуш тега vX.Y.Z или запусти на теге." >&2
+              exit 1
+            fi
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          else
+            # run_mode=build — сборка без тега. Версия пинится к ПОСЛЕДНЕМУ
+            # релизному тегу: `X.Y.Z-dev.<коммитов с тега>` (та же схема, что в
+            # scripts/build-local-apk.sh, §186). Раньше здесь был `dev-<sha>`,
+            # который не semver — шаг инъекции откатывался на `0.0.0`, и сборка
+            # уезжала как `0.0.0-dev-<sha>` с versionCode 500. В Play такой
+            # выпуск не опознать, а код 500 занимается в аккаунте навсегда.
+            #
+            # versionCode считается от версии ТЕГА (суффикс -dev.N формула
+            # срезает), поэтому dev-сборка получает ровно код своего релиза и не
+            # обгоняет его: `install -r` проходит в обе стороны.
+            #
+            # Тега может не быть (свежий форк, ветка без релизов) — тогда
+            # прежний фоллбэк на 0.0.0, чтобы прогон не падал.
+            TAG="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)"
+            if [ -n "$TAG" ]; then
+              SINCE="$(git rev-list "${TAG}..HEAD" --count)"
+              VERSION="${TAG#v}-dev.${SINCE}"
+            else
+              # Отдаём именно `dev-<sha>` (не semver) — шаг инъекции сам
+              # префиксует его до 0.0.0-dev-<sha> и берёт для кода 0.0.0.
+              # Готовую `0.0.0-dev-<sha>` отдавать нельзя: она пройдёт как
+              # semver, и формула упадёт на суффиксе -dev-<sha>.
+              SHORT_SHA="$(git rev-parse --short=7 HEAD)"
+              VERSION="dev-${SHORT_SHA}"
+            fi
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Flutter version pin
+        id: flutter_pin
+        run: echo "version=$(tr -d '[:space:]' < android/flutter.version)" >> "$GITHUB_OUTPUT"
+
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ steps.flutter_pin.outputs.version }}
+          cache: true
+
+      - name: Dependencies
+        run: flutter pub get
+
+      # Точечный режим (workflow_dispatch + test_path) пропускает analyze —
+      # цель такого прогона быстро проверить конкретный тест, не весь набор.
+      - name: Analyze
+        if: ${{ github.event.inputs.test_path == '' }}
+        run: flutter analyze
+
+      # §285 — l10n guard-rails (tool/l10n/README.md): template-overlay,
+      # natural-key словарь (ui_check заменил ARB-эпохи arb_check),
+      # hardcoded-ratchet, kotlin-guard. --strict безусловен на каждом push/PR:
+      # baseline пуст, ru-словарь переведён на 100%, orphan'ов нет — warnings
+      # фатальны везде (протухший src-hash, непереведённый/orphan ключ).
+      # §379 — в develop `version:` обязан оставаться placeholder'ом. Реальная
+      # версия пишется ровно один раз, на merge-коммите в main (RELEASE_PROCESS
+      # §2.4), и обратный merge-back (§2.6) её оттуда притаскивает — если забыть
+      # откатить, версия снова начнёт «дрожать» в ветке разработки (ровно от
+      # этого ушли в v2.11.x, удалив pre-commit хук). Глазами это не видно:
+      # merge проходит чисто, а сборка всё равно перепишет версию перед
+      # `flutter build` — то есть ни один тест не упадёт. Отсюда guard, а не
+      # автоматика: чинить надо `git checkout HEAD -- app/pubspec.yaml` до
+      # коммита merge-back'а.
+      #
+      # Только develop: на main и на теге версия обязана быть реальной (её
+      # читает F-Droid checkupdates с коммита тега).
+      - name: Pubspec version is a placeholder (develop only)
+        if: ${{ github.ref == 'refs/heads/develop' || github.base_ref == 'develop' }}
+        run: |
+          # Путь без префикса app/: у job `checks` defaults.run.working-directory
+          # = app, все run-шаги уже стартуют оттуда.
+          VERSION="$(grep -E '^version:' pubspec.yaml | head -1 | sed -E 's/^version:[[:space:]]*//')"
+          echo "pubspec version: $VERSION"
+          # Пустое значение — это не «версия не та», а сломанная проверка
+          # (переехал файл, съехал working-directory). Своё сообщение, иначе
+          # guard соврёт про реальную версию, показав пустые кавычки.
+          if [ -z "$VERSION" ]; then
+            echo "::error file=app/pubspec.yaml::Не удалось прочитать version: из pubspec.yaml — проверьте путь и working-directory шага."
+            exit 1
+          fi
+          # Placeholder опознаём по суффиксу `-dev.N` (текущая форма) либо по
+          # версии 0.0.0 (историческая, v2.11.x–v2.19.x). Всё остальное, что
+          # выглядит как X.Y.Z, — реальная версия, которой в develop не место.
+          # Проверяем так, а не «релизным» шаблоном X.Y.Z+CODE: тогда `2.20.4`
+          # без кода сборки проскочил бы молча.
+          if ! printf '%s' "$VERSION" | grep -qE '(-dev\.[0-9]+|^0\.0\.0(\+|$))'; then
+            echo "::error file=app/pubspec.yaml::В develop попала реальная версия '$VERSION'. Ожидается placeholder с суффиксом -dev.N (RELEASE_PROCESS.md §2.6, §379). Лечение: git checkout HEAD -- app/pubspec.yaml до коммита merge-back'а."
+            exit 1
+          fi
+
+      - name: L10n checks
+        if: ${{ github.event.inputs.test_path == '' }}
+        working-directory: app
+        run: |
+          dart run tool/l10n/template_check.dart --strict
+          dart run tool/l10n/ui_check.dart --strict
+          dart run tool/l10n/hardcoded_check.dart --strict
+          dart run tool/l10n/kotlin_check.dart --strict
+
+      # §360 — парность двуязычной документации (README ↔ README.ru,
+      # USER_GUIDE ↔ USER_GUIDE.ru). Ловит ровно то, что не видно глазами:
+      # раздел дописали в один язык и забыли во второй. Сравнивает скелет
+      # (число и уровни заголовков), блоки кода и ссылки на файлы репо — текст
+      # заголовков НЕ сверяется, перевод не обязан быть дословным.
+      # --strict: расхождение в ссылках (warning) тоже фатально.
+      - name: Docs parity
+        if: ${{ github.event.inputs.test_path == '' }}
+        working-directory: app
+        run: dart run tool/docs/parity_check.dart --strict
+
+      # SPEC 103 фаза 5 — общий контракт с лаунчером. Источник живёт в его
+      # репозитории, здесь лежит копия; править её руками нельзя — правка
+      # потеряется при следующей синхронизации. Шаг это и ловит. Копии в CI
+      # обычно нет (git её игнорирует) — тогда шаг просто сообщает об этом.
+      - name: Contract lock
+        if: ${{ github.event.inputs.test_path == '' }}
+        working-directory: app
+        run: dart run tool/check_contract_lock.dart
+
+      - name: Test
+        run: |
+          TEST_PATH="${{ github.event.inputs.test_path }}"
+          TEST_NAME="${{ github.event.inputs.test_name }}"
+          if [ -n "$TEST_PATH" ]; then
+            # Точечный прогон: -r expanded печатает каждый тест по ходу (живой
+            # прогресс в логе), --name <substr> сужает до конкретной группы/теста.
+            # §219 — аргументы через массив (без eval): пути/имена с пробелами
+            # не разбиваются, нет shell re-parsing интерполированных inputs.
+            ARGS=(test -r expanded "$TEST_PATH")
+            if [ -n "$TEST_NAME" ]; then
+              ARGS+=(--name "$TEST_NAME")
+              echo "::notice::Name filter: $TEST_NAME"
+            fi
+            echo "::notice::Pinpoint test run: $TEST_PATH"
+            flutter "${ARGS[@]}"
+          else
+            flutter test
+          fi
+
+  android:
+    if: startsWith(github.ref, 'refs/tags/v') ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.run_mode != 'checks')
+    needs: [meta, checks]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          # §379 — versionCode считается из версии, история для него больше не
+          # нужна. Полные refs оставлены для git-зависимых шагов (describe).
+          fetch-depth: 0
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Fetch sing-box-lx core (libbox.aar)
+        # §104 — ядро: fork Leadaxe/sing-box-lx (AWG2 + XHTTP). AAR не в git;
+        # скачиваем из GH Releases форка с проверкой SHA256. Пин версии —
+        # app/android/libbox.version (single source для local + CI).
+        working-directory: .
+        run: ./scripts/fetch-libbox.sh
+
+      - name: Flutter version pin
+        id: flutter_pin
+        run: echo "version=$(tr -d '[:space:]' < android/flutter.version)" >> "$GITHUB_OUTPUT"
+
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ steps.flutter_pin.outputs.version }}
+          cache: true
+
+      - name: Inject release version from tag
+        # §379 — versionCode считается ИЗ ВЕРСИИ (scripts/version-code.sh),
+        # а не из `rev-list --count`. Число коммитов не функция от тега, поэтому
+        # версию нельзя было прочитать из исходников — это блокировало
+        # автообновление в F-Droid (UpdateCheckMode: None).
+        #
+        # Здесь пишем в pubspec версию `X.Y.Z` и БАЗУ кода (ABI=0). Финальную
+        # цифру ABI подставляет шаг сборки: по прогону на таргет, каждый со
+        # своим `+<code>`. `--split-per-abi` убран — он домножал бы ABI×1000
+        # поверх нашего числа (FlutterPlugin.kt:623).
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.meta.outputs.version }}"
+          VERSION="${VERSION#v}"
+          # run_mode=build обычно даёт `X.Y.Z-dev.N` (job meta пинит к
+          # последнему тегу) — форма semver, дальше её обрабатывает ветка else,
+          # а суффикс -dev.N срезает сама формула version-code.sh: код выходит
+          # ровно тот же, что у релиза этого тега.
+          #
+          # Сюда попадает только фоллбэк `0.0.0-dev-<sha>` — когда тега в
+          # репозитории нет вообще (свежий форк). Он не semver, pub такое
+          # отвергает; префиксуем до валидного pre-release, для кода берём
+          # 0.0.0 (→ 500), чтобы gradle не упал на нечисловом build-number.
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            VERSION="0.0.0-${VERSION}"
+            CODE_VERSION="0.0.0"
+          else
+            CODE_VERSION="$VERSION"
+          fi
+          # База (ABI=0) — реальный код per-ABI считает шаг сборки.
+          BUILD_NUMBER=$(../scripts/version-code.sh "$CODE_VERSION" universal)
+          sed -i.bak -E "s/^version: .*/version: $VERSION+$BUILD_NUMBER/" pubspec.yaml
+          rm -f pubspec.yaml.bak
+          echo "Injected: $VERSION+$BUILD_NUMBER (base, ABI=0)"
+          {
+            echo "VERSION_NAME=$VERSION"
+            echo "CODE_VERSION=$CODE_VERSION"
+          } >> "$GITHUB_ENV"
+
+      - name: Dependencies
+        run: flutter pub get
+
+      - name: Android release keystore (optional)
+        working-directory: app
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            echo "No ANDROID_KEYSTORE_BASE64 secret; release APK will use debug signing."
+            exit 0
+          fi
+          : "${ANDROID_KEYSTORE_PASSWORD:?Set ANDROID_KEYSTORE_PASSWORD when BASE64 is set}"
+          : "${ANDROID_KEY_PASSWORD:?Set ANDROID_KEY_PASSWORD when BASE64 is set}"
+          : "${ANDROID_KEY_ALIAS:?Set ANDROID_KEY_ALIAS when BASE64 is set}"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/upload-keystore.jks
+          {
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyPassword=$ANDROID_KEY_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "storeFile=upload-keystore.jks"
+          } > android/key.properties
+
+      - name: Build APKs (one run per target)
+        # §379 — `--split-per-abi` УБРАН: он переписывает versionCode как
+        # `ABI × 1000 + code` (FlutterPlugin.kt:623), затирая нашу схему.
+        # Вместо одного прогона со сплитом — по прогону на таргет, каждый со
+        # своим `--build-number` (последняя цифра = ABI).
+        #
+        # ABI-цифры: 0=universal, 1=armeabi-v7a, 2=arm64-v8a, 4=x86_64.
+        #
+        # Таргеты:
+        #   - universal:    fat APK, все 3 ABI (~75 MB) — fallback для тех, кто
+        #                   не знает свою архитектуру.
+        #   - arm64-v8a:    95%+ современных Android-устройств.
+        #   - armeabi-v7a:  старые / Android Go бюджет (Itel A48, Tecno Pop 5).
+        #   - x86_64:       эмуляторы / Chromebook с Android-runtime.
+        #
+        # LXBOX_ABI_FILTER сужает native libs из AAR (libbox 55-66 MB на ABI):
+        # `--target-platform` влияет только на flutter engine + Dart AOT, .so из
+        # Maven gradle подтягивает под все ABI и APK раздувается.
+        #
+        # Каждый прогон пишет `app-release.apk` — сразу переименовываем, иначе
+        # следующий таргет перетрёт.
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=build/app/outputs/flutter-apk
+          build_one() {
+            local VARIANT="$1" PLATFORM="$2" ABI_FILTER="$3"
+            local CODE
+            CODE=$(../scripts/version-code.sh "$CODE_VERSION" "$VARIANT")
+            echo "::group::Build $VARIANT (versionCode=$CODE)"
+            # §390 — БЕЗ `--dart-define=LXBOX_DISTRIBUTION`, намеренно.
+            # F-Droid собирает APK из этих же исходников и сверяет байты со
+            # своей сборкой (`binary:` в рецепте) — это даёт reproducible
+            # builds и подпись НАШИМ ключом вместо F-Droid'овского. Любой
+            # define попадает в скомпилированный Dart и ломает сверку.
+            # Поэтому канал у APK определяется рантаймом по установщику:
+            # GitHub-установка (файловый менеджер/браузер/adb) → github,
+            # установка из клиента F-Droid → fdroid. Обе ветки верны.
+            # Define остаётся только у AAB — Play раздаёт свой артефакт, с
+            # ним `binary:` не сверяется.
+            if [ -n "$ABI_FILTER" ]; then
+              LXBOX_ABI_FILTER="$ABI_FILTER" \
+                flutter build apk --release \
+                  --target-platform "$PLATFORM" \
+                  --build-name "$VERSION_NAME" --build-number "$CODE"
+            else
+              flutter build apk --release \
+                --build-name "$VERSION_NAME" --build-number "$CODE"
+            fi
+            mv "$OUT/app-release.apk" "$OUT/app-${VARIANT}-release.apk"
+            echo "::endgroup::"
+          }
+          build_one universal   "android-arm,android-arm64,android-x64" ""
+          build_one armeabi-v7a android-arm                             armeabi-v7a
+          build_one arm64-v8a   android-arm64                           arm64-v8a
+          build_one x86_64      android-x64                             x86_64
+          ls -la "$OUT"/app-*-release.apk
+
+      - name: Upload APKs (release)
+        # Все 4 таргета: universal + 3 per-ABI.
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apks-release
+          path: app/build/app/outputs/flutter-apk/app-*-release.apk
+          if-no-files-found: error
+          retention-days: ${{ startsWith(github.ref, 'refs/tags/') && 1 || 30 }}
+
+      - name: Build AAB (Google Play)
+        # Play принимает только AAB. Отдельный формат, отдельный канал:
+        # в GitHub Releases по-прежнему уходят APK (шаги выше), сюда не
+        # попадают — заливка в Play ручная, артефакт скачивается из прогона.
+        #
+        # versionCode = код universal (ABI=0), тот же, что у fat APK этой
+        # версии. Play требует уникальности кода в пределах СВОЕГО аккаунта, а
+        # GitHub-релизы он не видит — пересечение безопасно. Своя ABI-цифра не
+        # заводится намеренно: набор в version-code.sh закрытый (0/1/2/4), а
+        # per-ABI коды внутри Play генерирует сам из бандла.
+        #
+        # ABI не сужаем (нет LXBOX_ABI_FILTER): бандл обязан нести все ABI —
+        # раздачей под конкретное устройство занимается Play.
+        #
+        # Подпись: тем же upload-ключом, что и APK (шаг keystore выше). В Play
+        # он ТОЛЬКО пропуск на загрузку — пользователям приложение уходит
+        # подписанным ключом Google (Play App Signing). Поэтому Play-сборка и
+        # GitHub-сборка имеют РАЗНЫЕ подписи и не обновляют друг друга.
+        shell: bash
+        run: |
+          set -euo pipefail
+          CODE=$(../scripts/version-code.sh "$CODE_VERSION" universal)
+          echo "::group::Build AAB (versionCode=$CODE)"
+          # §390 — уведомление об апдейте в этой сборке ведёт в Play, а не на
+          # GitHub: APK оттуда не встанет поверх (подпись Google).
+          flutter build appbundle --release \
+            --dart-define=LXBOX_DISTRIBUTION=play \
+            --build-name "$VERSION_NAME" --build-number "$CODE"
+          echo "::endgroup::"
+          ls -la build/app/outputs/bundle/release/app-release.aab
+
+      - name: Upload AAB (release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-aab-release
+          path: app/build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: ${{ startsWith(github.ref, 'refs/tags/') && 1 || 30 }}
+
+  release:
+    name: Create Release
+    needs: [meta, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: needs.meta.outputs.is_release == 'true'
+    steps:
+      - name: Checkout (for release notes)
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: RELEASE_NOTES.md
+          sparse-checkout-cone-mode: false
+
+      - name: Download APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apks-release
+          path: release-artifacts
+
+      - name: Prepare APKs
+        # Renames per-ABI / universal files to LxBox-vX.Y.Z-<variant>.apk
+        # для консистентности с прошлыми релизами (UpdateChecker парсит имя).
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.meta.outputs.version }}"
+          for VARIANT in arm64-v8a armeabi-v7a x86_64 universal; do
+            SRC=$(find release-artifacts/ -name "app-${VARIANT}-release.apk" -type f | head -1)
+            if [ -z "$SRC" ]; then
+              echo "ERROR: APK for variant=$VARIANT not found!"
+              exit 1
+            fi
+            cp "$SRC" "LxBox-${VERSION}-${VARIANT}.apk"
+          done
+          ls -la LxBox-*.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.meta.outputs.tag }}
+          name: LxBox ${{ needs.meta.outputs.version }}
+          draft: false
+          files: |
+            LxBox-${{ needs.meta.outputs.version }}-arm64-v8a.apk
+            LxBox-${{ needs.meta.outputs.version }}-armeabi-v7a.apk
+            LxBox-${{ needs.meta.outputs.version }}-x86_64.apk
+            LxBox-${{ needs.meta.outputs.version }}-universal.apk
+          body_path: RELEASE_NOTES.md
+
+  publish-manifest:
+    name: Publish docs/latest.json
+    needs: [meta, release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: needs.meta.outputs.is_release == 'true'
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update docs/latest.json
+        env:
+          TAG: ${{ needs.meta.outputs.tag }}
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          mkdir -p docs
+          NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          BASE="https://github.com/Leadaxe/LxBox/releases/download/${TAG}"
+          cat > docs/latest.json <<EOF
+          {
+            "\$schema": "https://github.com/Leadaxe/LxBox/blob/main/docs/latest.json",
+            "tag": "${TAG}",
+            "name": "L×Box ${VERSION}",
+            "published_at": "${NOW}",
+            "html_url": "https://github.com/Leadaxe/LxBox/releases/tag/${TAG}",
+            "apk_url": "${BASE}/LxBox-${VERSION}-universal.apk",
+            "apk_urls": {
+              "arm64-v8a":   "${BASE}/LxBox-${VERSION}-arm64-v8a.apk",
+              "armeabi-v7a": "${BASE}/LxBox-${VERSION}-armeabi-v7a.apk",
+              "x86_64":      "${BASE}/LxBox-${VERSION}-x86_64.apk",
+              "universal":   "${BASE}/LxBox-${VERSION}-universal.apk"
+            },
+            "min_supported": "1.0.0",
+            "_comment": "Updated automatically by CI on every release tag push (see .github/workflows/ci.yml). Used by UpdateChecker as a fallback when api.github.com is rate-limited. apk_url = universal fallback (works on any ABI). apk_urls.<abi> = per-architecture optimized variants."
+          }
+          EOF
+          cat docs/latest.json
+
+      - name: Commit & push (main)
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet docs/latest.json; then
+            echo "No change in docs/latest.json — skipping commit."
+            exit 0
+          fi
+          git add docs/latest.json
+          # [skip ci] чтобы не триггерить новый CI run на собственный коммит
+          git commit -m "chore(release): update docs/latest.json → ${{ needs.meta.outputs.tag }} [skip ci]"
+          git push origin HEAD:main

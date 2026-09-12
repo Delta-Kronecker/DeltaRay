@@ -1,0 +1,200 @@
+/// §393 B9 — секция `dns` в LX Backup: обе стороны.
+///
+/// Схема — `contract/schema/backup.schema.json` (`dns.servers[]`/`dns.rules[]`
+/// с дискриминатором `kind: template|preset|user`, плюс `final`/`strategy`);
+/// семантика — `contract/docs/BACKUP.md` §2. Эталон обработки —
+/// `core/backup/import.go:importDNS` / `export.go:exportDNS`.
+///
+/// Три расхождения между каноном и мобильной моделью, из-за которых нужен
+/// явный маппинг, а не «отдать storage как есть»:
+///
+///  1. **Имя пользовательской записи.** Канон зовёт её `user`, мобильный
+///     storage — `inline`. Понятие одно и то же (тело написал пользователь),
+///     имя разное.
+///  2. **`srs`-правила.** У мобилы DNS-правило бывает ссылкой на скачанный
+///     rule-set (`kind: srs`); в каноне такого происхождения НЕТ. §401 —
+///     карман провоза упразднён (П3), поэтому такая запись в файл не едет и
+///     названа предупреждением `backup_local_only_dropped` на экспорте.
+///  3. **Тело template/preset-записей не переносится вообще** — ни в одну
+///     сторону. Оно принадлежит шаблону ПРИНИМАЮЩЕЙ стороны, и зафиксировать
+///     чужое значило бы навсегда отрезать пользователя от обновлений шаблона
+///     (та же причина, что в `export.go:dnsRefFrom`). Переносится ссылка:
+///     tag/name у сервера, name/presetId у правила.
+///
+/// `final`/`strategy` секции — те же значения, что мобильные переносимые
+/// переменные `dns_final`/`dns_strategy`. В файле они дублируются намеренно:
+/// секция самодостаточна (лаунчер читает именно её), а `vars` остаются
+/// каналом для сторон, которые секцию не разбирают.
+library;
+
+import '../lx_backup.dart';
+
+/// §393 B9 — мобильный storage → переносимая секция.
+///
+/// [servers] / [rules] — сырые списки из `dns_options` (см.
+/// `SettingsStorage.getDnsServers` / `getDnsRulesList`).
+///
+/// §401 — [warnings] пополняется потерями экспорта: у канона нет дома ни для
+/// `srs`-правил, ни для значений template-переменных, и молчать о них нельзя
+/// (П6).
+LxDns dnsToBackup({
+  required List<Map<String, dynamic>> servers,
+  required List<Map<String, dynamic>> rules,
+  required String dnsFinal,
+  required String strategy,
+  List<LxBackupWarning>? warnings,
+}) {
+  final localOnly = <String>[];
+  final outServers = <LxDnsRef>[];
+  for (final e in servers) {
+    final kind = _canonKind(e['kind']);
+    final tag = (e['tag'] as String?) ?? '';
+    if (kind == null || tag.isEmpty) continue;
+    outServers.add(
+      LxDnsRef(
+        kind: kind,
+        name: tag,
+        enabled: e['enabled'] as bool? ?? true,
+        // Тело — только у пользовательской записи (см. docstring, п. 3).
+        value: kind == 'user'
+            ? (e['body'] as Map?)?.cast<String, dynamic>()
+            : null,
+      ),
+    );
+    // Значения template-переменных и заметка: мобильные понятия, у канона
+    // места нет. §401 — в файл не едут, потеря названа ниже одной строкой.
+    if (e['varValues'] is Map) localOnly.add('$tag: varValues');
+    if (e['description'] is String) localOnly.add('$tag: description');
+  }
+
+  final outRules = <LxDnsRef>[];
+  for (final e in rules) {
+    final rawKind = '${e['kind']}';
+    if (rawKind == 'srs') {
+      // Происхождения `srs` в каноне нет, и провозить его больше нечем (§401).
+      localOnly.add('${e['name'] ?? 'dns rule'}: srs');
+      continue;
+    }
+    final kind = _canonKind(e['kind']);
+    if (kind == null) continue;
+    final name = (e['name'] as String?) ?? '';
+    final presetId = (e['presetId'] as String?) ?? '';
+    // Пустая запись не адресуема ни на одной стороне: без имени и без
+    // presetId её не с чем сопоставить при merge.
+    if (name.isEmpty && presetId.isEmpty) continue;
+    outRules.add(
+      LxDnsRef(
+        kind: kind,
+        name: name,
+        ref: presetId,
+        enabled: e['enabled'] as bool? ?? true,
+        value: kind == 'user'
+            ? (e['rule'] as Map?)?.cast<String, dynamic>()
+            : null,
+      ),
+    );
+  }
+
+  // ОДИН warning на секцию с перечнем: строка на каждую потерю утопила бы
+  // пользователя в списке при большом DNS-конфиге.
+  if (localOnly.isNotEmpty && warnings != null) {
+    warnings.add(
+      LxBackupWarning(kWarnLocalOnlyDropped, 'dns: ${localOnly.join(', ')}'),
+    );
+  }
+
+  return LxDns(
+    servers: outServers,
+    rules: outRules,
+    finalServer: dnsFinal,
+    strategy: strategy,
+  );
+}
+
+/// §393 B9 — результат применения секции на мобилу.
+typedef DnsBackupApply = ({
+  List<Map<String, dynamic>> servers,
+  List<Map<String, dynamic>> rules,
+  String dnsFinal,
+  String strategy,
+  int applied,
+});
+
+/// §393 B9 — переносимая секция → мобильный storage (merge).
+///
+/// Merge, а не replace: своя настройка сильнее приехавшей (эталон
+/// `import.go:importDNS`). Identity записи — пара «происхождение + адрес»
+/// (kind+tag у сервера, kind+name/presetId у правила): под тем же адресом у
+/// пользователя уже своя запись со своим телом, и перезапись стёрла бы её.
+///
+/// `final`/`strategy` применяются только когда приехали непустыми: пустая
+/// строка в файле означает «сторона это не переносила», а не «сбросить».
+DnsBackupApply applyDnsBackup({
+  required LxDns incoming,
+  required List<Map<String, dynamic>> servers,
+  required List<Map<String, dynamic>> rules,
+  required String dnsFinal,
+  required String strategy,
+}) {
+  var applied = 0;
+  final outServers = [for (final e in servers) Map<String, dynamic>.from(e)];
+  final haveServers = <String>{
+    for (final e in outServers) '${e['kind']} ${e['tag']}',
+  };
+
+  for (final ref in incoming.servers) {
+    final kind = _mobileKind(ref.kind);
+    final tag = ref.name;
+    if (tag.isEmpty) continue;
+    if (!haveServers.add('$kind $tag')) continue; // своё сильнее
+    outServers.add(<String, dynamic>{
+      'kind': kind,
+      'tag': tag,
+      'enabled': ref.enabled,
+      if (kind == 'inline' && ref.value != null) 'body': ref.value,
+    });
+    applied++;
+  }
+
+  final outRules = [for (final e in rules) Map<String, dynamic>.from(e)];
+  final haveRules = <String>{
+    for (final e in outRules) '${e['kind']} ${e['name']} ${e['presetId']}',
+  };
+
+  for (final ref in incoming.rules) {
+    final kind = _mobileKind(ref.kind);
+    if (ref.name.isEmpty && ref.ref.isEmpty) continue;
+    if (!haveRules.add('$kind ${ref.name} ${ref.ref}')) continue;
+    outRules.add(<String, dynamic>{
+      'kind': kind,
+      'enabled': ref.enabled,
+      if (ref.name.isNotEmpty) 'name': ref.name,
+      if (ref.ref.isNotEmpty) 'presetId': ref.ref,
+      if (kind == 'inline' && ref.value != null) 'rule': ref.value,
+    });
+    applied++;
+  }
+
+  // §401 — `srs`-правила обратно не приезжают: карман, которым они ездили,
+  // упразднён (П3). Свои правила на этой машине при этом целы — merge их не
+  // трогает, а приехать им теперь неоткуда.
+
+  return (
+    servers: outServers,
+    rules: outRules,
+    dnsFinal: incoming.finalServer.isNotEmpty ? incoming.finalServer : dnsFinal,
+    strategy: incoming.strategy.isNotEmpty ? incoming.strategy : strategy,
+    applied: applied,
+  );
+}
+
+/// Мобильное имя происхождения → каноническое; `null` = у канона места нет.
+String? _canonKind(Object? raw) => switch ('$raw') {
+  'inline' => 'user',
+  'template' => 'template',
+  'preset' => 'preset',
+  _ => null,
+};
+
+/// Каноническое имя происхождения → мобильное.
+String _mobileKind(String canon) => canon == 'user' ? 'inline' : canon;

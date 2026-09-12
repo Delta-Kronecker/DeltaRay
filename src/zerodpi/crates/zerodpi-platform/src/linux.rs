@@ -1,0 +1,1674 @@
+//! Linux backend: NFQUEUE-based packet interception.
+//!
+//! We install firewall rules that funnel IPv4 TCP packets between the local
+//! interface IP and the configured upstream into a netfilter queue. The rule
+//! manager is selectable between iptables and nftables.
+//! For each captured packet we run the user-provided [`PacketHandler`] and
+//! either accept the original bytes or accept a *modified* payload (with
+//! IP/TCP checksums recomputed) — this is the "modify outbound packet by
+//! replacing payload" path used by the `wrong_seq` bypass.
+
+use std::io::ErrorKind;
+use std::os::fd::RawFd;
+use std::path::PathBuf;
+use std::process::Command;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::time::Duration;
+
+use anyhow::{Context, Result};
+use etherparse::{Ipv4HeaderSlice, TcpHeaderSlice};
+use nfq::{Queue, Verdict as NfqVerdict};
+use tracing::{debug, info, warn};
+
+use zerodpi_core::interceptor::{
+    Direction, FilterSpec, InterceptorShutdown, LinuxFirewallBackend, PacketHandler,
+    PacketInterceptor, PacketView, TcpFlags, Verdict,
+};
+
+const HOOK_LOCAL_IN: u8 = 1;
+const HOOK_LOCAL_OUT: u8 = 3;
+
+static RAW_INJECTION_UNAVAILABLE_WARNED: AtomicBool = AtomicBool::new(false);
+
+pub struct NfqInterceptor {
+    queue: Queue,
+    _rules: FirewallGuard,
+    /// Raw IP socket for decoy / fragment injection (`fake_tls` dual
+    /// emission, `ip_frag` fragments).
+    /// `None` when injection is unavailable; the backend then falls back
+    /// to single modified emission.
+    raw_socket: Option<RawFd>,
+}
+
+impl PacketInterceptor for NfqInterceptor {
+    fn open(filter: FilterSpec) -> Result<Self> {
+        let queue_num = filter.queue_num;
+        let rules = FirewallGuard::install(&filter).with_context(|| {
+            format!(
+                "install Linux firewall rules using {}",
+                filter.linux_firewall_backend.as_str()
+            )
+        })?;
+
+        let mut queue = Queue::open().context("open NFQUEUE")?;
+        queue.bind(queue_num).context("bind NFQUEUE")?;
+        // Copy entire packet so we can modify it.
+        queue
+            .set_copy_range(queue_num, 0xffff)
+            .context("set NFQUEUE copy range")?;
+        queue
+            .set_fail_open(queue_num, false)
+            .context("set NFQUEUE fail_open")?;
+
+        info!(
+            queue_num,
+            firewall_backend = filter.linux_firewall_backend.as_str(),
+            "NFQUEUE bound"
+        );
+        let raw_socket = open_raw_injection_socket();
+        if raw_socket.is_none() {
+            warn!("raw socket unavailable; fake_tls/ip_frag fall back to single-packet mode");
+        }
+        Ok(Self {
+            queue,
+            _rules: rules,
+            raw_socket,
+        })
+    }
+
+    fn run_until<H: PacketHandler>(
+        mut self,
+        mut handler: H,
+        shutdown: InterceptorShutdown,
+    ) -> Result<()> {
+        self.queue.set_nonblocking(true);
+        loop {
+            if shutdown.is_requested() {
+                info!("NFQUEUE shutdown requested");
+                return Ok(());
+            }
+            let mut msg = match self.queue.recv() {
+                Ok(m) => m,
+                Err(e) if e.kind() == ErrorKind::Interrupted => {
+                    debug!(error = %e, "NFQUEUE recv interrupted; retrying");
+                    continue;
+                }
+                Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                    std::thread::sleep(Duration::from_millis(50));
+                    continue;
+                }
+                Err(e) if is_stale_nfq_recv_error(&e) => {
+                    if shutdown.is_requested() {
+                        info!(error = %e, "NFQUEUE recv reported stale state after shutdown");
+                        return Ok(());
+                    }
+                    debug!(error = %e, "NFQUEUE recv reported stale state; continuing");
+                    continue;
+                }
+                Err(e) => {
+                    return Err(e).context("NFQUEUE recv");
+                }
+            };
+            let direction = match msg.get_hook() {
+                HOOK_LOCAL_OUT => Direction::Outbound,
+                HOOK_LOCAL_IN => Direction::Inbound,
+                other => {
+                    debug!(hook = other, "unexpected NFQUEUE hook; accepting");
+                    msg.set_verdict(NfqVerdict::Accept);
+                    let _ = self.queue.verdict(msg);
+                    continue;
+                }
+            };
+
+            let payload = msg.get_payload();
+            let (mut view, layout) = match parse_view(direction, payload) {
+                Ok(v) => v,
+                Err(_) => {
+                    // Not a TCP/IPv4 packet we understand — accept untouched.
+                    msg.set_verdict(NfqVerdict::Accept);
+                    let _ = self.queue.verdict(msg);
+                    continue;
+                }
+            };
+
+            let verdict = handler.on_packet(&mut view);
+            match verdict {
+                Verdict::Accept => {
+                    msg.set_verdict(NfqVerdict::Accept);
+                }
+                Verdict::Drop => {
+                    msg.set_verdict(NfqVerdict::Drop);
+                }
+                Verdict::AcceptModified => {
+                    let new_bytes = match build_modified(payload, &layout, &view) {
+                        Ok(b) => b,
+                        Err(e) => {
+                            warn!(error = %e, "failed to build modified packet; accepting original");
+                            msg.set_verdict(NfqVerdict::Accept);
+                            let _ = self.queue.verdict(msg);
+                            continue;
+                        }
+                    };
+                    if let Some(frag_size) = view.ip_frag_payload_size {
+                        let fragments =
+                            zerodpi_core::ip_fragment::fragment_ipv4_packet(&new_bytes, frag_size);
+                        match &self.raw_socket {
+                            Some(fd) if fragments.len() > 1 => {
+                                // Inject every fragment through the raw
+                                // socket; the queued original is dropped so
+                                // the fragments replace it on the wire.
+                                let mut injected = true;
+                                for frag in &fragments {
+                                    if let Err(e) = send_raw_packet(*fd, frag) {
+                                        warn!(error = %e, "raw fragment injection failed; emitting unfragmented packet");
+                                        injected = false;
+                                        break;
+                                    }
+                                }
+                                if injected {
+                                    msg.set_verdict(NfqVerdict::Drop);
+                                } else {
+                                    msg.set_payload(new_bytes);
+                                    msg.set_verdict(NfqVerdict::Accept);
+                                }
+                            }
+                            _ => {
+                                if fragments.len() > 1
+                                    && !RAW_INJECTION_UNAVAILABLE_WARNED
+                                        .swap(true, Ordering::SeqCst)
+                                {
+                                    warn!("raw socket unavailable; ip_frag falling back to unfragmented packets");
+                                }
+                                msg.set_payload(new_bytes);
+                                msg.set_verdict(NfqVerdict::Accept);
+                            }
+                        }
+                    } else if let Some(spec) = view.disorder_spec {
+                        let segments = zerodpi_core::tcp_segment::split_tcp_payload(
+                            &new_bytes,
+                            spec.segments,
+                            spec.reverse,
+                        );
+                        match &self.raw_socket {
+                            Some(fd) if segments.len() > 1 => {
+                                // Emit the first segment synchronously; the
+                                // queued original is dropped so the segments
+                                // replace it on the wire. The remaining
+                                // segments follow on a short-lived thread so
+                                // the capture loop never blocks on the delay.
+                                match send_raw_packet(*fd, &segments[0]) {
+                                    Ok(_) => {
+                                        msg.set_verdict(NfqVerdict::Drop);
+                                        if spec.delay_ms > 0 {
+                                            let remaining = segments[1..].to_vec();
+                                            let delay = Duration::from_millis(spec.delay_ms);
+                                            // Duplicate the raw socket fd for
+                                            // the thread; the interceptor owns
+                                            // the original and closes it on
+                                            // drop.
+                                            let dup_fd = unsafe { libc::dup(*fd) };
+                                            if dup_fd < 0 {
+                                                warn!("dup failed for delayed disorder emission; emitting remaining segments immediately");
+                                                for seg in &remaining {
+                                                    if let Err(e) = send_raw_packet(*fd, seg) {
+                                                        warn!(error = %e, "disorder segment injection failed");
+                                                        break;
+                                                    }
+                                                }
+                                            } else {
+                                                std::thread::spawn(move || {
+                                                    for (i, seg) in remaining.iter().enumerate() {
+                                                        std::thread::sleep(delay * (i as u32 + 1));
+                                                        if let Err(e) = send_raw_packet(dup_fd, seg)
+                                                        {
+                                                            warn!(error = %e, "delayed disorder segment injection failed; abandoning remaining segments (TCP retransmission will heal the connection)");
+                                                            break;
+                                                        }
+                                                    }
+                                                    unsafe { libc::close(dup_fd) };
+                                                });
+                                            }
+                                        } else {
+                                            for seg in &segments[1..] {
+                                                if let Err(e) = send_raw_packet(*fd, seg) {
+                                                    warn!(error = %e, "disorder segment injection failed");
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        warn!(error = %e, "raw segment injection failed; emitting unsegmented packet");
+                                        msg.set_payload(new_bytes);
+                                        msg.set_verdict(NfqVerdict::Accept);
+                                    }
+                                }
+                            }
+                            _ => {
+                                if segments.len() > 1
+                                    && !RAW_INJECTION_UNAVAILABLE_WARNED
+                                        .swap(true, Ordering::SeqCst)
+                                {
+                                    warn!("raw socket unavailable; disorder falling back to unsegmented packets");
+                                }
+                                msg.set_payload(new_bytes);
+                                msg.set_verdict(NfqVerdict::Accept);
+                            }
+                        }
+                    } else if view.emit_original_after {
+                        match &self.raw_socket {
+                            Some(fd) => {
+                                // Inject the decoy through the raw socket
+                                // first; the queued original is accepted
+                                // below, so the decoy is guaranteed to hit
+                                // the wire first.
+                                if let Err(e) = send_raw_packet(*fd, &new_bytes) {
+                                    warn!(error = %e, "raw decoy injection failed; emitting modified packet instead");
+                                    msg.set_payload(new_bytes);
+                                }
+                                // else: the original packet passes through as-is.
+                            }
+                            None => {
+                                if !RAW_INJECTION_UNAVAILABLE_WARNED.swap(true, Ordering::SeqCst) {
+                                    warn!("raw socket unavailable; fake_tls falling back to single-packet mode");
+                                }
+                                msg.set_payload(new_bytes);
+                            }
+                        }
+                        msg.set_verdict(NfqVerdict::Accept);
+                    } else {
+                        msg.set_payload(new_bytes);
+                        msg.set_verdict(NfqVerdict::Accept);
+                    }
+                }
+            }
+            if let Err(e) = self.queue.verdict(msg) {
+                warn!(error = %e, "NFQUEUE verdict failed");
+            }
+        }
+    }
+}
+
+impl Drop for NfqInterceptor {
+    fn drop(&mut self) {
+        if let Some(fd) = self.raw_socket {
+            unsafe { libc::close(fd) };
+        }
+    }
+}
+
+fn is_stale_nfq_recv_error(error: &std::io::Error) -> bool {
+    error.kind() == ErrorKind::NotFound
+}
+
+/// Open a raw IPv4 socket with `IP_HDRINCL` for injecting decoy packets
+/// ahead of queued ones. Returns `None` when unavailable (no CAP_NET_RAW,
+/// SELinux policy, etc.) — callers then fall back to single emission.
+fn open_raw_injection_socket() -> Option<RawFd> {
+    unsafe {
+        let fd = libc::socket(
+            libc::AF_INET,
+            libc::SOCK_RAW | libc::SOCK_CLOEXEC,
+            libc::IPPROTO_RAW,
+        );
+        if fd < 0 {
+            return None;
+        }
+        let one: libc::c_int = 1;
+        if libc::setsockopt(
+            fd,
+            libc::IPPROTO_IP,
+            libc::IP_HDRINCL,
+            &one as *const _ as *const libc::c_void,
+            std::mem::size_of::<libc::c_int>() as libc::socklen_t,
+        ) != 0
+        {
+            libc::close(fd);
+            return None;
+        }
+        Some(fd)
+    }
+}
+
+/// Send a fully crafted IPv4 packet (header included) through a raw socket.
+/// The destination is read from the IPv4 header itself (`bytes[16..20]`).
+fn send_raw_packet(fd: RawFd, bytes: &[u8]) -> std::io::Result<usize> {
+    if bytes.len() < 20 {
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            "raw packet shorter than an IPv4 header",
+        ));
+    }
+    let dst_ip = u32::from_be_bytes([bytes[16], bytes[17], bytes[18], bytes[19]]);
+    let addr = libc::sockaddr_in {
+        sin_family: libc::AF_INET as libc::sa_family_t,
+        sin_port: 0,
+        sin_addr: libc::in_addr {
+            s_addr: dst_ip.to_be(),
+        },
+        sin_zero: [0; 8],
+    };
+    let sent = unsafe {
+        libc::sendto(
+            fd,
+            bytes.as_ptr() as *const libc::c_void,
+            bytes.len(),
+            0,
+            &addr as *const libc::sockaddr_in as *const libc::sockaddr,
+            std::mem::size_of::<libc::sockaddr_in>() as libc::socklen_t,
+        )
+    };
+    if sent < 0 {
+        Err(std::io::Error::last_os_error())
+    } else {
+        Ok(sent as usize)
+    }
+}
+
+/// Parsed offsets inside the captured IPv4+TCP buffer.
+struct PacketLayout {
+    ip_hdr_len: usize,
+    tcp_hdr_len: usize,
+    payload_off: usize,
+    total_len: usize,
+}
+
+fn parse_view<'a>(direction: Direction, buf: &'a [u8]) -> Result<(PacketView<'a>, PacketLayout)> {
+    let ip = Ipv4HeaderSlice::from_slice(buf).context("parse ipv4")?;
+    if ip.protocol() != etherparse::IpNumber::TCP {
+        anyhow::bail!("not tcp");
+    }
+    let ip_hdr_len = ip.slice().len();
+    let tcp = TcpHeaderSlice::from_slice(&buf[ip_hdr_len..]).context("parse tcp")?;
+    let tcp_hdr_len = tcp.slice().len();
+    let total_len = ip.total_len() as usize;
+    let payload_off = ip_hdr_len + tcp_hdr_len;
+    let tcp_options_off = ip_hdr_len + etherparse::TcpHeader::MIN_LEN;
+    let payload_len = total_len.saturating_sub(payload_off);
+
+    let view = PacketView {
+        direction,
+        src_ip: ip.source_addr(),
+        dst_ip: ip.destination_addr(),
+        src_port: tcp.source_port(),
+        dst_port: tcp.destination_port(),
+        seq: tcp.sequence_number(),
+        ack: tcp.acknowledgment_number(),
+        flags: TcpFlags {
+            syn: tcp.syn(),
+            ack: tcp.ack(),
+            psh: tcp.psh(),
+            rst: tcp.rst(),
+            fin: tcp.fin(),
+            urg: tcp.urg(),
+        },
+        payload_len,
+        payload: &buf[payload_off..payload_off + payload_len],
+        tcp_options: &buf[tcp_options_off..payload_off],
+        new_seq: None,
+        new_ack: None,
+        new_flags: None,
+        new_urgent_pointer: None,
+        new_payload: None,
+        replace_tcp_options: None,
+        append_tcp_options: Vec::new(),
+        bump_ipv4_ident: false,
+        corrupt_tcp_checksum_delta: None,
+        emit_original_after: false,
+        ip_frag_payload_size: None,
+        disorder_spec: None,
+        new_ipv4_ttl: None,
+    };
+    let layout = PacketLayout {
+        ip_hdr_len,
+        tcp_hdr_len,
+        payload_off,
+        total_len,
+    };
+    Ok((view, layout))
+}
+
+fn build_modified(orig: &[u8], layout: &PacketLayout, view: &PacketView<'_>) -> Result<Vec<u8>> {
+    let mut ip_hdr = etherparse::Ipv4Header::from_slice(&orig[..layout.ip_hdr_len])?.0;
+    let mut tcp_hdr = etherparse::TcpHeader::from_slice(
+        &orig[layout.ip_hdr_len..layout.ip_hdr_len + layout.tcp_hdr_len],
+    )?
+    .0;
+
+    let new_payload: &[u8] = match view.new_payload.as_deref() {
+        Some(p) => p,
+        None => &orig[layout.payload_off..layout.total_len],
+    };
+
+    if let Some(seq) = view.new_seq {
+        tcp_hdr.sequence_number = seq;
+    }
+    if let Some(ack) = view.new_ack {
+        tcp_hdr.acknowledgment_number = ack;
+    }
+    if let Some(flags) = view.new_flags {
+        tcp_hdr.syn = flags.syn;
+        tcp_hdr.ack = flags.ack;
+        tcp_hdr.psh = flags.psh;
+        tcp_hdr.rst = flags.rst;
+        tcp_hdr.fin = flags.fin;
+        tcp_hdr.urg = flags.urg;
+    }
+    if let Some(ptr) = view.new_urgent_pointer {
+        tcp_hdr.urgent_pointer = ptr;
+    }
+    if view.bump_ipv4_ident {
+        ip_hdr.identification = ip_hdr.identification.wrapping_add(1);
+    }
+    if let Some(ttl) = view.new_ipv4_ttl {
+        ip_hdr.time_to_live = ttl;
+    }
+    if let Some(options) = view.replace_tcp_options.as_deref() {
+        tcp_hdr
+            .set_options_raw(options)
+            .context("replace TCP options")?;
+    }
+    append_tcp_options(&mut tcp_hdr, &view.append_tcp_options)?;
+
+    // Recompute IPv4 total length and checksums.
+    let new_tcp_hdr_len = tcp_hdr.header_len();
+    let new_ip_payload_len = new_tcp_hdr_len + new_payload.len();
+    ip_hdr.set_payload_len(new_ip_payload_len)?;
+    ip_hdr.header_checksum = ip_hdr.calc_header_checksum();
+    tcp_hdr.checksum = tcp_hdr.calc_checksum_ipv4(&ip_hdr, new_payload)?;
+    if let Some(delta) = view.corrupt_tcp_checksum_delta {
+        tcp_hdr.checksum = tcp_hdr.checksum.wrapping_add(delta);
+    }
+
+    let mut out = Vec::with_capacity(layout.ip_hdr_len + new_tcp_hdr_len + new_payload.len());
+    ip_hdr.write(&mut out)?;
+    tcp_hdr.write(&mut out)?;
+    out.extend_from_slice(new_payload);
+    Ok(out)
+}
+
+fn append_tcp_options(tcp_hdr: &mut etherparse::TcpHeader, append: &[u8]) -> Result<()> {
+    if append.is_empty() {
+        return Ok(());
+    }
+
+    let original = tcp_hdr.options.as_slice();
+    let raw_len = original.len() + append.len();
+    let padded_len = (raw_len + 3) & !3;
+    let max_options_len = etherparse::TcpHeader::MAX_LEN - etherparse::TcpHeader::MIN_LEN;
+    if padded_len > max_options_len {
+        anyhow::bail!(
+            "TCP options would exceed maximum header size: existing={} append={} padded={}",
+            original.len(),
+            append.len(),
+            padded_len
+        );
+    }
+
+    let mut options = Vec::with_capacity(raw_len);
+    options.extend_from_slice(original);
+    options.extend_from_slice(append);
+    tcp_hdr
+        .set_options_raw(&options)
+        .context("append TCP options")?;
+    Ok(())
+}
+
+// ---------------------- firewall rule management ----------------------
+
+enum FirewallGuard {
+    Iptables { _guard: IptablesGuard },
+    Nftables { _guard: NftablesGuard },
+}
+
+/// Remove firewall state that is tagged as owned by a no-longer-running
+/// ZeroDPI root helper. A live helper owner is treated as a conflicting
+/// session and fails closed.
+pub fn recover_stale_firewall_state(backend: LinuxFirewallBackend) -> Result<usize> {
+    match backend {
+        LinuxFirewallBackend::Iptables => recover_stale_iptables_rules(),
+        LinuxFirewallBackend::Nftables => recover_stale_nftables_tables(),
+    }
+}
+
+impl FirewallGuard {
+    fn install(filter: &FilterSpec) -> Result<Self> {
+        match filter.linux_firewall_backend {
+            LinuxFirewallBackend::Iptables => {
+                IptablesGuard::install(filter).map(|guard| Self::Iptables { _guard: guard })
+            }
+            LinuxFirewallBackend::Nftables => {
+                NftablesGuard::install(filter).map(|guard| Self::Nftables { _guard: guard })
+            }
+        }
+    }
+}
+
+// ---------------------- iptables rule management ----------------------
+
+struct IptablesGuard {
+    rules: Vec<Vec<String>>,
+}
+
+impl IptablesGuard {
+    fn install(filter: &FilterSpec) -> Result<Self> {
+        let rules = iptables_rules(filter);
+        let mut installed: Vec<Vec<String>> = Vec::with_capacity(rules.len());
+        for rule in rules {
+            // Android devices commonly have pre-existing terminal rules in
+            // INPUT/OUTPUT. Insert first so NFQUEUE sees matching packets.
+            if let Err(error) = run_iptables("-I", &rule) {
+                for installed_rule in installed.iter().rev() {
+                    if let Err(cleanup_error) = run_iptables("-D", installed_rule) {
+                        warn!(error = %cleanup_error, "failed to roll back iptables rule");
+                    }
+                }
+                return Err(error).context("install iptables rule");
+            }
+            installed.push(rule);
+        }
+        info!("iptables rules installed");
+        Ok(Self { rules: installed })
+    }
+}
+
+impl Drop for IptablesGuard {
+    fn drop(&mut self) {
+        for rule in &self.rules {
+            if let Err(e) = run_iptables("-D", rule) {
+                warn!(error = %e, "failed to remove iptables rule");
+            }
+        }
+        debug!("iptables rules removed");
+    }
+}
+
+fn run_iptables(action: &str, rule_args: &[String]) -> Result<()> {
+    let mut cmd = Command::new("iptables");
+    cmd.arg(action);
+    for a in rule_args {
+        cmd.arg(a);
+    }
+    let status = cmd.status().context("spawn iptables")?;
+    if !status.success() {
+        anyhow::bail!("iptables {action} {:?} failed: {status}", rule_args);
+    }
+    Ok(())
+}
+
+fn recover_stale_iptables_rules() -> Result<usize> {
+    let mut removed = 0;
+    for chain in ["OUTPUT", "INPUT"] {
+        let output = Command::new("iptables")
+            .args(["-S", chain])
+            .output()
+            .with_context(|| format!("list iptables {chain} rules for stale recovery"))?;
+        if !output.status.success() {
+            anyhow::bail!("iptables -S {chain} failed: {}", output.status);
+        }
+        let rules = String::from_utf8(output.stdout).context("decode iptables rule listing")?;
+        for line in rules.lines() {
+            let Some((owner_pid, rule)) = parse_owned_iptables_rule(line) else {
+                continue;
+            };
+            if helper_owner_is_live(owner_pid) {
+                anyhow::bail!("another ZeroDPI root helper session is still active");
+            }
+            run_iptables("-D", &rule).context("remove stale ZeroDPI iptables rule")?;
+            removed += 1;
+        }
+    }
+    Ok(removed)
+}
+
+fn parse_owned_iptables_rule(line: &str) -> Option<(u32, Vec<String>)> {
+    let tokens: Vec<&str> = line.split_ascii_whitespace().collect();
+    if tokens.len() < 8
+        || tokens.first().copied() != Some("-A")
+        || !matches!(tokens.get(1).copied(), Some("INPUT" | "OUTPUT"))
+        || !tokens.windows(2).any(|pair| pair == ["-j", "NFQUEUE"])
+    {
+        return None;
+    }
+    let comment = tokens
+        .windows(2)
+        .find(|pair| pair[0] == "--comment")?
+        .get(1)?
+        .trim_matches(['\'', '"']);
+    let owner_pid = comment.strip_prefix("zerodpi-")?.parse().ok()?;
+    let mut rule = Vec::with_capacity(tokens.len() - 1);
+    rule.push(tokens[1].to_owned());
+    rule.extend(
+        tokens[2..]
+            .iter()
+            .map(|token| token.trim_matches(['\'', '"']).to_owned()),
+    );
+    Some((owner_pid, rule))
+}
+
+fn iptables_rules(filter: &FilterSpec) -> Vec<Vec<String>> {
+    let iface = filter.interface_ip.to_string();
+    let port = filter.remote_port.to_string();
+    let q = filter.queue_num.to_string();
+
+    let mut rules = match filter.remote_ip {
+        Some(remote_ip) => {
+            let remote = remote_ip.to_string();
+            vec![
+                vec![
+                    "OUTPUT".into(),
+                    "-p".into(),
+                    "tcp".into(),
+                    "-s".into(),
+                    iface.clone(),
+                    "-d".into(),
+                    remote.clone(),
+                    "--dport".into(),
+                    port.clone(),
+                    "-j".into(),
+                    "NFQUEUE".into(),
+                    "--queue-num".into(),
+                    q.clone(),
+                    "--queue-bypass".into(),
+                ],
+                vec![
+                    "INPUT".into(),
+                    "-p".into(),
+                    "tcp".into(),
+                    "-s".into(),
+                    remote,
+                    "-d".into(),
+                    iface,
+                    "--sport".into(),
+                    port,
+                    "-j".into(),
+                    "NFQUEUE".into(),
+                    "--queue-num".into(),
+                    q,
+                    "--queue-bypass".into(),
+                ],
+            ]
+        }
+        None => vec![
+            vec![
+                "OUTPUT".into(),
+                "-p".into(),
+                "tcp".into(),
+                "-s".into(),
+                iface.clone(),
+                "--dport".into(),
+                port.clone(),
+                "-j".into(),
+                "NFQUEUE".into(),
+                "--queue-num".into(),
+                q.clone(),
+                "--queue-bypass".into(),
+            ],
+            vec![
+                "INPUT".into(),
+                "-p".into(),
+                "tcp".into(),
+                "-d".into(),
+                iface,
+                "--sport".into(),
+                port,
+                "-j".into(),
+                "NFQUEUE".into(),
+                "--queue-num".into(),
+                q,
+                "--queue-bypass".into(),
+            ],
+        ],
+    };
+    if let Some(owner) = filter.firewall_owner.as_deref() {
+        assert!(
+            valid_firewall_owner(owner),
+            "invalid internal firewall owner tag"
+        );
+        for rule in &mut rules {
+            let jump = rule
+                .iter()
+                .position(|argument| argument == "-j")
+                .expect("NFQUEUE rule must contain a jump target");
+            rule.splice(
+                jump..jump,
+                [
+                    "-m".into(),
+                    "comment".into(),
+                    "--comment".into(),
+                    owner.into(),
+                ],
+            );
+        }
+    }
+    rules
+}
+
+fn valid_firewall_owner(owner: &str) -> bool {
+    owner
+        .strip_prefix("zerodpi-")
+        .is_some_and(|pid| !pid.is_empty() && pid.bytes().all(|byte| byte.is_ascii_digit()))
+}
+
+// ---------------------- nftables rule management ----------------------
+
+const NFT_TABLE_FAMILY: &str = "inet";
+const NFT_OUTPUT_CHAIN: &str = "output";
+const NFT_INPUT_CHAIN: &str = "input";
+
+static NFT_TABLE_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+struct NftablesGuard {
+    table_name: String,
+}
+
+impl NftablesGuard {
+    fn install(filter: &FilterSpec) -> Result<Self> {
+        let table_name = next_nft_table_name();
+        let commands = nft_install_commands(&table_name, filter);
+        for args in &commands {
+            if let Err(e) = run_nft(args) {
+                let _ = delete_nft_table(&table_name);
+                return Err(e).context("install nftables rule");
+            }
+        }
+        info!(table = %table_name, "nftables rules installed");
+        Ok(Self { table_name })
+    }
+}
+
+impl Drop for NftablesGuard {
+    fn drop(&mut self) {
+        if let Err(e) = delete_nft_table(&self.table_name) {
+            warn!(error = %e, table = %self.table_name, "failed to remove nftables table");
+        } else {
+            debug!(table = %self.table_name, "nftables table removed");
+        }
+    }
+}
+
+fn next_nft_table_name() -> String {
+    let id = NFT_TABLE_COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("zerodpi_{}_{}", std::process::id(), id)
+}
+
+fn nft_install_commands(table_name: &str, filter: &FilterSpec) -> Vec<Vec<String>> {
+    vec![
+        strings(&["add", "table", NFT_TABLE_FAMILY, table_name]),
+        nft_add_chain_args(table_name, NFT_OUTPUT_CHAIN, "output"),
+        nft_add_chain_args(table_name, NFT_INPUT_CHAIN, "input"),
+        nft_add_rule_args(table_name, Direction::Outbound, filter),
+        nft_add_rule_args(table_name, Direction::Inbound, filter),
+    ]
+}
+
+fn nft_add_chain_args(table_name: &str, chain: &str, hook: &str) -> Vec<String> {
+    strings(&[
+        "add",
+        "chain",
+        NFT_TABLE_FAMILY,
+        table_name,
+        chain,
+        "{",
+        "type",
+        "filter",
+        "hook",
+        hook,
+        "priority",
+        "0",
+        ";",
+        "policy",
+        "accept",
+        ";",
+        "}",
+    ])
+}
+
+fn nft_add_rule_args(table_name: &str, direction: Direction, filter: &FilterSpec) -> Vec<String> {
+    let iface = filter.interface_ip.to_string();
+    let port = filter.remote_port.to_string();
+    let q = filter.queue_num.to_string();
+    let mut args = strings(&["add", "rule", NFT_TABLE_FAMILY, table_name]);
+
+    match direction {
+        Direction::Outbound => {
+            args.push(NFT_OUTPUT_CHAIN.into());
+            args.extend(strings(&["ip", "saddr", &iface]));
+            if let Some(remote_ip) = filter.remote_ip {
+                let remote = remote_ip.to_string();
+                args.extend(strings(&["ip", "daddr", &remote]));
+            }
+            args.extend(strings(&[
+                "tcp", "dport", &port, "queue", "num", &q, "bypass",
+            ]));
+        }
+        Direction::Inbound => {
+            args.push(NFT_INPUT_CHAIN.into());
+            if let Some(remote_ip) = filter.remote_ip {
+                let remote = remote_ip.to_string();
+                args.extend(strings(&["ip", "saddr", &remote]));
+            }
+            args.extend(strings(&["ip", "daddr", &iface]));
+            args.extend(strings(&[
+                "tcp", "sport", &port, "queue", "num", &q, "bypass",
+            ]));
+        }
+    }
+
+    args
+}
+
+fn delete_nft_table(table_name: &str) -> Result<()> {
+    run_nft(&strings(&["delete", "table", NFT_TABLE_FAMILY, table_name]))
+}
+
+fn recover_stale_nftables_tables() -> Result<usize> {
+    let output = Command::new("nft")
+        .args(["list", "tables"])
+        .output()
+        .context("list nftables tables for stale recovery")?;
+    if !output.status.success() {
+        anyhow::bail!("nft list tables failed: {}", output.status);
+    }
+    let listing = String::from_utf8(output.stdout).context("decode nftables table listing")?;
+    let mut removed = 0;
+    for line in listing.lines() {
+        let Some((owner_pid, table_name)) = parse_owned_nftables_table(line) else {
+            continue;
+        };
+        if helper_owner_is_live(owner_pid) {
+            anyhow::bail!("another ZeroDPI root helper session is still active");
+        }
+        delete_nft_table(table_name).context("remove stale ZeroDPI nftables table")?;
+        removed += 1;
+    }
+    Ok(removed)
+}
+
+fn parse_owned_nftables_table(line: &str) -> Option<(u32, &str)> {
+    let mut tokens = line.split_ascii_whitespace();
+    if tokens.next()? != "table" || tokens.next()? != NFT_TABLE_FAMILY {
+        return None;
+    }
+    let table_name = tokens.next()?;
+    if tokens.next().is_some() {
+        return None;
+    }
+    let remainder = table_name.strip_prefix("zerodpi_")?;
+    let (pid, counter) = remainder.split_once('_')?;
+    if counter.is_empty() || !counter.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    Some((pid.parse().ok()?, table_name))
+}
+
+fn helper_owner_is_live(pid: u32) -> bool {
+    // Recovery runs only while no interceptor is open. Matching state from a
+    // reused current PID is therefore stale, not a concurrent session.
+    if pid == std::process::id() {
+        return false;
+    }
+    let proc_dir = PathBuf::from(format!("/proc/{pid}"));
+    if !proc_dir.exists() {
+        return false;
+    }
+    match std::fs::read(proc_dir.join("cmdline")) {
+        Ok(command_line) => {
+            let command = String::from_utf8_lossy(&command_line);
+            command.contains("zerodpi-root-helper") || command.contains("zerodpi_root_helper_exec")
+        }
+        // Be conservative if a platform security policy prevents inspection.
+        Err(_) => true,
+    }
+}
+
+fn run_nft(args: &[String]) -> Result<()> {
+    let status = Command::new("nft")
+        .args(args)
+        .status()
+        .context("spawn nft")?;
+    if !status.success() {
+        anyhow::bail!("nft {:?} failed: {status}", args);
+    }
+    Ok(())
+}
+
+fn strings(items: &[&str]) -> Vec<String> {
+    items.iter().map(|item| (*item).into()).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::Ipv4Addr;
+
+    #[test]
+    fn nfqueue_recv_not_found_is_treated_as_stale_state() {
+        let error = std::io::Error::from(ErrorKind::NotFound);
+        assert!(is_stale_nfq_recv_error(&error));
+    }
+
+    #[test]
+    fn nfqueue_recv_other_errors_remain_fatal() {
+        for kind in [
+            ErrorKind::PermissionDenied,
+            ErrorKind::InvalidInput,
+            ErrorKind::ConnectionReset,
+        ] {
+            let error = std::io::Error::from(kind);
+            assert!(!is_stale_nfq_recv_error(&error));
+        }
+    }
+
+    fn make_view() -> PacketView<'static> {
+        PacketView {
+            direction: Direction::Outbound,
+            src_ip: Ipv4Addr::new(10, 0, 0, 1),
+            dst_ip: Ipv4Addr::new(1, 2, 3, 4),
+            src_port: 12345,
+            dst_port: 443,
+            seq: 1001,
+            ack: 5001,
+            flags: TcpFlags {
+                ack: true,
+                ..Default::default()
+            },
+            payload_len: 0,
+            payload: &[],
+            tcp_options: &[],
+            new_seq: Some(484),
+            new_ack: None,
+            new_flags: Some(TcpFlags {
+                ack: true,
+                psh: true,
+                ..Default::default()
+            }),
+            new_urgent_pointer: None,
+            new_payload: Some(vec![0xAB; 517]),
+            replace_tcp_options: None,
+            append_tcp_options: Vec::new(),
+            bump_ipv4_ident: true,
+            corrupt_tcp_checksum_delta: None,
+            emit_original_after: false,
+            ip_frag_payload_size: None,
+            disorder_spec: None,
+            new_ipv4_ttl: None,
+        }
+    }
+
+    #[test]
+    fn build_modified_carries_decoy_seq_and_payload_for_raw_injection() {
+        use etherparse::{IpNumber, Ipv4Header, TcpHeader};
+
+        let mut ip = Ipv4Header::new(20, 64, IpNumber::TCP, [10, 0, 0, 1], [1, 2, 3, 4]).unwrap();
+        ip.identification = 0x1234;
+        ip.header_checksum = ip.calc_header_checksum();
+        let mut tcp = TcpHeader::new(12345, 443, 1001, 65535);
+        tcp.acknowledgment_number = 5001;
+        tcp.ack = true;
+        tcp.checksum = tcp.calc_checksum_ipv4(&ip, &[]).unwrap();
+        let mut buf = Vec::new();
+        ip.write(&mut buf).unwrap();
+        tcp.write(&mut buf).unwrap();
+
+        let layout = PacketLayout {
+            ip_hdr_len: ip.header_len(),
+            tcp_hdr_len: tcp.header_len(),
+            payload_off: ip.header_len() + tcp.header_len(),
+            total_len: buf.len(),
+        };
+        let view = make_view(); // new_seq = 484, new_payload = [0xAB; 517]
+
+        let out = build_modified(&buf, &layout, &view).unwrap();
+
+        // Decoy payload follows the TCP header, at its full 517-byte length.
+        assert_eq!(out.len(), layout.payload_off + 517);
+        assert_eq!(&out[layout.payload_off..], &[0xAB; 517]);
+        // Sequence number field is at offset ip_hdr_len + 4.
+        let seq_off = layout.ip_hdr_len + 4;
+        assert_eq!(
+            u32::from_be_bytes([
+                out[seq_off],
+                out[seq_off + 1],
+                out[seq_off + 2],
+                out[seq_off + 3]
+            ]),
+            484
+        );
+        // The rebuilt packet carries a valid IP header checksum.
+        let parsed_ip = etherparse::Ipv4HeaderSlice::from_slice(&out).unwrap();
+        assert_eq!(
+            parsed_ip.header_checksum(),
+            parsed_ip.to_header().calc_header_checksum()
+        );
+    }
+
+    fn make_filter(remote_ip: Option<Ipv4Addr>) -> FilterSpec {
+        FilterSpec {
+            interface_ip: Ipv4Addr::new(10, 0, 0, 1),
+            remote_ip,
+            remote_port: 443,
+            queue_num: 7,
+            linux_firewall_backend: LinuxFirewallBackend::Iptables,
+            firewall_owner: None,
+        }
+    }
+
+    #[test]
+    fn iptables_rules_without_remote_match_nfqueue_shape() {
+        let rules = iptables_rules(&make_filter(None));
+
+        assert_eq!(rules.len(), 2);
+        assert_eq!(
+            rules[0],
+            strings(&[
+                "OUTPUT",
+                "-p",
+                "tcp",
+                "-s",
+                "10.0.0.1",
+                "--dport",
+                "443",
+                "-j",
+                "NFQUEUE",
+                "--queue-num",
+                "7",
+                "--queue-bypass",
+            ])
+        );
+        assert_eq!(
+            rules[1],
+            strings(&[
+                "INPUT",
+                "-p",
+                "tcp",
+                "-d",
+                "10.0.0.1",
+                "--sport",
+                "443",
+                "-j",
+                "NFQUEUE",
+                "--queue-num",
+                "7",
+                "--queue-bypass",
+            ])
+        );
+    }
+
+    #[test]
+    fn owned_iptables_rule_is_tagged_and_recovery_parser_is_targeted() {
+        let mut filter = make_filter(None);
+        filter.firewall_owner = Some("zerodpi-1234".into());
+        let rules = iptables_rules(&filter);
+        assert!(rules.iter().all(|rule| rule
+            .windows(2)
+            .any(|pair| pair == ["--comment", "zerodpi-1234"])));
+
+        let parsed = parse_owned_iptables_rule(
+            "-A OUTPUT -p tcp -m comment --comment \"zerodpi-1234\" -j NFQUEUE --queue-num 7",
+        )
+        .unwrap();
+        assert_eq!(parsed.0, 1234);
+        assert_eq!(parsed.1.first().map(String::as_str), Some("OUTPUT"));
+        assert!(parse_owned_iptables_rule(
+            "-A OUTPUT -m comment --comment unrelated -j NFQUEUE --queue-num 7"
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn nftables_recovery_parser_accepts_only_owned_table_shape() {
+        assert_eq!(
+            parse_owned_nftables_table("table inet zerodpi_1234_7"),
+            Some((1234, "zerodpi_1234_7"))
+        );
+        assert!(parse_owned_nftables_table("table ip zerodpi_1234_7").is_none());
+        assert!(parse_owned_nftables_table("table inet zerodpi_user_table").is_none());
+    }
+
+    #[test]
+    fn nftables_commands_without_remote_use_inet_nfqueue_bypass() {
+        let commands = nft_install_commands("zerodpi_test", &make_filter(None));
+
+        assert_eq!(commands.len(), 5);
+        assert_eq!(
+            commands[0],
+            strings(&["add", "table", "inet", "zerodpi_test"])
+        );
+        assert_eq!(
+            commands[3],
+            strings(&[
+                "add",
+                "rule",
+                "inet",
+                "zerodpi_test",
+                "output",
+                "ip",
+                "saddr",
+                "10.0.0.1",
+                "tcp",
+                "dport",
+                "443",
+                "queue",
+                "num",
+                "7",
+                "bypass",
+            ])
+        );
+        assert_eq!(
+            commands[4],
+            strings(&[
+                "add",
+                "rule",
+                "inet",
+                "zerodpi_test",
+                "input",
+                "ip",
+                "daddr",
+                "10.0.0.1",
+                "tcp",
+                "sport",
+                "443",
+                "queue",
+                "num",
+                "7",
+                "bypass",
+            ])
+        );
+    }
+
+    #[test]
+    fn nftables_commands_with_remote_pin_both_directions() {
+        let commands = nft_install_commands(
+            "zerodpi_test",
+            &make_filter(Some(Ipv4Addr::new(1, 2, 3, 4))),
+        );
+
+        assert_eq!(
+            commands[3],
+            strings(&[
+                "add",
+                "rule",
+                "inet",
+                "zerodpi_test",
+                "output",
+                "ip",
+                "saddr",
+                "10.0.0.1",
+                "ip",
+                "daddr",
+                "1.2.3.4",
+                "tcp",
+                "dport",
+                "443",
+                "queue",
+                "num",
+                "7",
+                "bypass",
+            ])
+        );
+        assert_eq!(
+            commands[4],
+            strings(&[
+                "add",
+                "rule",
+                "inet",
+                "zerodpi_test",
+                "input",
+                "ip",
+                "saddr",
+                "1.2.3.4",
+                "ip",
+                "daddr",
+                "10.0.0.1",
+                "tcp",
+                "sport",
+                "443",
+                "queue",
+                "num",
+                "7",
+                "bypass",
+            ])
+        );
+    }
+
+    fn data_packet(payload: &[u8]) -> Vec<u8> {
+        data_packet_with_options(payload, &[])
+    }
+
+    fn data_packet_with_options(payload: &[u8], options: &[u8]) -> Vec<u8> {
+        use etherparse::{IpNumber, Ipv4Header, TcpHeader};
+
+        let mut tcp = TcpHeader::new(12345, 443, 1001, 65535);
+        tcp.acknowledgment_number = 5001;
+        tcp.ack = true;
+        tcp.psh = true;
+        tcp.set_options_raw(options).unwrap();
+        let mut ip = Ipv4Header::new(
+            (tcp.header_len() + payload.len()).try_into().unwrap(),
+            64,
+            IpNumber::TCP,
+            [10, 0, 0, 1],
+            [1, 2, 3, 4],
+        )
+        .unwrap();
+        ip.header_checksum = ip.calc_header_checksum();
+        tcp.checksum = tcp.calc_checksum_ipv4(&ip, payload).unwrap();
+
+        let mut buf = Vec::new();
+        ip.write(&mut buf).unwrap();
+        tcp.write(&mut buf).unwrap();
+        buf.extend_from_slice(payload);
+        buf
+    }
+
+    #[test]
+    fn parse_view_borrows_payload_bytes() {
+        let payload = [0x16, 0x03, 0x03, 0x00, 0x01, 0xAA];
+        let buf = data_packet(&payload);
+        let (view, layout) = parse_view(Direction::Outbound, &buf).unwrap();
+
+        assert_eq!(view.payload_len, payload.len());
+        assert_eq!(view.payload, payload.as_slice());
+        assert_eq!(layout.payload_off, 40);
+    }
+
+    fn timestamp_option(tsval: u32, tsecr: u32) -> Vec<u8> {
+        let mut option = vec![8, 10];
+        option.extend_from_slice(&tsval.to_be_bytes());
+        option.extend_from_slice(&tsecr.to_be_bytes());
+        option
+    }
+
+    #[test]
+    fn parse_view_borrows_tcp_option_bytes() {
+        let options = timestamp_option(100, 77);
+        let buf = data_packet_with_options(&[], &options);
+        let (view, layout) = parse_view(Direction::Outbound, &buf).unwrap();
+
+        assert_eq!(layout.tcp_hdr_len, 32);
+        assert_eq!(layout.payload_off, 52);
+        assert_eq!(&view.tcp_options[..options.len()], options.as_slice());
+        assert_eq!(&view.tcp_options[options.len()..], &[0, 0]);
+    }
+
+    #[test]
+    fn round_trip_modified_packet_parses_back() {
+        // Build a synthetic bare ACK and modify it.
+        use etherparse::{IpNumber, Ipv4Header, TcpHeader};
+        let mut ip = Ipv4Header::new(
+            20, // payload len: just TCP header
+            64,
+            IpNumber::TCP,
+            [10, 0, 0, 1],
+            [1, 2, 3, 4],
+        )
+        .unwrap();
+        ip.identification = 0x1234;
+        ip.header_checksum = ip.calc_header_checksum();
+        let mut tcp = TcpHeader::new(12345, 443, 1001, 65535);
+        tcp.acknowledgment_number = 5001;
+        tcp.ack = true;
+        tcp.checksum = tcp.calc_checksum_ipv4(&ip, &[]).unwrap();
+
+        let mut buf = Vec::new();
+        ip.write(&mut buf).unwrap();
+        tcp.write(&mut buf).unwrap();
+
+        let layout = PacketLayout {
+            ip_hdr_len: 20,
+            tcp_hdr_len: 20,
+            payload_off: 40,
+            total_len: 40,
+        };
+        let view = make_view();
+        let modified = build_modified(&buf, &layout, &view).unwrap();
+
+        // Re-parse.
+        let ip2 = Ipv4HeaderSlice::from_slice(&modified).unwrap();
+        let tcp2 = TcpHeaderSlice::from_slice(&modified[ip2.slice().len()..]).unwrap();
+        assert_eq!(ip2.identification(), 0x1235);
+        assert_eq!(ip2.total_len() as usize, 20 + 20 + 517);
+        assert_eq!(tcp2.sequence_number(), 484);
+        assert!(tcp2.psh());
+        assert!(tcp2.ack());
+        // Checksum must verify
+        let calculated = tcp2
+            .to_header()
+            .calc_checksum_ipv4(&ip2.to_header(), &modified[40..])
+            .unwrap();
+        assert_eq!(tcp2.checksum(), calculated);
+    }
+
+    #[test]
+    fn urgent_flag_and_pointer_survive_rebuild() {
+        let payload = [0x16, 0x03, 0x03, 0x00, 0x01, 0xAA];
+        let buf = data_packet(&payload);
+        let (mut view, layout) = parse_view(Direction::Outbound, &buf).unwrap();
+        view.new_flags = Some(TcpFlags {
+            ack: true,
+            psh: true,
+            urg: true,
+            ..Default::default()
+        });
+        view.new_urgent_pointer = Some(40);
+        let modified = build_modified(&buf, &layout, &view).unwrap();
+
+        let ip2 = Ipv4HeaderSlice::from_slice(&modified).unwrap();
+        let tcp2 = TcpHeaderSlice::from_slice(&modified[ip2.slice().len()..]).unwrap();
+        assert!(tcp2.urg());
+        assert_eq!(tcp2.urgent_pointer(), 40);
+        let calculated = tcp2
+            .to_header()
+            .calc_checksum_ipv4(&ip2.to_header(), &modified[40..])
+            .unwrap();
+        assert_eq!(tcp2.checksum(), calculated);
+    }
+
+    #[test]
+    fn parse_view_reads_urg_flag() {
+        use etherparse::TcpHeader;
+        let buf = data_packet(&[]);
+        let mut tcp = TcpHeader::from_slice(&buf[20..40]).unwrap().0;
+        tcp.urg = true;
+        let mut out = Vec::with_capacity(buf.len());
+        out.extend_from_slice(&buf[..20]);
+        tcp.write(&mut out).unwrap();
+        let (view, _) = parse_view(Direction::Outbound, &out).unwrap();
+        assert!(view.flags.urg);
+    }
+
+    #[test]
+    fn ttl_can_be_overridden_after_rebuild() {
+        use etherparse::{IpNumber, Ipv4Header, TcpHeader};
+        let mut ip = Ipv4Header::new(20, 64, IpNumber::TCP, [10, 0, 0, 1], [1, 2, 3, 4]).unwrap();
+        ip.header_checksum = ip.calc_header_checksum();
+        let mut tcp = TcpHeader::new(12345, 443, 1001, 65535);
+        tcp.acknowledgment_number = 5001;
+        tcp.ack = true;
+        tcp.checksum = tcp.calc_checksum_ipv4(&ip, &[]).unwrap();
+
+        let mut buf = Vec::new();
+        ip.write(&mut buf).unwrap();
+        tcp.write(&mut buf).unwrap();
+
+        let layout = PacketLayout {
+            ip_hdr_len: 20,
+            tcp_hdr_len: 20,
+            payload_off: 40,
+            total_len: 40,
+        };
+        let mut view = make_view();
+        view.corrupt_tcp_checksum_delta = None;
+        view.new_ipv4_ttl = Some(5);
+        let modified = build_modified(&buf, &layout, &view).unwrap();
+
+        let ip2 = Ipv4HeaderSlice::from_slice(&modified).unwrap();
+        let tcp2 = TcpHeaderSlice::from_slice(&modified[ip2.slice().len()..]).unwrap();
+        assert_eq!(ip2.ttl(), 5);
+        let calculated = tcp2
+            .to_header()
+            .calc_checksum_ipv4(&ip2.to_header(), &modified[40..])
+            .unwrap();
+        assert_eq!(tcp2.checksum(), calculated);
+        assert_eq!(
+            ip2.header_checksum(),
+            ip2.to_header().calc_header_checksum()
+        );
+    }
+
+    #[test]
+    fn tcp_checksum_can_be_corrupted_after_rebuild() {
+        use etherparse::{IpNumber, Ipv4Header, TcpHeader};
+        let mut ip = Ipv4Header::new(20, 64, IpNumber::TCP, [10, 0, 0, 1], [1, 2, 3, 4]).unwrap();
+        ip.header_checksum = ip.calc_header_checksum();
+        let mut tcp = TcpHeader::new(12345, 443, 1001, 65535);
+        tcp.acknowledgment_number = 5001;
+        tcp.ack = true;
+        tcp.checksum = tcp.calc_checksum_ipv4(&ip, &[]).unwrap();
+
+        let mut buf = Vec::new();
+        ip.write(&mut buf).unwrap();
+        tcp.write(&mut buf).unwrap();
+
+        let layout = PacketLayout {
+            ip_hdr_len: 20,
+            tcp_hdr_len: 20,
+            payload_off: 40,
+            total_len: 40,
+        };
+        let mut view = make_view();
+        view.corrupt_tcp_checksum_delta = Some(5);
+        let modified = build_modified(&buf, &layout, &view).unwrap();
+
+        let ip2 = Ipv4HeaderSlice::from_slice(&modified).unwrap();
+        let tcp2 = TcpHeaderSlice::from_slice(&modified[ip2.slice().len()..]).unwrap();
+        let calculated = tcp2
+            .to_header()
+            .calc_checksum_ipv4(&ip2.to_header(), &modified[40..])
+            .unwrap();
+        assert_eq!(tcp2.checksum(), calculated.wrapping_add(5));
+    }
+
+    #[test]
+    fn tcp_ack_number_can_be_rewritten_after_rebuild() {
+        let buf = data_packet(&[]);
+        let layout = PacketLayout {
+            ip_hdr_len: 20,
+            tcp_hdr_len: 20,
+            payload_off: 40,
+            total_len: 40,
+        };
+        let mut view = make_view();
+        view.new_seq = None;
+        view.new_ack = Some(4999);
+        let modified = build_modified(&buf, &layout, &view).unwrap();
+
+        let ip2 = Ipv4HeaderSlice::from_slice(&modified).unwrap();
+        let tcp2 = TcpHeaderSlice::from_slice(&modified[ip2.slice().len()..]).unwrap();
+        assert_eq!(tcp2.sequence_number(), 1001);
+        assert_eq!(tcp2.acknowledgment_number(), 4999);
+        let calculated = tcp2
+            .to_header()
+            .calc_checksum_ipv4(&ip2.to_header(), &modified[40..])
+            .unwrap();
+        assert_eq!(tcp2.checksum(), calculated);
+    }
+
+    #[test]
+    fn tcp_options_can_be_appended_after_rebuild() {
+        use zerodpi_core::methods::wrong_md5::tcp_md5_signature_option;
+
+        let buf = data_packet(&[]);
+        let layout = PacketLayout {
+            ip_hdr_len: 20,
+            tcp_hdr_len: 20,
+            payload_off: 40,
+            total_len: 40,
+        };
+        let mut view = make_view();
+        let md5_option = tcp_md5_signature_option();
+        view.append_tcp_options = md5_option.clone();
+        let modified = build_modified(&buf, &layout, &view).unwrap();
+
+        let ip2 = Ipv4HeaderSlice::from_slice(&modified).unwrap();
+        let tcp2 = TcpHeaderSlice::from_slice(&modified[ip2.slice().len()..]).unwrap();
+        assert_eq!(tcp2.slice().len(), 40);
+        assert_eq!(ip2.total_len() as usize, 20 + 40 + 517);
+
+        let options = tcp2.options();
+        assert_eq!(&options[..md5_option.len()], md5_option.as_slice());
+        assert_eq!(&options[md5_option.len()..], &[0, 0]);
+
+        let payload_off = ip2.slice().len() + tcp2.slice().len();
+        let calculated = tcp2
+            .to_header()
+            .calc_checksum_ipv4(&ip2.to_header(), &modified[payload_off..])
+            .unwrap();
+        assert_eq!(tcp2.checksum(), calculated);
+    }
+
+    #[test]
+    fn tcp_options_can_be_replaced_after_rebuild() {
+        let original_options = timestamp_option(100, 77);
+        let replacement_options = timestamp_option(99, 77);
+        let buf = data_packet_with_options(&[], &original_options);
+        let (mut view, layout) = parse_view(Direction::Outbound, &buf).unwrap();
+        view.new_payload = Some(vec![0xAB; 10]);
+        view.replace_tcp_options = Some(replacement_options.clone());
+
+        let modified = build_modified(&buf, &layout, &view).unwrap();
+
+        let ip2 = Ipv4HeaderSlice::from_slice(&modified).unwrap();
+        let tcp2 = TcpHeaderSlice::from_slice(&modified[ip2.slice().len()..]).unwrap();
+        assert_eq!(tcp2.slice().len(), 32);
+        assert_eq!(ip2.total_len() as usize, 20 + 32 + 10);
+
+        let options = tcp2.options();
+        assert_eq!(
+            &options[..replacement_options.len()],
+            replacement_options.as_slice()
+        );
+        assert_eq!(&options[replacement_options.len()..], &[0, 0]);
+
+        let payload_off = ip2.slice().len() + tcp2.slice().len();
+        let calculated = tcp2
+            .to_header()
+            .calc_checksum_ipv4(&ip2.to_header(), &modified[payload_off..])
+            .unwrap();
+        assert_eq!(tcp2.checksum(), calculated);
+    }
+
+    #[test]
+    fn tcp_option_append_rejects_oversized_header() {
+        use etherparse::TcpHeader;
+        use zerodpi_core::methods::wrong_md5::tcp_md5_signature_option;
+
+        let mut tcp = TcpHeader::new(12345, 443, 1001, 65535);
+        tcp.set_options_raw(&[1; 24]).unwrap();
+        let err = append_tcp_options(&mut tcp, &tcp_md5_signature_option()).unwrap_err();
+        assert!(err.to_string().contains("TCP options would exceed"));
+    }
+
+    #[test]
+    fn build_modified_splits_into_ip_fragments() {
+        use etherparse::{IpNumber, Ipv4Header, TcpHeader};
+        use zerodpi_core::ip_fragment::fragment_ipv4_packet;
+
+        let mut ip = Ipv4Header::new(20, 64, IpNumber::TCP, [10, 0, 0, 1], [1, 2, 3, 4]).unwrap();
+        ip.identification = 0x1234;
+        ip.header_checksum = ip.calc_header_checksum();
+        let mut tcp = TcpHeader::new(12345, 443, 1001, 65535);
+        tcp.acknowledgment_number = 5001;
+        tcp.ack = true;
+        tcp.checksum = tcp.calc_checksum_ipv4(&ip, &[0xAB; 517]).unwrap();
+        let mut buf = Vec::new();
+        ip.write(&mut buf).unwrap();
+        tcp.write(&mut buf).unwrap();
+        buf.extend_from_slice(&[0xAB; 517]);
+
+        let layout = PacketLayout {
+            ip_hdr_len: ip.header_len(),
+            tcp_hdr_len: tcp.header_len(),
+            payload_off: ip.header_len() + tcp.header_len(),
+            total_len: buf.len(),
+        };
+        let mut view = make_view();
+        view.ip_frag_payload_size = Some(24);
+
+        let out = build_modified(&buf, &layout, &view).unwrap();
+        let fragments = fragment_ipv4_packet(&out, 24);
+        assert!(fragments.len() > 1);
+
+        // Reassembling the fragment payloads yields the rebuilt packet's IP
+        // payload (TCP header + payload) byte-for-byte.
+        let mut reassembled = Vec::new();
+        for frag in &fragments {
+            let ihl = usize::from(frag[0] & 0x0F) * 4;
+            reassembled.extend_from_slice(&frag[ihl..]);
+        }
+        assert_eq!(reassembled, out[20..]);
+
+        // Every fragment header checksum is valid.
+        for frag in &fragments {
+            let parsed = etherparse::Ipv4HeaderSlice::from_slice(frag).unwrap();
+            assert_eq!(
+                parsed.header_checksum(),
+                parsed.to_header().calc_header_checksum()
+            );
+        }
+    }
+
+    #[test]
+    fn build_modified_splits_into_disorder_segments() {
+        use etherparse::{IpNumber, Ipv4Header, TcpHeader, TcpHeaderSlice};
+        use zerodpi_core::interceptor::DisorderSpec;
+        use zerodpi_core::tcp_segment::split_tcp_payload;
+
+        let mut ip = Ipv4Header::new(20, 64, IpNumber::TCP, [10, 0, 0, 1], [1, 2, 3, 4]).unwrap();
+        ip.identification = 0x1234;
+        ip.header_checksum = ip.calc_header_checksum();
+        let mut tcp = TcpHeader::new(12345, 443, 1001, 65535);
+        tcp.acknowledgment_number = 5001;
+        tcp.ack = true;
+        tcp.psh = true;
+        tcp.checksum = tcp.calc_checksum_ipv4(&ip, &[0xAB; 517]).unwrap();
+        let mut buf = Vec::new();
+        ip.write(&mut buf).unwrap();
+        tcp.write(&mut buf).unwrap();
+        buf.extend_from_slice(&[0xAB; 517]);
+
+        let layout = PacketLayout {
+            ip_hdr_len: ip.header_len(),
+            tcp_hdr_len: tcp.header_len(),
+            payload_off: ip.header_len() + tcp.header_len(),
+            total_len: buf.len(),
+        };
+        let mut view = make_view();
+        view.disorder_spec = Some(DisorderSpec {
+            segments: 2,
+            reverse: true,
+            delay_ms: 0,
+        });
+
+        let out = build_modified(&buf, &layout, &view).unwrap();
+        let segments = split_tcp_payload(&out, 2, true);
+        assert_eq!(segments.len(), 2);
+
+        // Reverse emission: the tail chunk (258 bytes) goes out first with
+        // seq 1001 + 259 and PSH (it ends the in-sequence payload); the
+        // head chunk (259 bytes) follows with seq 1001 and PSH cleared.
+        let first = TcpHeaderSlice::from_slice(&segments[0][20..]).unwrap();
+        assert_eq!(first.sequence_number(), 1001 + 259);
+        assert_eq!(segments[0].len(), 40 + 258);
+        assert!(first.psh());
+
+        let second = TcpHeaderSlice::from_slice(&segments[1][20..]).unwrap();
+        assert_eq!(second.sequence_number(), 1001);
+        assert_eq!(segments[1].len(), 40 + 259);
+        assert!(!second.psh());
+
+        // Concatenated in original order (head then tail), the payloads
+        // match the rebuilt packet's payload byte-for-byte.
+        let mut reassembled = segments[1][40..].to_vec();
+        reassembled.extend_from_slice(&segments[0][40..]);
+        assert_eq!(reassembled, &out[40..]);
+
+        // IP and TCP checksums are valid on every segment.
+        for seg in &segments {
+            let parsed_ip = etherparse::Ipv4HeaderSlice::from_slice(seg).unwrap();
+            assert_eq!(
+                parsed_ip.header_checksum(),
+                parsed_ip.to_header().calc_header_checksum()
+            );
+            let parsed_tcp = etherparse::TcpHeaderSlice::from_slice(&seg[20..]).unwrap();
+            assert_eq!(
+                parsed_tcp.checksum(),
+                parsed_tcp
+                    .to_header()
+                    .calc_checksum_ipv4(&parsed_ip.to_header(), &seg[40..])
+                    .unwrap()
+            );
+        }
+    }
+}

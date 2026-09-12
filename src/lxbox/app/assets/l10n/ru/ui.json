@@ -1,0 +1,4964 @@
+{
+  "\"selector\" was imported as an auto-select group: the fastest member is picked by latency tests instead of manually.": {
+    "value": "«selector» импортирован как группа автовыбора: самый быстрый узел выбирается по замерам, а не вручную."
+  },
+  "%1$d +%2$d⚙ nodes": {
+    "value": {
+      "one": "%1$d узел +%2$d⚙",
+      "few": "%1$d узла +%2$d⚙",
+      "many": "%1$d узлов +%2$d⚙",
+      "other": "%1$d узла +%2$d⚙"
+    }
+  },
+  "%1$d active / %2$d total": {
+    "value": "Активных: %1$d / всего: %2$d"
+  },
+  "%1$d of %2$d nodes match": {
+    "value": "Совпадений: %1$d из %2$d узлов"
+  },
+  "%1$d selected · %2$d shown": {
+    "value": "%1$d выбрано · %2$d показано"
+  },
+  "%1$d servers · %2$d off": {
+    "value": {
+      "one": "%1$d сервер · %2$d выкл.",
+      "few": "%1$d сервера · %2$d выкл.",
+      "many": "%1$d серверов · %2$d выкл.",
+      "other": "%1$d сервера · %2$d выкл."
+    }
+  },
+  "%1$d snapshots · %2$s. Tap to inspect, share to get the pprof profiles.": {
+    "value": {
+      "one": "%1$d снимок · %2$s. Нажмите для просмотра, «Поделиться» — чтобы получить профили pprof.",
+      "few": "%1$d снимка · %2$s. Нажмите для просмотра, «Поделиться» — чтобы получить профили pprof.",
+      "many": "%1$d снимков · %2$s. Нажмите для просмотра, «Поделиться» — чтобы получить профили pprof.",
+      "other": "%1$d снимка · %2$s. Нажмите для просмотра, «Поделиться» — чтобы получить профили pprof."
+    }
+  },
+  "%1$d · %2$d invalid": {
+    "value": "%1$d · %2$d некорректных"
+  },
+  "%1$d/%2$d conns": {
+    "value": "%1$d/%2$d соед."
+  },
+  "%1$dh (%2$s)": {
+    "value": "%1$d ч (%2$s)"
+  },
+  "%1$dh (auto-refresh every %2$s)": {
+    "value": "%1$d ч (автообновление раз в %2$s)"
+  },
+  "%1$s (+%2$d more)": {
+    "value": "%1$s (+ещё %2$d)"
+  },
+  "%1$s / %2$s used": {
+    "value": "Израсходовано %1$s / %2$s"
+  },
+  "%1$s cannot use \"%2$s\": a \"%3$s\" server is not allowed as a resolver.": {
+    "value": "%1$s не может использовать «%2$s»: сервер типа «%3$s» нельзя назначить резолвером."
+  },
+  "%1$s references missing DNS server \"%2$s\".": {
+    "value": "%1$s ссылается на несуществующий DNS-сервер «%2$s»."
+  },
+  "%1$s · %2$d events": {
+    "value": "%1$s · %2$d соб."
+  },
+  "%d MB": {
+    "value": "%d МБ"
+  },
+  "%d OOM reports deleted": {
+    "value": {
+      "one": "Удалён %d отчёт OOM",
+      "few": "Удалено %d отчёта OOM",
+      "many": "Удалено %d отчётов OOM",
+      "other": "Удалено %d отчёта OOM"
+    }
+  },
+  "%d active connections will be closed.": {
+    "value": {
+      "one": "Будет закрыто %d активное соединение.",
+      "few": "Будут закрыты %d активных соединения.",
+      "many": "Будет закрыто %d активных соединений.",
+      "other": "Будет закрыто %d активного соединения."
+    }
+  },
+  "%d apps": {
+    "value": {
+      "one": "%d приложение",
+      "few": "%d приложения",
+      "many": "%d приложений",
+      "other": "%d приложения"
+    }
+  },
+  "%d broken": {
+    "value": {
+      "one": "%d битый",
+      "few": "%d битых",
+      "many": "%d битых",
+      "other": "%d битых"
+    }
+  },
+  "%d cidrs": {
+    "value": {
+      "one": "%d CIDR",
+      "few": "%d CIDR",
+      "many": "%d CIDR",
+      "other": "%d CIDR"
+    }
+  },
+  "%d connections": {
+    "value": {
+      "one": "%d соединение",
+      "few": "%d соединения",
+      "many": "%d соединений",
+      "other": "%d соединения"
+    }
+  },
+  "%d conns": {
+    "value": "%d соед."
+  },
+  "%d days": {
+    "value": {
+      "one": "%d день",
+      "few": "%d дня",
+      "many": "%d дней",
+      "other": "%d дня"
+    }
+  },
+  "%d days left": {
+    "value": {
+      "one": "остался %d день",
+      "few": "осталось %d дня",
+      "many": "осталось %d дней",
+      "other": "осталось %d дня"
+    }
+  },
+  "%d directions matched no nodes — check their node filters.": {
+    "value": {
+      "one": "%d Направление не нашло ни одного узла — проверьте его фильтр узлов.",
+      "few": "%d Направления не нашли ни одного узла — проверьте их фильтры узлов.",
+      "many": "%d Направлений не нашли ни одного узла — проверьте их фильтры узлов.",
+      "other": "%d Направления не нашли ни одного узла — проверьте их фильтры узлов."
+    }
+  },
+  "%d domains": {
+    "value": {
+      "one": "%d домен",
+      "few": "%d домена",
+      "many": "%d доменов",
+      "other": "%d домена"
+    }
+  },
+  "%d entries copied": {
+    "value": {
+      "one": "%d запись скопирована",
+      "few": "%d записи скопировано",
+      "many": "%d записей скопировано",
+      "other": "%d записи скопировано"
+    }
+  },
+  "%d err": {
+    "value": {
+      "one": "%d сбой",
+      "few": "%d сбоя",
+      "many": "%d сбоев",
+      "other": "%d сбоя"
+    }
+  },
+  "%d group members could not be imported and were left out.": {
+    "value": {
+      "one": "Не удалось импортировать %d участника группы — он не вошёл в состав.",
+      "few": "Не удалось импортировать %d участников группы — они не вошли в состав.",
+      "many": "Не удалось импортировать %d участников группы — они не вошли в состав.",
+      "other": "Не удалось импортировать %d участника группы — они не вошли в состав."
+    }
+  },
+  "%d hops": {
+    "value": {
+      "one": "%d хоп",
+      "few": "%d хопа",
+      "many": "%d хопов",
+      "other": "%d хопа"
+    }
+  },
+  "%d hours": {
+    "value": {
+      "one": "%d час",
+      "few": "%d часа",
+      "many": "%d часов",
+      "other": "%d часа"
+    }
+  },
+  "%d hours left": {
+    "value": {
+      "one": "остался %d час",
+      "few": "осталось %d часа",
+      "many": "осталось %d часов",
+      "other": "осталось %d часа"
+    }
+  },
+  "%d in": {
+    "value": "%d inbound"
+  },
+  "%d in pool": {
+    "value": {
+      "one": "%d в работе",
+      "few": "%d в работе",
+      "many": "%d в работе",
+      "other": "%d в работе"
+    }
+  },
+  "%d keywords": {
+    "value": {
+      "one": "%d подстрока",
+      "few": "%d подстроки",
+      "many": "%d подстрок",
+      "other": "%d подстроки"
+    }
+  },
+  "%d min ago": {
+    "value": {
+      "one": "%d минуту назад",
+      "few": "%d минуты назад",
+      "many": "%d минут назад",
+      "other": "%d минуты назад"
+    }
+  },
+  "%d minutes": {
+    "value": {
+      "one": "%d минута",
+      "few": "%d минуты",
+      "many": "%d минут",
+      "other": "%d минуты"
+    }
+  },
+  "%d net": {
+    "value": {
+      "one": "%d сеть",
+      "few": "%d сети",
+      "many": "%d сетей",
+      "other": "%d сети"
+    }
+  },
+  "%d nodes": {
+    "value": {
+      "one": "%d узел",
+      "few": "%d узла",
+      "many": "%d узлов",
+      "other": "%d узла"
+    }
+  },
+  "%d nodes (update failed)": {
+    "value": {
+      "one": "%d узел (обновление не удалось)",
+      "few": "%d узла (обновление не удалось)",
+      "many": "%d узлов (обновление не удалось)",
+      "other": "%d узла (обновление не удалось)"
+    }
+  },
+  "%d nodes (update failed: 0 parsed)": {
+    "value": {
+      "one": "%d узел (обновление не удалось: разобрано 0)",
+      "few": "%d узла (обновление не удалось: разобрано 0)",
+      "many": "%d узлов (обновление не удалось: разобрано 0)",
+      "other": "%d узла (обновление не удалось: разобрано 0)"
+    }
+  },
+  "%d nodes in pool": {
+    "value": {
+      "one": "%d узел в пуле",
+      "few": "%d узла в пуле",
+      "many": "%d узлов в пуле",
+      "other": "%d узла в пуле"
+    }
+  },
+  "%d nodes route traffic back into their own chain. Tap a node to open its source, change or remove its detour, then start again.": {
+    "value": {
+      "one": "%d узел ведёт трафик обратно в собственную цепочку. Нажмите на узел, чтобы открыть источник, измените или уберите его detour, затем запустите снова.",
+      "few": "%d узла ведут трафик обратно в собственные цепочки. Нажмите на узел, чтобы открыть источник, измените или уберите их detour, затем запустите снова.",
+      "many": "%d узлов ведут трафик обратно в собственные цепочки. Нажмите на узел, чтобы открыть источник, измените или уберите их detour, затем запустите снова.",
+      "other": "%d узла ведут трафик обратно в собственные цепочки. Нажмите на узел, чтобы открыть источник, измените или уберите их detour, затем запустите снова."
+    }
+  },
+  "%d nodes with warnings (XHTTP fallback etc.)": {
+    "value": {
+      "one": "%d узел с предупреждениями (XHTTP-фоллбэк и др.)",
+      "few": "%d узла с предупреждениями (XHTTP-фоллбэк и др.)",
+      "many": "%d узлов с предупреждениями (XHTTP-фоллбэк и др.)",
+      "other": "%d узла с предупреждениями (XHTTP-фоллбэк и др.)"
+    }
+  },
+  "%d off": {
+    "value": "%d выкл."
+  },
+  "%d ok": {
+    "value": "%d ок"
+  },
+  "%d packages copied": {
+    "value": {
+      "one": "%d пакет скопирован",
+      "few": "%d пакета скопировано",
+      "many": "%d пакетов скопировано",
+      "other": "%d пакета скопировано"
+    }
+  },
+  "%d packages imported": {
+    "value": {
+      "one": "%d пакет импортирован",
+      "few": "%d пакета импортировано",
+      "many": "%d пакетов импортировано",
+      "other": "%d пакета импортировано"
+    }
+  },
+  "%d ports": {
+    "value": {
+      "one": "%d порт",
+      "few": "%d порта",
+      "many": "%d портов",
+      "other": "%d порта"
+    }
+  },
+  "%d proto": {
+    "value": {
+      "one": "%d протокол",
+      "few": "%d протокола",
+      "many": "%d протоколов",
+      "other": "%d протокола"
+    }
+  },
+  "%d seconds": {
+    "value": {
+      "one": "%d секунда",
+      "few": "%d секунды",
+      "many": "%d секунд",
+      "other": "%d секунды"
+    }
+  },
+  "%d servers": {
+    "value": {
+      "one": "%d сервер",
+      "few": "%d сервера",
+      "many": "%d серверов",
+      "other": "%d сервера"
+    }
+  },
+  "%d src": {
+    "value": {
+      "one": "%d источник",
+      "few": "%d источника",
+      "many": "%d источников",
+      "other": "%d источника"
+    }
+  },
+  "%d suffixes": {
+    "value": {
+      "one": "%d суффикс",
+      "few": "%d суффикса",
+      "many": "%d суффиксов",
+      "other": "%d суффикса"
+    }
+  },
+  "%d unattributed events / 30s — sing-box could not detect the owner package for some DNS/TCP traffic": {
+    "value": {
+      "one": "%d событие без владельца за 30 с — sing-box не смог определить приложение-владельца части DNS/TCP-трафика",
+      "few": "%d события без владельца за 30 с — sing-box не смог определить приложение-владельца части DNS/TCP-трафика",
+      "many": "%d событий без владельца за 30 с — sing-box не смог определить приложение-владельца части DNS/TCP-трафика",
+      "other": "%d события без владельца за 30 с — sing-box не смог определить приложение-владельца части DNS/TCP-трафика"
+    }
+  },
+  "%d wifi": {
+    "value": "%d Wi-Fi"
+  },
+  "%d% of DNS queries failing while the connection is alive — tap to fix": {
+    "value": "%d% DNS-запросов не проходят при живом соединении — нажмите, чтобы исправить"
+  },
+  "%dd ago": {
+    "value": {
+      "one": "%d день назад",
+      "few": "%d дня назад",
+      "many": "%d дней назад",
+      "other": "%d дня назад"
+    }
+  },
+  "%dh ago": {
+    "value": {
+      "one": "%d час назад",
+      "few": "%d часа назад",
+      "many": "%d часов назад",
+      "other": "%d часа назад"
+    }
+  },
+  "%dmo ago": {
+    "value": {
+      "one": "%d месяц назад",
+      "few": "%d месяца назад",
+      "many": "%d месяцев назад",
+      "other": "%d месяца назад"
+    }
+  },
+  "%dw ago": {
+    "value": {
+      "one": "%d неделю назад",
+      "few": "%d недели назад",
+      "many": "%d недель назад",
+      "other": "%d недели назад"
+    }
+  },
+  "%dy ago": {
+    "value": {
+      "one": "%d год назад",
+      "few": "%d года назад",
+      "many": "%d лет назад",
+      "other": "%d года назад"
+    }
+  },
+  "%s (cached)": {
+    "value": "%s (кэш)"
+  },
+  "%s (missing)": {
+    "value": "%s (отсутствует)"
+  },
+  "%s available": {
+    "value": "Доступна %s",
+    "special": {
+      "1": {
+        "value": "Доступна версия %s"
+      }
+    }
+  },
+  "%s chain position(s) removed": {
+    "value": "позиций цепочек убрано: %s"
+  },
+  "%s copied": {
+    "value": "Скопировано: %s"
+  },
+  "%s detour reference(s) reset to None": {
+    "value": "detour-ссылок сброшено в None: %s"
+  },
+  "%s direction option(s) removed": {
+    "value": "опций-Направлений убрано из состава: %s"
+  },
+  "%s of %s servers": {
+    "value": "%s из %s серверов"
+  },
+  "%s rule reference(s) switched to vpn-1": {
+    "value": "ссылок в правилах переключено на vpn-1: %s"
+  },
+  "%s server": {
+    "value": "Сервер %s"
+  },
+  "%s · current session": {
+    "value": "%s · текущая сессия"
+  },
+  "%s · disabled — will be skipped": "%s · выключен — будет пропущен",
+  "%s — tap to edit": {
+    "value": "%s — нажмите, чтобы изменить"
+  },
+  "%s — uninstalled, auto-skipped": {
+    "value": "%s — удалено, пропускается автоматически"
+  },
+  "%s: empty file": {
+    "value": "%s: пустой файл"
+  },
+  "(%d fails)": {
+    "value": {
+      "one": "(%d сбой)",
+      "few": "(%d сбоя)",
+      "many": "(%d сбоев)",
+      "other": "(%d сбоя)"
+    }
+  },
+  "(auto — route DNS)": {
+    "value": "(авто — DNS маршрута)"
+  },
+  "(cached info)": {
+    "value": "(данные из кэша)"
+  },
+  "(connection)": {
+    "value": "(соединение)"
+  },
+  "(content unavailable)": {
+    "value": "(содержимое недоступно)"
+  },
+  "(empty response)": {
+    "value": "(пустой ответ)"
+  },
+  "(empty)": {
+    "value": "(пусто)"
+  },
+  "(event)": {
+    "value": "(событие)"
+  },
+  "(inherit DNS strategy)": {
+    "value": "(наследовать стратегию DNS)"
+  },
+  "(no conditions)": {
+    "value": "(нет условий)"
+  },
+  "(no owner)": {
+    "value": "(без владельца)"
+  },
+  "(recommended)": {
+    "value": "(рекомендуется)"
+  },
+  "(remove)": {
+    "value": "(удалить)"
+  },
+  "(tap to choose)": {
+    "value": "(нажмите, чтобы выбрать)"
+  },
+  "(unnamed rule)": {
+    "value": "(правило без имени)"
+  },
+  "(unsupported var type: %s)": {
+    "value": "(неподдерживаемый тип переменной: %s)"
+  },
+  "0 = keep pool full": {
+    "value": "0 = держать пул полным"
+  },
+  "0 nodes": {
+    "value": "0 узлов"
+  },
+  "0 nodes — %s": {
+    "value": "0 узлов — %s"
+  },
+  "1. Get a subscription URL from your VPN provider, or a direct proxy link (vless://, trojan://, vmess://, ss://…).": {
+    "value": "1. Возьмите у своего VPN-провайдера URL подписки или прямую proxy-ссылку (vless://, trojan://, vmess://, ss://…)."
+  },
+  "192.168.1.1 / dns.example.com": {
+    "value": "192.168.1.1 / dns.example.com"
+  },
+  "192.168.1.1 / dns.example.com / https://… URL": {
+    "value": "192.168.1.1 / dns.example.com / https://… URL"
+  },
+  "1–200": {
+    "value": "1–200"
+  },
+  "2. Paste it into the field above, or tap ⋮ → «Paste from clipboard», «Scan QR code».": {
+    "value": "2. Вставьте её в поле выше или нажмите ⋮ → «Вставить из буфера обмена», «Сканировать QR-код»."
+  },
+  "3. Hit «+». L×Box will fetch, parse and configure — and you can connect from the Home tab.": {
+    "value": "3. Нажмите «+». L×Box загрузит, разберёт и настроит всё сам — подключайтесь с главного экрана."
+  },
+  "A chain is a route through several hops in a row. It joins the pool as a node, so directions can pick it like any server.": {
+    "value": "Цепочка — это маршрут через несколько хопов подряд. В общий пул она попадает узлом, и Направления отбирают её наравне с обычными серверами."
+  },
+  "A chain needs a name — it becomes its tag in the config.": {
+    "value": "Цепочке нужно имя — оно станет её тегом в конфиге."
+  },
+  "A direction with this tag already exists": {
+    "value": "Направление с таким тегом уже есть"
+  },
+  "A disabled chain is not built and cannot be used as a position": {
+    "value": "Выключенная цепочка не собирается и не может стоять позицией"
+  },
+  "A nested chain (%s) is only allowed at the first position — move it to the top or remove it.": {
+    "value": "Вложенная цепочка (%s) допустима только первой позицией — поднимите её наверх или уберите."
+  },
+  "A routing loop was found between groups. Review the loop below and break it, then start again.": {
+    "value": "Обнаружена петля маршрутизации между группами. Просмотрите петлю ниже, разорвите её и запустите снова."
+  },
+  "A server cannot detour through itself": {
+    "value": "Сервер не может идти detour через самого себя"
+  },
+  "ACTIVE": {
+    "value": "АКТИВЕН"
+  },
+  "AND": {
+    "value": "И"
+  },
+  "AND with match. Transport (L4) and L7 sniff.": {
+    "value": "AND с match-условиями. Транспорт (L4) и L7-сниффинг."
+  },
+  "AND. Which interface the packet came in on.": {
+    "value": "AND. Через какой интерфейс пришёл пакет."
+  },
+  "About": {
+    "value": "О приложении"
+  },
+  "Accept automation commands": {
+    "value": "Принимать команды автоматизации"
+  },
+  "Access denied (%d) — check subscription token": {
+    "value": "Доступ запрещён (%d) — проверьте токен подписки"
+  },
+  "Action": {
+    "value": "Действие"
+  },
+  "Action & Resolve": {
+    "value": "Действие и резолв"
+  },
+  "Active": {
+    "value": "Активен"
+  },
+  "Add": {
+    "value": "Добавить"
+  },
+  "Add %d": {
+    "value": "Добавить %d"
+  },
+  "Add Amnezia obfuscation": {
+    "value": "Добавить обфускацию Amnezia"
+  },
+  "Add DNS Rule": {
+    "value": "Добавить DNS-правило"
+  },
+  "Add DNS Server": {
+    "value": "Добавить DNS-сервер"
+  },
+  "Add Wi-Fi network": {
+    "value": "Добавить сеть Wi-Fi"
+  },
+  "Add a server": {
+    "value": "Добавить сервер"
+  },
+  "Add app": {
+    "value": "Добавить приложение"
+  },
+  "Add app from full list": {
+    "value": "Добавить приложение из полного списка"
+  },
+  "Add app to filter": {
+    "value": "Добавить приложение в фильтр"
+  },
+  "Add at least one condition": {
+    "value": "Добавьте хотя бы одно условие"
+  },
+  "Add auto node…": {
+    "value": "Добавить авто-узел…"
+  },
+  "Add by URL…": {
+    "value": "Добавить по URL…"
+  },
+  "Add condition": {
+    "value": "Добавить условие"
+  },
+  "Add detour": {
+    "value": "Добавить detour"
+  },
+  "Add detour servers to proxy groups (visible in node list)": {
+    "value": "Добавлять detour-серверы в прокси-группы (видны в списке узлов)"
+  },
+  "Add direction  (%d)": {
+    "value": "Добавить Направление  (%d)"
+  },
+  "Add from clipboard": {
+    "value": "Добавить из буфера обмена"
+  },
+  "Add hop chain…": {
+    "value": "Добавить цепочку хопов…"
+  },
+  "Add position": {
+    "value": "Добавить позицию"
+  },
+  "Add rule": {
+    "value": "Добавить правило"
+  },
+  "Add server": {
+    "value": "Добавить сервер"
+  },
+  "Add servers": {
+    "value": "Добавить серверы"
+  },
+  "Add servers by URL": {
+    "value": "Добавить серверы по URL"
+  },
+  "Add servers with the + button above, or long-press a standalone server on the Servers screen and choose \"Move to folder…\".": {
+    "value": "Добавьте серверы кнопкой «+» выше или удерживайте отдельный сервер на экране «Серверы» и выберите «Переместить в папку…»."
+  },
+  "Add server…": {
+    "value": "Добавить сервер…"
+  },
+  "Add to Rules": {
+    "value": "Добавить в правила"
+  },
+  "Add to status-bar shade for one-tap toggle. Android 13+ shows a system prompt; on older versions edit the shade manually.": {
+    "value": "Добавьте в шторку, чтобы включать VPN одним нажатием. Android 13+ покажет системный запрос; на старых версиях отредактируйте шторку вручную."
+  },
+  "Add user rule": {
+    "value": "Добавить своё правило"
+  },
+  "Added": {
+    "value": "Добавлено"
+  },
+  "Added \"%s\" to Rules": {
+    "value": "«%s» добавлено в правила"
+  },
+  "Added \"%s\" — tap ☁ to download, then enable": {
+    "value": "Добавлено «%s» — нажмите ☁, чтобы скачать, затем включите"
+  },
+  "Added MASQUE node": {
+    "value": "Добавлен узел MASQUE"
+  },
+  "Added WARP node": {
+    "value": "Узел WARP добавлен"
+  },
+  "Added WARP+ node": {
+    "value": "Узел WARP+ добавлен"
+  },
+  "Added: %s": {
+    "value": "Добавлено: %s"
+  },
+  "Adds new items, keeps existing.": {
+    "value": "Добавляет новое, сохраняет существующее."
+  },
+  "Adds padding traffic so the WireGuard handshake carries no fixed size signature. Enable if the plain tunnel does not connect.": {
+    "value": "Добавляет паддинг-трафик, чтобы у handshake WireGuard не было фиксированной сигнатуры размера. Включите, если обычный туннель не подключается."
+  },
+  "Advanced": {
+    "value": "Дополнительно"
+  },
+  "Advanced DNS options": {
+    "value": "Расширенные настройки DNS"
+  },
+  "Advanced: this rule resolves but does not route. If no later rule matches, traffic goes to Final.": {
+    "value": "Продвинутый режим: правило резолвит, но не маршрутизирует. Если ни одно последующее правило не совпадёт, трафик уйдёт в Final."
+  },
+  "Aggressive battery saving": {
+    "value": "Агрессивная экономия батареи"
+  },
+  "All": {
+    "value": "Все"
+  },
+  "All directions": {
+    "value": "Все Направления"
+  },
+  "All ways to support": {
+    "value": "Все способы поддержки"
+  },
+  "Allocated in total": {
+    "value": "Выделено всего"
+  },
+  "Allow": {
+    "value": "Разрешить"
+  },
+  "Allow VPN bypass": {
+    "value": "Разрешить обход VPN"
+  },
+  "Allow Wi-Fi info": {
+    "value": "Разрешить доступ к Wi-Fi"
+  },
+  "Allow background activity": {
+    "value": "Разрешить фоновую активность"
+  },
+  "Allow notifications": {
+    "value": "Разрешить уведомления"
+  },
+  "Allow rotation": {
+    "value": "Разрешить поворот экрана"
+  },
+  "Allow-list": {
+    "value": "Белый список"
+  },
+  "Allowed — foreground service shows VPN status": {
+    "value": "Разрешены — foreground-сервис показывает статус VPN"
+  },
+  "Already on this device": {
+    "value": "Уже есть на этом устройстве"
+  },
+  "Also put tunnels on the active route (pool members, the selected node) to sleep after a long quiet period — e.g. overnight. The first connection after sleep adds ~1 round trip. Keep this at or above the directions' idle timeout (30 min by default). Requires \"Suspend idle tunnels\" to be on.": {
+    "value": "Усыплять и туннели активного маршрута (члены пула, выбранный узел) после долгого затишья — например, за ночь. Первое соединение после сна будет дольше примерно на один RTT. Держите значение не меньше тайм-аута простоя Направлений (по умолчанию 30 минут). Требует включённой настройки «Усыплять неактивные туннели»."
+  },
+  "AmneziaWG header \"%1$s=%2$s\" is neither a number nor a \"low-high\" range, so it was dropped. The core falls back to the plain WireGuard header and the handshake may not match the server.": {
+    "value": "Заголовок AmneziaWG «%1$s=%2$s» — не число и не диапазон «нижняя-верхняя», поэтому отброшен. Ядро возьмёт обычный заголовок WireGuard, и рукопожатие может не совпасть с сервером."
+  },
+  "AmneziaWG 3 field \"%1$s=%2$s\" is neither a number, an ordered \"low-high\" range nor on/off, so it was dropped. The core uses its default for it.": {
+    "value": "Поле AmneziaWG 3 «%1$s=%2$s» — не число, не упорядоченный диапазон «нижняя-верхняя» и не on/off, поэтому отброшено. Ядро возьмёт своё значение по умолчанию."
+  },
+  "AmneziaWG 3 header protection key is not a 32-byte base64 key, so the node was skipped: the handshake cannot succeed and the core would reject the whole config.": {
+    "value": "Ключ защиты заголовка AmneziaWG 3 — не 32-байтный ключ base64, поэтому узел пропущен: рукопожатие невозможно, а ядро отвергло бы весь конфиг."
+  },
+  "AmneziaWG 3 padding \"%1$s\" is below %2$d, the minimum required by the header protection key, so the node was skipped: the core would reject the whole config.": {
+    "value": "Паддинг AmneziaWG 3 «%1$s» меньше %2$d — минимума, который требует ключ защиты заголовка, поэтому узел пропущен: ядро отвергло бы весь конфиг."
+  },
+  "AmneziaWG 3 random trailers are combined with a wide magic-header range (65536 or more); the server may mistake some upload packets for handshakes and drop them.": {
+    "value": "Случайные хвосты AmneziaWG 3 сочетаются с широким диапазоном magic-заголовков (65536 и больше); сервер может принять часть исходящих пакетов за рукопожатия и отбросить их."
+  },
+  "Android 13+ requires this for SSID. Tap to grant.": {
+    "value": "Android 13+ требует это разрешение для SSID. Нажмите, чтобы выдать."
+  },
+  "Android restricts background activity to save battery. Without an exception, the VPN tunnel may be killed when the screen turns off — your connection drops until you reopen L×Box.\n\nOpen system settings and choose \"Unrestricted\" / \"Not optimized\".": {
+    "value": "Android ограничивает фоновую активность ради экономии батареи. Без исключения туннель VPN может быть закрыт при выключении экрана — связь пропадёт, пока вы снова не откроете L×Box.\n\nОткройте системные настройки и выберите «Без ограничений» / «Не оптимизировать»."
+  },
+  "Another VPN app is currently running. Switch to L×Box?\n\nTo see which app it is, open VPN settings — the active VPN is marked as connected.": {
+    "value": "Сейчас работает VPN другого приложения. Переключиться на L×Box?\n\nЧтобы узнать, какое именно, откройте настройки VPN — активный VPN отмечен как подключённый."
+  },
+  "Another VPN app took the system VPN slot (e.g. an always-on VPN). Start again to reconnect.": {
+    "value": "Другое VPN-приложение заняло системный VPN-слот (например, постоянный VPN). Запустите снова, чтобы переподключиться."
+  },
+  "Another VPN is active": {
+    "value": "Активен другой VPN"
+  },
+  "Answer AAAA (IPv6) queries locally so matched traffic uses IPv4. No DNS server required.": {
+    "value": "Отвечать на AAAA-запросы (IPv6) локально, чтобы совпавший трафик шёл по IPv4. DNS-сервер не нужен."
+  },
+  "Any app on this device will be able to control the VPN via broadcast commands while this is on. Only turn it on if you use Tasker / Macrodroid and understand the implications.": {
+    "value": "Пока эта настройка включена, любое приложение на устройстве сможет управлять VPN через broadcast-команды. Включайте, только если пользуетесь Tasker / MacroDroid и понимаете последствия."
+  },
+  "Any — tap Edit to filter by network / L7 protocol": {
+    "value": "Любой — нажмите «Изменить», чтобы фильтровать по сети / L7-протоколу"
+  },
+  "AnyTLS \"min_idle_session=%s\" is not a non-negative whole number — the setting was dropped and the core default applies.": {
+    "value": "В AnyTLS «min_idle_session=%s» — не целое неотрицательное число, поэтому настройка отброшена; действует значение ядра по умолчанию."
+  },
+  "Anything above is red.": {
+    "value": "Всё, что выше, — красный."
+  },
+  "App": {
+    "value": "Приложение"
+  },
+  "App Settings": {
+    "value": "Настройки приложения"
+  },
+  "App connections": {
+    "value": "Соединения приложений"
+  },
+  "App info (OEM power settings)": {
+    "value": "О приложении (настройки питания OEM)"
+  },
+  "App settings": {
+    "value": "Настройки приложения"
+  },
+  "App version: %s": {
+    "value": "Версия приложения: %s"
+  },
+  "Appearance": {
+    "value": "Внешний вид"
+  },
+  "Append an outbound to the end of the chain": {
+    "value": "Добавить исходящий канал в конец цепочки"
+  },
+  "Applied — %1$d nodes, %2$d disabled": {
+    "value": "Применено — узлов: %1$d, выключено: %2$d"
+  },
+  "Applied — %d nodes": {
+    "value": "Применено — узлов: %d"
+  },
+  "Applied.": {
+    "value": "Применено."
+  },
+  "Applies immediately. Very chatty on live traffic — enable, reproduce, grab the log, disable.": {
+    "value": "Применяется сразу. Очень многословно на живом трафике — включите, воспроизведите, снимите лог, выключите."
+  },
+  "Applies on next connect.": {
+    "value": "Применится при следующем подключении."
+  },
+  "Apply": {
+    "value": "Применить"
+  },
+  "Apply every config change to the running tunnel by itself, so no banner is left to tap. Each apply drops the tunnel for about 3 seconds and kills open connections.": {
+    "value": "Применять любое изменение конфига к работающему туннелю самостоятельно, чтобы не оставалось плашек. Каждое применение рвёт туннель примерно на 3 секунды и обрывает открытые соединения."
+  },
+  "Apply rules": {
+    "value": "Применить правила"
+  },
+  "Apply to %s": {
+    "value": "Применить к %s"
+  },
+  "Applying…": {
+    "value": "Применение…"
+  },
+  "Apps in this list (%d)": {
+    "value": "Приложений в списке: %d"
+  },
+  "Apps may use ConnectivityManager to bypass tun.": {
+    "value": "Приложения могут обходить туннель через ConnectivityManager."
+  },
+  "At least two positions are needed: the core rejects a single-hop chain.": {
+    "value": "Нужно минимум две позиции: цепочку из одного хопа ядро отвергает."
+  },
+  "Auto": {
+    "value": "Авто"
+  },
+  "Auto (recommended)": {
+    "value": "Авто (рекомендуется)"
+  },
+  "Auto-ping after connect": {
+    "value": "Автопинг после подключения"
+  },
+  "Auto-record is off": {
+    "value": "Автозапись выключена"
+  },
+  "Auto-record off. Existing history kept.": {
+    "value": "Автозапись выключена. Существующая история сохранена."
+  },
+  "Auto-record on. Networks added after 5 min of stay.": {
+    "value": "Автозапись включена. Сети добавляются после 5 минут пребывания в них."
+  },
+  "Auto-record visited Wi-Fi networks": {
+    "value": "Запоминать посещённые сети Wi-Fi"
+  },
+  "Auto-restart VPN on settings change": {
+    "value": "Автоперезапуск VPN при смене настроек"
+  },
+  "Auto-start on boot": {
+    "value": "Автозапуск при загрузке"
+  },
+  "Auto-update": {
+    "value": "Автообновление"
+  },
+  "Auto-update subscriptions": {
+    "value": "Автообновление подписок"
+  },
+  "Automation": {
+    "value": "Автоматизация"
+  },
+  "Automation API": {
+    "value": "API автоматизации"
+  },
+  "Available memory": {
+    "value": "Доступно памяти"
+  },
+  "A–Z": {
+    "value": "А–Я"
+  },
+  "BSSID (optional)": {
+    "value": "BSSID (необязательно)"
+  },
+  "Backup & restore": {
+    "value": "Резервное копирование"
+  },
+  "Backup exported (%d bytes)": {
+    "value": "Резервная копия экспортирована (%d байт)"
+  },
+  "Badge in list (regex)": {
+    "value": "Значок в списке (regex)"
+  },
+  "Based on preset": {
+    "value": "На основе пресета"
+  },
+  "Battery optimization": {
+    "value": "Оптимизация батареи"
+  },
+  "Becomes a standalone server": {
+    "value": "Станет отдельным сервером"
+  },
+  "Behavior": {
+    "value": "Поведение"
+  },
+  "Binary profiles (.pb): go tool pprof file.pb\nHeap inuse_space: go tool pprof -inuse_space heap-*.pb": {
+    "value": "Бинарные профили (.pb): go tool pprof file.pb\nHeap inuse_space: go tool pprof -inuse_space heap-*.pb"
+  },
+  "Bind to this device (reserved)": {
+    "value": "Привязать к этому устройству (reserved)"
+  },
+  "Blocked — Android may throttle the VPN service. Tap to allow.": {
+    "value": "Заблокированы — Android может ограничивать VPN-сервис. Нажмите, чтобы разрешить."
+  },
+  "Building config...": {
+    "value": "Сборка конфига…"
+  },
+  "By routing rule": {
+    "value": "По правилам маршрутизации"
+  },
+  "CONNECTIONS (%d)": {
+    "value": "СОЕДИНЕНИЯ (%d)"
+  },
+  "Camera access denied": {
+    "value": "Нет доступа к камере"
+  },
+  "Camera error: %s": {
+    "value": "Ошибка камеры: %s"
+  },
+  "Can't parse response (invalid format)": {
+    "value": "Не удалось разобрать ответ (неверный формат)"
+  },
+  "Cancel": {
+    "value": "Отмена"
+  },
+  "Cannot read Wi-Fi info — try toggling Wi-Fi off/on.": {
+    "value": "Не удалось прочитать данные Wi-Fi — выключите и включите Wi-Fi."
+  },
+  "Cannot read the selected file": {
+    "value": "Не удалось прочитать выбранный файл"
+  },
+  "Caps the VPN core's memory. A cap that is too low keeps the processor busy with garbage collection and heats the phone. Auto sizes the cap to this device's RAM; Off removes the cap but keeps low-memory monitoring. Applies immediately.": {
+    "value": "Ограничивает память ядра VPN. Слишком низкий лимит занимает процессор сборкой мусора и греет телефон. «Авто» подбирает лимит под объём памяти устройства; «Выключено» снимает лимит, но сохраняет контроль нехватки памяти. Применяется сразу."
+  },
+  "Capture %s": {
+    "value": "Снять %s"
+  },
+  "Capture a diagnostic snapshot of the running core and share it. Requires the VPN to be connected.": {
+    "value": "Снять диагностический слепок работающего ядра и поделиться им. Требуется подключённый VPN."
+  },
+  "Capture failed: %s": {
+    "value": "Не удалось снять профиль: %s"
+  },
+  "Capture groups are available as $1, $2 in Replace": {
+    "value": "Группы захвата доступны как $1, $2 в замене"
+  },
+  "Case-sensitive": {
+    "value": "Учитывать регистр"
+  },
+  "Chain is longer than %d hops and was truncated.": {
+    "value": "Цепочка длиннее %d звеньев — лишние отброшены."
+  },
+  "Chain positions (%d)": {
+    "value": {
+      "one": "Позиций в цепочке: %d",
+      "few": "Позиций в цепочке: %d",
+      "many": "Позиций в цепочке: %d",
+      "other": "Позиций в цепочке: %d"
+    }
+  },
+  "Chain target \"%s\" is a group, which cannot be used as a chain hop. The node connects directly.": {
+    "value": "Цель цепочки «%s» — группа, а группа звеном быть не может. Узел подключается напрямую."
+  },
+  "Chain target \"%s\" was not found in the config. The node connects directly.": {
+    "value": "Цель цепочки «%s» в конфиге не найдена. Узел подключается напрямую."
+  },
+  "Chain to \"%s\" would loop back on itself, so it was dropped. The node connects directly.": {
+    "value": "Цепочка на «%s» замкнулась бы в кольцо и была отброшена. Узел подключается напрямую."
+  },
+  "Chains %s are declared below this one — a chain may only reference chains above it. Move them up, or this chain will not build.": {
+    "value": "Цепочки %s объявлены ниже этой — сослаться можно только на цепочку выше по списку. Поднимите их, иначе эта цепочка не соберётся."
+  },
+  "Chains inside the folder get the folder detour appended": {
+    "value": "К цепочкам внутри папки добавляется detour самой папки"
+  },
+  "Chains: %d": {
+    "value": "Цепочек: %d"
+  },
+  "Check": {
+    "value": "Проверка"
+  },
+  "Check failed: %s": {
+    "value": "Не удалось проверить: %s"
+  },
+  "Check for updates": {
+    "value": "Проверять обновления"
+  },
+  "Check for updates on launch": {
+    "value": "Проверять обновления при запуске"
+  },
+  "Check for updates?": {
+    "value": "Проверять обновления?"
+  },
+  "Check now": {
+    "value": "Проверить сейчас"
+  },
+  "Check the filter of: %s — the old prefix is part of a regex construct there and was left as is.": {
+    "value": "Проверьте фильтр: %s — там старый префикс входит в regex-конструкцию и оставлен как есть."
+  },
+  "Choose a file first": {
+    "value": "Сначала выберите файл"
+  },
+  "Choose…": {
+    "value": "Выбрать…"
+  },
+  "Clear": {
+    "value": "Очистить"
+  },
+  "Clear DNS cache": {
+    "value": "Очистить кэш DNS"
+  },
+  "Clear DNS cache?": {
+    "value": "Очистить кэш DNS?"
+  },
+  "Clear all": {
+    "value": "Очистить всё"
+  },
+  "Clear all apps?": {
+    "value": "Очистить список приложений?"
+  },
+  "Clear cached file": {
+    "value": "Удалить кэшированный файл"
+  },
+  "Clear cached files": {
+    "value": "Удалить кэшированные файлы"
+  },
+  "Client subnet": {
+    "value": "Подсеть клиента"
+  },
+  "ClientHello fingerprint is stripped, but these positions are reality nodes that need it: %s. The core will not start — untick tls.utls.": {
+    "value": "Отпечаток ClientHello снят, но эти позиции — reality-узлы, которым он нужен: %s. Ядро не стартует — снимите галку tls.utls."
+  },
+  "ClientHello fingerprint — must not be stripped on reality nodes": {
+    "value": "Отпечаток ClientHello — на reality-узлах снимать нельзя"
+  },
+  "ClientHello fragmentation": {
+    "value": "фрагментация ClientHello"
+  },
+  "Clipboard is empty": {
+    "value": "Буфер обмена пуст"
+  },
+  "Close": {
+    "value": "Закрыть"
+  },
+  "Close all": {
+    "value": "Закрыть все"
+  },
+  "Close filters": {
+    "value": "Закрыть фильтры"
+  },
+  "Closed %d connections": {
+    "value": {
+      "one": "Закрыто %d соединение",
+      "few": "Закрыто %d соединения",
+      "many": "Закрыто %d соединений",
+      "other": "Закрыто %d соединения"
+    }
+  },
+  "Closed kept 30s (tap to keep all)": {
+    "value": "Закрытые хранятся 30 с (нажмите, чтобы хранить все)"
+  },
+  "Command": {
+    "value": "Команда"
+  },
+  "Command receiver": {
+    "value": "Приём команд"
+  },
+  "Commands (intent actions)": {
+    "value": "Команды (intent actions)"
+  },
+  "Compact": {
+    "value": "Кратко"
+  },
+  "Complete": {
+    "value": "Готово"
+  },
+  "Condition needs a value": {
+    "value": "У условия должно быть значение"
+  },
+  "Conditions": {
+    "value": "Условия"
+  },
+  "Config": {
+    "value": "Конфиг"
+  },
+  "Config Editor": {
+    "value": "Редактор конфига"
+  },
+  "Config changed — restart VPN to apply": {
+    "value": "Конфиг изменён — перезапустите VPN, чтобы применить"
+  },
+  "Config copied": {
+    "value": "Конфиг скопирован"
+  },
+  "Config generated: %d nodes": {
+    "value": {
+      "one": "Конфиг собран: %d узел",
+      "few": "Конфиг собран: %d узла",
+      "many": "Конфиг собран: %d узлов",
+      "other": "Конфиг собран: %d узла"
+    }
+  },
+  "Config invalid (%1$d issues): %2$s": {
+    "value": {
+      "one": "Конфиг некорректен (%1$d проблема): %2$s",
+      "few": "Конфиг некорректен (%1$d проблемы): %2$s",
+      "many": "Конфиг некорректен (%1$d проблем): %2$s",
+      "other": "Конфиг некорректен (%1$d проблемы): %2$s"
+    }
+  },
+  "Config invalid: %s": {
+    "value": "Конфиг некорректен: %s"
+  },
+  "Config is empty": {
+    "value": "Конфиг пуст"
+  },
+  "Config loading error": {
+    "value": "Ошибка загрузки конфига"
+  },
+  "Config locked. UI actions will not rebuild config.": {
+    "value": "Конфиг заблокирован. Действия в UI не пересобирают конфиг."
+  },
+  "Config rebuilt: %d nodes": {
+    "value": {
+      "one": "Конфиг пересобран: %d узел",
+      "few": "Конфиг пересобран: %d узла",
+      "many": "Конфиг пересобран: %d узлов",
+      "other": "Конфиг пересобран: %d узла"
+    }
+  },
+  "Config rebuilt: %d nodes — reloading VPN": {
+    "value": {
+      "one": "Конфиг пересобран: %d узел — перезагружаю VPN",
+      "few": "Конфиг пересобран: %d узла — перезагружаю VPN",
+      "many": "Конфиг пересобран: %d узлов — перезагружаю VPN",
+      "other": "Конфиг пересобран: %d узла — перезагружаю VPN"
+    }
+  },
+  "Config rebuilt: %d nodes — restart VPN to apply": {
+    "value": {
+      "one": "Конфиг пересобран: %d узел — перезапустите VPN, чтобы применить",
+      "few": "Конфиг пересобран: %d узла — перезапустите VPN, чтобы применить",
+      "many": "Конфиг пересобран: %d узлов — перезапустите VPN, чтобы применить",
+      "other": "Конфиг пересобран: %d узла — перезапустите VPN, чтобы применить"
+    }
+  },
+  "Config regenerated & applied: %d nodes": {
+    "value": {
+      "one": "Конфиг пересобран и применён: %d узел",
+      "few": "Конфиг пересобран и применён: %d узла",
+      "many": "Конфиг пересобран и применён: %d узлов",
+      "other": "Конфиг пересобран и применён: %d узла"
+    }
+  },
+  "Config regenerated: %d nodes": {
+    "value": {
+      "one": "Конфиг пересобран: %d узел",
+      "few": "Конфиг пересобран: %d узла",
+      "many": "Конфиг пересобран: %d узлов",
+      "other": "Конфиг пересобран: %d узла"
+    }
+  },
+  "Config saved": {
+    "value": "Конфиг сохранён"
+  },
+  "Config unlocked. Next UI action will rebuild from settings.": {
+    "value": "Конфиг разблокирован. Следующее действие в UI пересоберёт его из настроек."
+  },
+  "Config variables": {
+    "value": "Переменные конфига"
+  },
+  "Config wizard and parser reference": {
+    "value": "Референс визарда конфига и парсера"
+  },
+  "Connect a subscription or add a node manually to get started.": {
+    "value": "Подключите подписку или добавьте узел вручную, чтобы начать."
+  },
+  "Connect to the proxy over TLS. Advanced TLS options (SNI, ALPN) can be edited later via node JSON.": {
+    "value": "Подключаться к прокси по TLS. Тонкие настройки TLS (SNI, ALPN) можно изменить позже через JSON узла."
+  },
+  "Connected": {
+    "value": "Подключено"
+  },
+  "Connected to %s from inside the tunnel": {
+    "value": "Соединение изнутри туннеля — с %s"
+  },
+  "Connecting…": {
+    "value": "Подключение…"
+  },
+  "Connection lost — VPN tunnel is not responding": {
+    "value": "Соединение потеряно — VPN-туннель не отвечает"
+  },
+  "Connection timed out": {
+    "value": "Тайм-аут подключения"
+  },
+  "Conns": {
+    "value": "Соед."
+  },
+  "Continue": {
+    "value": "Продолжить"
+  },
+  "Control L×Box from Tasker / Macrodroid / Llama and other automation apps via Android broadcast intents.": {
+    "value": "Управляйте L×Box из Tasker / MacroDroid / Llama и других приложений автоматизации через broadcast-интенты Android."
+  },
+  "Copied": {
+    "value": "Скопировано"
+  },
+  "Copied to clipboard": {
+    "value": "Скопировано в буфер обмена"
+  },
+  "Copied: %s": {
+    "value": "Скопировано: %s"
+  },
+  "Copy": {
+    "value": "Копировать"
+  },
+  "Copy JSON": {
+    "value": "Копировать JSON"
+  },
+  "Copy JSON to clipboard": {
+    "value": "Копировать JSON в буфер обмена"
+  },
+  "Copy URI": {
+    "value": "Копировать URI"
+  },
+  "Copy URL": {
+    "value": "Копировать URL"
+  },
+  "Copy detour": {
+    "value": "Копировать detour"
+  },
+  "Copy headers": {
+    "value": "Копировать заголовки"
+  },
+  "Copy log": {
+    "value": "Копировать лог"
+  },
+  "Copy node info": {
+    "value": "Копировать данные узла"
+  },
+  "Copy server JSON": {
+    "value": "Копировать JSON сервера"
+  },
+  "Copy source": {
+    "value": "Копировать источник"
+  },
+  "Copy tag": {
+    "value": "Копировать тег"
+  },
+  "Copy to clipboard": {
+    "value": "Копировать в буфер обмена"
+  },
+  "Core": {
+    "value": "Ядро"
+  },
+  "Core log at snapshot time": {
+    "value": "Лог ядра на момент снимка"
+  },
+  "Core version": {
+    "value": "Версия ядра"
+  },
+  "Could not clear DNS cache": {
+    "value": "Не удалось очистить кэш DNS"
+  },
+  "Could not parse direct link": {
+    "value": "Не удалось разобрать прямую ссылку"
+  },
+  "Could not parse server config — keeping current": {
+    "value": "Не удалось разобрать конфиг сервера — оставлен текущий"
+  },
+  "Could not read current Wi-Fi (%s).": {
+    "value": "Не удалось определить текущую сеть Wi-Fi (%s)."
+  },
+  "Could not read file.": {
+    "value": "Не удалось прочитать файл."
+  },
+  "Couldn't load new source — keeping current subscription": {
+    "value": "Не удалось загрузить новый источник — текущая подписка сохранена"
+  },
+  "Couldn't stop the VPN — try again.": {
+    "value": "Не удалось остановить VPN — попробуйте ещё раз."
+  },
+  "Crashes": {
+    "value": "Падения"
+  },
+  "Create": {
+    "value": "Создать"
+  },
+  "Created: %s": {
+    "value": "Создана: %s"
+  },
+  "Credits": {
+    "value": "Благодарности"
+  },
+  "Cumulative delay to each hop; (+X) is what that hop added.": {
+    "value": "Накопленная задержка до каждого хопа; (+X) — сколько добавил этот хоп."
+  },
+  "Custom": {
+    "value": "Вручную"
+  },
+  "Custom User-Agent": {
+    "value": "Свой User-Agent"
+  },
+  "Custom identity": {
+    "value": "Своя идентификация"
+  },
+  "Custom rules, tun apps, DNS options, final outbound": {
+    "value": "Свои правила, приложения туннеля, параметры DNS, финальный исходящий канал"
+  },
+  "Custom server type \"%s\" — edit it on the JSON tab. The form supports UDP / DoT / DoH / DoQ / DoH3.": {
+    "value": "Нестандартный тип сервера «%s» — правьте его на вкладке JSON. Форма поддерживает UDP / DoT / DoH / DoQ / DoH3."
+  },
+  "Cut": {
+    "value": "Вырезать"
+  },
+  "DNS / router events off": {
+    "value": "События DNS и роутера выключены"
+  },
+  "DNS Final": {
+    "value": "Финальный DNS"
+  },
+  "DNS Rules": {
+    "value": "DNS-правила"
+  },
+  "DNS Servers": {
+    "value": "DNS-серверы"
+  },
+  "DNS Settings": {
+    "value": "Настройки DNS"
+  },
+  "DNS cache cleared": {
+    "value": "Кэш DNS очищен"
+  },
+  "DNS cache cleared — reloading": {
+    "value": "Кэш DNS очищен — перезагрузка"
+  },
+  "DNS entries: %d": {
+    "value": "DNS-записей: %d"
+  },
+  "DNS group \"%1$s\": member \"%2$s\" of type \"%3$s\" is not allowed in a group.": "DNS-группа «%1$s»: член «%2$s» типа «%3$s» недопустим в группе.",
+  "DNS group \"%s\" has no usable members — enable or add at least one server.": "DNS-группа «%s» осталась без рабочих членов — включите или добавьте хотя бы один сервер.",
+  "DNS group loop: %s — fix group membership to start the VPN.": "Цикл DNS-групп: %s — исправьте состав групп, чтобы запустить VPN.",
+  "DNS queries are failing": {
+    "value": "DNS-запросы не проходят"
+  },
+  "DNS server": {
+    "value": "DNS-сервер"
+  },
+  "DNS server \"%1$s\" routes through dead node \"%2$s\" (selected in \"%3$s\").": {
+    "value": "DNS-сервер \"%1$s\" ходит через мёртвый узел \"%2$s\" (выбран в \"%3$s\")."
+  },
+  "DNS server \"%1$s\" routes through dead node \"%2$s\".": {
+    "value": "DNS-сервер \"%1$s\" ходит через мёртвый узел \"%2$s\"."
+  },
+  "DNS server \"%s\" not found — DNS option disabled": {
+    "value": "DNS-сервер «%s» не найден — DNS-опция выключена"
+  },
+  "DNS server \"%s\" not found — resolver set to auto": {
+    "value": "DNS-сервер «%s» не найден — резолвер сброшен в авто"
+  },
+  "DNS server — direct detour": {
+    "value": "DNS-сервер — прямой detour"
+  },
+  "DNS server — via \"%1$s\"": {
+    "value": "DNS-сервер — через \"%1$s\""
+  },
+  "DNS servers and rules": {
+    "value": "DNS-серверы и правила"
+  },
+  "DNS-over-HTTP/3 · port 443": {
+    "value": "DNS-over-HTTP/3 · порт 443"
+  },
+  "DNS-over-HTTPS · port 443": {
+    "value": "DNS-over-HTTPS · порт 443"
+  },
+  "DNS-over-QUIC · port 853": {
+    "value": "DNS-over-QUIC · порт 853"
+  },
+  "DNS-over-TLS · port 853": {
+    "value": "DNS-over-TLS · порт 853"
+  },
+  "Debug": {
+    "value": "Отладка"
+  },
+  "Debug API": {
+    "value": "Debug API"
+  },
+  "Debug API config": {
+    "value": "Конфигурация Debug API"
+  },
+  "Decode base64": {
+    "value": "Раскодировать base64"
+  },
+  "Default": {
+    "value": "По умолчанию"
+  },
+  "Default (regex)": {
+    "value": "Узел по умолчанию (regex)"
+  },
+  "Default Domain Resolver": {
+    "value": "Резолвер доменов по умолчанию"
+  },
+  "Default fallback DNS server. Used when an app makes a DNS query and no DNS rule above matches it. Every app DNS query that isn't routed by a rule ends up here.\n\nRecommended:\n  • dns_shield — default; races 9 providers, answers from whichever replies first\n  • google_doh — encrypted (DoH)\n  • cloudflare_dot / google_dot — encrypted (DoT)\n  • cloudflare_udp / google_udp — fast plain UDP\n\nlocal_dns_resolver works but reveals queries to your ISP. Encrypted options keep them private.": {
+    "value": "Резервный DNS-сервер по умолчанию. Используется, когда DNS-запрос приложения не совпал ни с одним DNS-правилом выше. Сюда попадает каждый запрос приложений, не направленный правилом.\n\nРекомендуется:\n  • dns_shield — по умолчанию; опрашивает 9 провайдеров наперегонки, отвечает тот, кто первым откликнулся\n  • google_doh — шифрованный (DoH)\n  • cloudflare_dot / google_dot — шифрованные (DoT)\n  • cloudflare_udp / google_udp — быстрый обычный UDP\n\nlocal_dns_resolver работает, но раскрывает запросы вашему провайдеру. Шифрованные варианты сохраняют их приватность."
+  },
+  "Default traffic": {
+    "value": "Трафик по умолчанию"
+  },
+  "Default · %s": {
+    "value": "По умолчанию · %s"
+  },
+  "Delete": {
+    "value": "Удалить"
+  },
+  "Delete DNS server?": {
+    "value": "Удалить DNS-сервер?"
+  },
+  "Delete all": {
+    "value": "Удалить все"
+  },
+  "Delete all OOM reports": {
+    "value": "Удалить все отчёты OOM"
+  },
+  "Delete all OOM reports?": {
+    "value": "Удалить все отчёты OOM?"
+  },
+  "Delete auto node?": {
+    "value": "Удалить авто-узел?"
+  },
+  "Delete direction": {
+    "value": "Удалить Направление"
+  },
+  "Delete direction?": {
+    "value": "Удалить Направление?"
+  },
+  "Delete folder": {
+    "value": "Удалить папку"
+  },
+  "Delete folder & servers": {
+    "value": "Удалить папку и серверы"
+  },
+  "Delete folder?": {
+    "value": "Удалить папку?"
+  },
+  "Delete hop chain": {
+    "value": "Удалить цепочку"
+  },
+  "Delete hop chain?": {
+    "value": "Удалить цепочку?"
+  },
+  "Delete rule": {
+    "value": "Удалить правило"
+  },
+  "Delete rule?": {
+    "value": "Удалить правило?"
+  },
+  "Delete server": {
+    "value": "Удалить сервер"
+  },
+  "Delete server?": {
+    "value": "Удалить сервер?"
+  },
+  "Delete subscription?": {
+    "value": "Удалить подписку?"
+  },
+  "Delete unreachable": {
+    "value": "Удалить недоступные"
+  },
+  "Delete unreachable?": {
+    "value": "Удалить недоступные?"
+  },
+  "Delete…": {
+    "value": "Удалить…"
+  },
+  "Deny-list": {
+    "value": "Чёрный список"
+  },
+  "Dependents": {
+    "value": "Зависимые"
+  },
+  "Description": {
+    "value": "Описание"
+  },
+  "Deselect all": {
+    "value": "Снять выбор"
+  },
+  "Detected: %s": {
+    "value": "Обнаружено: %s"
+  },
+  "Detour": {
+    "value": "Detour"
+  },
+  "Detour hidden": {
+    "value": "Detour скрыты"
+  },
+  "Detour only": {
+    "value": "Только detour"
+  },
+  "Detour server": {
+    "value": "Detour-сервер"
+  },
+  "Detour servers": {
+    "value": "Detour-серверы"
+  },
+  "Developer": {
+    "value": "Для разработчика"
+  },
+  "Diagnostics": {
+    "value": "Диагностика"
+  },
+  "Diagnostics settings": {
+    "value": "Настройки диагностики"
+  },
+  "Direct (no VPN)": {
+    "value": "Напрямую (без VPN)"
+  },
+  "Direction": {
+    "value": "Направление"
+  },
+  "Direction \"%1$s\" %2$s": {
+    "value": "Направление «%1$s» %2$s"
+  },
+  "Direction \"%s\" is no longer a detour target": {
+    "value": "Направление «%s» больше не является detour-целью"
+  },
+  "Direction \"%s\" matched no nodes — check its node filter.": {
+    "value": "Направление «%s» не нашло ни одного узла — проверьте его фильтр узлов."
+  },
+  "Direction \"%s\" not found — set to %s, rule disabled": {
+    "value": "Направление «%s» не найдено — заменено на %s, правило выключено"
+  },
+  "Direction filters updated to the new prefix: %s": {
+    "value": "Фильтры Направлений обновлены под новый префикс: %s"
+  },
+  "Directions": {
+    "value": "Направления"
+  },
+  "Directions and routing rules": {
+    "value": "Направления и правила маршрутизации"
+  },
+  "Directions: %d": {
+    "value": "Направлений: %d"
+  },
+  "Disable": {
+    "value": "Выключить"
+  },
+  "Disable %d servers that failed the test?": {
+    "value": {
+      "one": "Выключить %d сервер, не прошедший тест?",
+      "few": "Выключить %d сервера, не прошедших тест?",
+      "many": "Выключить %d серверов, не прошедших тест?",
+      "other": "Выключить %d сервера, не прошедших тест?"
+    }
+  },
+  "Disable battery restrictions": {
+    "value": "Отключить ограничения батареи"
+  },
+  "Disable cache": {
+    "value": "Отключить кэш"
+  },
+  "Disable optimistic cache": {
+    "value": "Отключить оптимистичный кэш"
+  },
+  "Disable slow servers": {
+    "value": "Выключить медленные серверы"
+  },
+  "Disable slower than…": {
+    "value": "Выключить медленнее чем…"
+  },
+  "Disable unreachable": {
+    "value": "Отключить недоступные"
+  },
+  "Disabled %1$d servers > %2$d ms": {
+    "value": {
+      "one": "Выключен %1$d сервер > %2$d мс",
+      "few": "Выключены %1$d сервера > %2$d мс",
+      "many": "Выключено %1$d серверов > %2$d мс",
+      "other": "Выключено %1$d сервера > %2$d мс"
+    }
+  },
+  "Discard": {
+    "value": "Не сохранять"
+  },
+  "Discard input?": {
+    "value": "Сбросить ввод?"
+  },
+  "Discard the override and restore the %1$s definition of \"%2$s\"?": {
+    "value": "Отменить переопределение и восстановить %1$s-определение «%2$s»?"
+  },
+  "Disconnected": {
+    "value": "Отключено"
+  },
+  "Dismiss": {
+    "value": "Скрыть"
+  },
+  "Display name": {
+    "value": "Отображаемое имя"
+  },
+  "Display name in node list": {
+    "value": "Отображаемое имя в списке узлов"
+  },
+  "Do nothing": {
+    "value": "Ничего не делать"
+  },
+  "Do nothing — apply on next rebuild": {
+    "value": "Ничего не делать — применится при следующей пересборке"
+  },
+  "Documentation and Tasker recipes": {
+    "value": "Документация и рецепты для Tasker"
+  },
+  "Domain": {
+    "value": "Домен"
+  },
+  "Domain (below) is visible on the wire as the %s.": {
+    "value": "Домен (ниже) виден в трафике как %s."
+  },
+  "Domain resolver": {
+    "value": "Резолвер домена"
+  },
+  "Don't auto-update": {
+    "value": "Не обновлять автоматически"
+  },
+  "Don't auto-update (manual only)": {
+    "value": "Не обновлять автоматически (только вручную)"
+  },
+  "Don't use detour servers": {
+    "value": "Не использовать detour-серверы"
+  },
+  "Done": {
+    "value": "Готово"
+  },
+  "Download": {
+    "value": "Загрузка"
+  },
+  "Downloaded \"%2$s\" (%1$d rule-sets)": {
+    "value": {
+      "one": "Скачан «%2$s» (%1$d rule-set)",
+      "few": "Скачан «%2$s» (%1$d rule-set)",
+      "many": "Скачан «%2$s» (%1$d rule-set)",
+      "other": "Скачан «%2$s» (%1$d rule-set)"
+    }
+  },
+  "Downloaded \"%s\"": {
+    "value": "Скачан «%s»"
+  },
+  "Drop active connections when you switch nodes, so traffic moves to the new node immediately": {
+    "value": "Сбрасывать активные соединения при переключении узла, чтобы трафик сразу пошёл через новый узел"
+  },
+  "Drop existing detours — every member connects through this outbound": {
+    "value": "Сбросить существующие detour — каждый член папки подключается через этот исходящий канал"
+  },
+  "Drop existing detours — every node connects through this outbound": {
+    "value": "Сбросить существующие detour — каждый узел подключается через этот исходящий канал"
+  },
+  "Each source signs the app with its own key, so builds from different sources do not install over each other. To switch: back up your settings, uninstall L×Box, install it from the new source and restore the backup.": {
+    "value": "Каждый источник подписывает приложение своим ключом, поэтому сборки из разных источников не ставятся друг поверх друга. Чтобы перейти: сделайте резервную копию настроек, удалите L×Box, установите из нового источника и восстановите копию."
+  },
+  "ECH is not applied: \"%s\" from the link points to a public ECH probe, not to this server — enabling it would break the TLS handshake.": {
+    "value": "ECH не применён: «%s» из ссылки указывает на публичный ECH-пробник, а не на этот сервер — включение сломало бы TLS-рукопожатие."
+  },
+  "Edit": {
+    "value": "Изменить"
+  },
+  "Edit DNS Rule": {
+    "value": "Изменить DNS-правило"
+  },
+  "Edit DNS Server": {
+    "value": "Изменить DNS-сервер"
+  },
+  "Edit auto node": {
+    "value": "Настройка авто-узла"
+  },
+  "Edit direction · %s": {
+    "value": "Изменить Направление · %s"
+  },
+  "Edit rule": {
+    "value": "Изменить правило"
+  },
+  "Edit server": {
+    "value": "Изменить сервер"
+  },
+  "Edit source": {
+    "value": "Изменить источник"
+  },
+  "Edit source…": {
+    "value": "Изменить источник…"
+  },
+  "Edit tag, detour, and all server parameters": {
+    "value": "Правка тега, detour и всех параметров сервера"
+  },
+  "Edit…": {
+    "value": "Изменить…"
+  },
+  "Emitting events outward": {
+    "value": "Отправка событий наружу"
+  },
+  "Empty folder": {
+    "value": "Пустая папка"
+  },
+  "Empty reuses the condition pattern": {
+    "value": "Пусто — берётся шаблон из условия"
+  },
+  "Enable": {
+    "value": "Включить"
+  },
+  "Enable FakeIP": {
+    "value": "Включить FakeIP"
+  },
+  "Enable command receiver?": {
+    "value": "Включить приём команд?"
+  },
+  "Enable import rules": {
+    "value": "Включить правила импорта"
+  },
+  "Enable it in Settings → Diagnostics to grow this list as you stay on Wi-Fi networks.": {
+    "value": "Включите её в Настройки → Диагностика, чтобы список пополнялся, пока вы находитесь в сетях Wi-Fi."
+  },
+  "Enable rules in Filters will turn these nodes back on at the next update.": {
+    "value": "Enable-правила во вкладке Filters снова включат эти ноды при следующем обновлении."
+  },
+  "Enabled": {
+    "value": "Включён"
+  },
+  "Enabled directions appear in the selector on the home screen. Tap a direction to edit its nodes, filter and auto twin.": {
+    "value": "Включённые Направления появляются в селекторе на главном экране. Нажмите на Направление, чтобы настроить его узлы, фильтр и auto-двойник."
+  },
+  "Enabling this category lets other apps receive L×Box events.\n\nEvents do NOT contain subscription / config secrets — only labels (node tags, group names, status).": {
+    "value": "Если включить эту категорию, другие приложения смогут получать события L×Box.\n\nСобытия НЕ содержат секретов подписок и конфига — только метки (теги узлов, имена групп, статус)."
+  },
+  "Endpoint": {
+    "value": "Адрес"
+  },
+  "Endpoint IP": {
+    "value": "Endpoint IP"
+  },
+  "Endpoint pool (JSON) — IP blocks, ports and SNI the generator draws from. Edit to test your own ranges.": {
+    "value": "Пул эндпоинтов (JSON) — блоки IP, порты и SNI, из которых генератор берёт узлы. Правьте, чтобы протестировать свои диапазоны."
+  },
+  "Enter a valid http(s):// URL": {
+    "value": "Введите корректный URL вида http(s)://"
+  },
+  "Error": {
+    "value": "Ошибка"
+  },
+  "Error TTL": "TTL ошибки",
+  "Error: %s": {
+    "value": "Ошибка: %s"
+  },
+  "Events with no owning app": {
+    "value": "События, у которых не определено приложение"
+  },
+  "Every %d h": {
+    "value": "Каждые %d ч"
+  },
+  "Every 2 weeks": {
+    "value": "Каждые 2 недели"
+  },
+  "Every 6 months": {
+    "value": "Каждые 6 месяцев"
+  },
+  "Every day": {
+    "value": "Каждый день"
+  },
+  "Every month": {
+    "value": "Каждый месяц"
+  },
+  "Every week": {
+    "value": "Каждую неделю"
+  },
+  "Every year": {
+    "value": "Каждый год"
+  },
+  "Exclude (regex)": {
+    "value": "Исключить (regex)"
+  },
+  "Exclude matching (invert)": {
+    "value": "Исключить совпадающие (инверсия)"
+  },
+  "Expired": {
+    "value": "срок истёк"
+  },
+  "Expires: %s": {
+    "value": "Истекает: %s"
+  },
+  "Export": {
+    "value": "Экспорт"
+  },
+  "Export (+%d DNS)": {
+    "value": "Экспорт (+%d DNS)"
+  },
+  "Export JSON copied": {
+    "value": "JSON экспорта скопирован"
+  },
+  "Export events": {
+    "value": "Экспорт событий"
+  },
+  "Export failed: %s": {
+    "value": "Не удалось экспортировать: %s"
+  },
+  "Export rules": {
+    "value": "Экспорт правил"
+  },
+  "Export rules...": {
+    "value": "Экспортировать правила…"
+  },
+  "Export subscriptions, routing setup and preferences as JSON.": {
+    "value": "Экспорт подписок, маршрутизации и настроек в JSON."
+  },
+  "Export to clipboard": {
+    "value": "Экспорт в буфер обмена"
+  },
+  "Export without DNS": {
+    "value": "Экспорт без DNS"
+  },
+  "Export...": {
+    "value": "Экспорт…"
+  },
+  "Exposed on http://127.0.0.1:%d (adb forward only)": {
+    "value": "Доступен на http://127.0.0.1:%d (только через adb forward)"
+  },
+  "Extended": {
+    "value": "Полностью"
+  },
+  "Fail count reset, retrying…": {
+    "value": "Счётчик сбоев сброшен, повторяем…"
+  },
+  "Failed": {
+    "value": "Сбой",
+    "special": {
+      "1": {
+        "value": "Ошибка"
+      }
+    }
+  },
+  "Failed (%d in a row)": {
+    "value": {
+      "one": "Ошибка (%d раз подряд)",
+      "few": "Ошибка (%d раза подряд)",
+      "many": "Ошибка (%d раз подряд)",
+      "other": "Ошибка (%d раза подряд)"
+    }
+  },
+  "Failed to close connections (tunnel down?)": {
+    "value": "Не удалось закрыть соединения (туннель выключен?)"
+  },
+  "Failed to download \"%s\" — check URL/network": {
+    "value": "Не удалось скачать «%s» — проверьте URL и сеть"
+  },
+  "Failed to download SRS for \"%s\". Check internet and try again.": {
+    "value": "Не удалось скачать SRS для «%s». Проверьте интернет и повторите."
+  },
+  "Failed to parse config": {
+    "value": "Не удалось разобрать конфиг"
+  },
+  "Failed to parse config: %s": {
+    "value": "Не удалось разобрать конфиг: %s"
+  },
+  "Failed to read file": {
+    "value": "Не удалось прочитать файл"
+  },
+  "Failed to read file: %s": {
+    "value": "Не удалось прочитать файл: %s"
+  },
+  "Failed to save config": {
+    "value": "Не удалось сохранить конфиг"
+  },
+  "Failed to start VPN": {
+    "value": "Не удалось запустить VPN"
+  },
+  "Fallback for unmatched traffic (route.final)": {
+    "value": "Куда идёт несовпавший трафик (route.final)"
+  },
+  "Fastest": {
+    "value": "Самый быстрый"
+  },
+  "Fastest — race, then stick to the winner": "Fastest — гонка, затем липнет к победителю",
+  "Feedback": {
+    "value": "Отклик"
+  },
+  "Fetch": {
+    "value": "Загрузить"
+  },
+  "Fetch failed: %s": {
+    "value": "Не удалось загрузить: %s"
+  },
+  "Fetch identity": {
+    "value": "Идентификация запросов"
+  },
+  "Fetched once — servers are added as a snapshot and won't auto-update. For live updates add a subscription instead.": {
+    "value": "Загружается один раз — серверы добавляются как снимок и не будут обновляться автоматически. Для живых обновлений добавьте подписку."
+  },
+  "Fetching...": {
+    "value": "Загрузка…"
+  },
+  "Fetching…": {
+    "value": "Загрузка…"
+  },
+  "File error: %s": {
+    "value": "Ошибка файла: %s"
+  },
+  "File is empty": {
+    "value": "Файл пуст"
+  },
+  "File is too large to edit on device. Share it, edit externally, then load it back.": {
+    "value": "Файл слишком большой для правки на устройстве. Поделитесь им, отредактируйте во внешнем редакторе и загрузите обратно."
+  },
+  "Fill missing": {
+    "value": "Дополнить недостающие"
+  },
+  "Fill missing → %s": {
+    "value": "Дополнить недостающие → %s"
+  },
+  "Filter": {
+    "value": "Фильтр"
+  },
+  "Filter (%d)": {
+    "value": "Фильтр (%d)"
+  },
+  "Filter by text…": {
+    "value": "Фильтр по тексту…"
+  },
+  "Filter events": {
+    "value": "Фильтр событий"
+  },
+  "Filters": {
+    "value": "Фильтры"
+  },
+  "Find inside the value": {
+    "value": "Искать внутри значения"
+  },
+  "Find these toggles": {
+    "value": "Где искать переключатели"
+  },
+  "Finish the rule to see what it matches.": {
+    "value": "Дозаполните правило, чтобы увидеть совпадения."
+  },
+  "Fix body JSON first: %s": {
+    "value": "Сначала исправьте JSON тела: %s"
+  },
+  "Flow \"%s\" is deprecated.": {
+    "value": "Flow «%s» устарел."
+  },
+  "Flow \"xtls-rprx-vision\" is incompatible with \"%s\" transport — flow dropped.": {
+    "value": "Flow «xtls-rprx-vision» несовместим с транспортом «%s» — flow убран."
+  },
+  "Flush FakeIP allocations and cached DNS responses. Reloads the VPN if running.": {
+    "value": "Сбросить выделения FakeIP и закэшированные DNS-ответы. Перезагружает VPN, если он работает."
+  },
+  "Folder \"%2$s\" contains %1$d servers.": {
+    "value": {
+      "one": "В папке «%2$s» %1$d сервер.",
+      "few": "В папке «%2$s» %1$d сервера.",
+      "many": "В папке «%2$s» %1$d серверов.",
+      "other": "В папке «%2$s» %1$d сервера."
+    }
+  },
+  "Folder has no servers yet": {
+    "value": "В папке пока нет серверов"
+  },
+  "Folder is empty": {
+    "value": "Папка пуста"
+  },
+  "Folder name": {
+    "value": "Имя папки"
+  },
+  "Folder not found": {
+    "value": "Папка не найдена"
+  },
+  "For apps · default fallback when no DNS rule matches": {
+    "value": "Для приложений · резервный вариант, когда ни одно DNS-правило не совпало"
+  },
+  "For command confirmations, enable both Lifecycle and State: success arrives in State, failures as VPN_ERROR in Lifecycle.": {
+    "value": "Для подтверждения команд включите обе категории — Lifecycle и State: успех приходит в State, ошибки — как VPN_ERROR в Lifecycle."
+  },
+  "For routing · resolves hostnames inside sing-box (outbound endpoints, routing rules)": {
+    "value": "Для маршрутизации · резолвит имена хостов внутри sing-box (адреса исходящих серверов, правила маршрутизации)"
+  },
+  "Force IPv4 (drop AAAA)": {
+    "value": "Принудительно IPv4 (отбрасывать AAAA)"
+  },
+  "Forward sing-box logs": {
+    "value": "Пересылать логи sing-box"
+  },
+  "From %s %s": {
+    "value": "Из %s %s"
+  },
+  "From routing rules · ordered as in Routing": {
+    "value": "Из правил маршрутизации · порядок как в «Маршрутизации»"
+  },
+  "GC cycles": {
+    "value": "Циклов GC"
+  },
+  "GET requires packet-up mode": {
+    "value": "GET требует режима packet-up"
+  },
+  "General": {
+    "value": "Общие"
+  },
+  "Generate random": {
+    "value": "Сгенерировать случайное"
+  },
+  "Generates random WARP nodes (WireGuard/AWG/MASQUE h2/h3) into the «WARP GENERATOR» folder. Test them there and keep what works.": {
+    "value": "Создаёт случайные WARP-узлы (WireGuard/AWG/MASQUE h2/h3) в папку «WARP GENERATOR». Протестируйте их там и оставьте рабочие."
+  },
+  "Generation failed — no WARP account.": {
+    "value": "Генерация не удалась — нет WARP-аккаунта."
+  },
+  "Get Public Test Servers": {
+    "value": "Получить публичные тестовые серверы"
+  },
+  "Get WARP": {
+    "value": "Получить WARP"
+  },
+  "Getting started": {
+    "value": "С чего начать"
+  },
+  "Go panics of the sing-box core. Survives SIGABRT — tap a report to share it.": {
+    "value": "Паники Go в ядре sing-box. Переживают SIGABRT — нажмите на отчёт, чтобы отправить его."
+  },
+  "Go version": {
+    "value": "Версия Go"
+  },
+  "Gone (410) — subscription deleted by provider": {
+    "value": "Удалено (410) — провайдер удалил подписку"
+  },
+  "Goroutines": {
+    "value": "Горутины"
+  },
+  "Got it": {
+    "value": "Прочитал"
+  },
+  "Got it (%d)": {
+    "value": "Прочитал (%d)"
+  },
+  "Granted — real SSID/BSSID accessible": {
+    "value": "Выдано — доступны настоящие SSID/BSSID"
+  },
+  "Granted — sing-box can read Wi-Fi state for routing rules": {
+    "value": "Выдано — sing-box может читать состояние Wi-Fi для правил маршрутизации"
+  },
+  "Green up to, ms": {
+    "value": "Зелёный до, мс"
+  },
+  "Group": "Группа",
+  "Grouping": {
+    "value": "Группировка"
+  },
+  "HTTP": {
+    "value": "HTTP"
+  },
+  "HTTP %d": {
+    "value": "HTTP %d"
+  },
+  "HTTP/2 over TCP — use where QUIC/UDP is blocked.": {
+    "value": "HTTP/2 поверх TCP — используйте там, где QUIC/UDP блокируется."
+  },
+  "HTTP/3 over QUIC — the default, fastest path.": {
+    "value": "HTTP/3 поверх QUIC — путь по умолчанию, самый быстрый."
+  },
+  "HTTPS (TLS to proxy)": {
+    "value": "HTTPS (TLS до прокси)"
+  },
+  "Haptic feedback": {
+    "value": "Виброотклик"
+  },
+  "Headers copied": {
+    "value": "Заголовки скопированы"
+  },
+  "Health": {
+    "value": "Работоспособность"
+  },
+  "Heap allocated": {
+    "value": "Выделено в куче"
+  },
+  "Heap from OS": {
+    "value": "Куча получена у ОС"
+  },
+  "Heap idle": {
+    "value": "Куча простаивает"
+  },
+  "Heap in use": {
+    "value": "Куча занята"
+  },
+  "Heap objects": {
+    "value": "Объектов в куче"
+  },
+  "Heap released": {
+    "value": "Куча возвращена ОС"
+  },
+  "Help": {
+    "value": "Справка"
+  },
+  "Hide": {
+    "value": "Скрыть"
+  },
+  "Hide detour (on) / detour only (off)": {
+    "value": "Скрыть detour (вкл) / только detour (выкл)"
+  },
+  "Hide detour servers": {
+    "value": "Скрывать detour-серверы"
+  },
+  "Hide filters": {
+    "value": "Скрыть фильтры"
+  },
+  "Hide others": {
+    "value": "Скрыть остальные"
+  },
+  "Hide system apps": {
+    "value": "Скрыть системные приложения"
+  },
+  "Hides matching nodes from routing. They stay visible, struck through.": {
+    "value": "Скрывает подходящие узлы из маршрутизации. Они остаются видимыми, зачёркнутыми."
+  },
+  "Home-screen shortcut": {
+    "value": "Ярлык на главном экране"
+  },
+  "Hop chain · %s": {
+    "value": "Цепочка · %s"
+  },
+  "Host": {
+    "value": "Хост"
+  },
+  "Host required": {
+    "value": "Укажите хост"
+  },
+  "Hostnames sing-box resolves internally (your VPN server addresses, custom outbound endpoints) will go through your ISP's DNS, bypassing the VPN tunnel. Pick a regular DNS server for full privacy.": {
+    "value": "Имена, которые sing-box резолвит сам (адреса ваших VPN-серверов и других исходящих подключений), пойдут через DNS провайдера мимо туннеля VPN. Для полной приватности выберите обычный DNS-сервер."
+  },
+  "How it works: directions, rules, DNS, detour, recipes": {
+    "value": "Как это работает: Направления, правила, DNS, detour, рецепты"
+  },
+  "How this rule directs and resolves matched traffic.": {
+    "value": "Как правило направляет и резолвит совпавший трафик."
+  },
+  "INBOUND": {
+    "value": "INBOUND"
+  },
+  "IP": {
+    "value": "IP"
+  },
+  "Idle timeout": {
+    "value": "Тайм-аут простоя"
+  },
+  "Idle timeout (min)": {
+    "value": "Тайм-аут простоя (мин)"
+  },
+  "Idle timeout suspends the tunnel after inactivity to save battery (default 5 min). Keep-alive pings the QUIC link (default 30 sec, HTTP/3 only). Leave empty for defaults.": {
+    "value": "Тайм-аут простоя приостанавливает туннель при неактивности ради экономии батареи (по умолчанию 5 мин). Keep-alive пингует QUIC-соединение (по умолчанию 30 сек, только HTTP/3). Оставьте поля пустыми для значений по умолчанию."
+  },
+  "Ignore": {
+    "value": "Не напоминать"
+  },
+  "Ignore the cached account and register a fresh one.": {
+    "value": "Игнорировать сохранённый аккаунт и зарегистрировать новый."
+  },
+  "Import": {
+    "value": "Импортировать",
+    "special": {
+      "1": {
+        "value": "Импорт"
+      }
+    }
+  },
+  "Import %d files into folder": {
+    "value": {
+      "one": "Импорт %d файла в папку",
+      "few": "Импорт %d файлов в папку",
+      "many": "Импорт %d файлов в папку",
+      "other": "Импорт %d файла в папку"
+    }
+  },
+  "Import (%d)": {
+    "value": "Импорт (%d)"
+  },
+  "Import backup": {
+    "value": "Импорт резервной копии"
+  },
+  "Import failed: %s": {
+    "value": "Не удалось импортировать: %s"
+  },
+  "Import from clipboard": {
+    "value": "Импорт из буфера обмена"
+  },
+  "Import from files…": {
+    "value": "Импорт из файлов…"
+  },
+  "Import from file…": {
+    "value": "Импорт из файла…"
+  },
+  "Import rules": {
+    "value": "Импорт правил"
+  },
+  "Import rules changed this node. The JSON tab shows the result.": {
+    "value": "Import-правила изменили этот узел. На вкладке JSON — итоговый вид."
+  },
+  "Import rules...": {
+    "value": "Импортировать правила…"
+  },
+  "Imported %1$d rules and %2$d DNS entries": {
+    "value": "Импортировано правил: %1$d, DNS-записей: %2$d"
+  },
+  "Imported %1$d rules and %2$d directions": {
+    "value": "Импортировано правил: %1$d, Направлений: %2$d"
+  },
+  "Imported %1$d rules and %2$d settings": {
+    "value": "Импортировано правил: %1$d, настроек: %2$d"
+  },
+  "Imported %1$d rules, %2$d directions and %3$d settings": {
+    "value": "Импортировано правил: %1$d, Направлений: %2$d, настроек: %3$d"
+  },
+  "Imported %d DNS entries": {
+    "value": "Импортировано DNS-записей: %d"
+  },
+  "Imported %d rule(s), %d items not applied": {
+    "value": "Импортировано правил: %d; не применено: %d"
+  },
+  "Imported %d rules": {
+    "value": {
+      "one": "Импортировано %d правило",
+      "few": "Импортировано %d правила",
+      "many": "Импортировано %d правил",
+      "other": "Импортировано %d правила"
+    }
+  },
+  "Imported %d rules — tap ☁ to download rule-sets, then enable": {
+    "value": {
+      "one": "Импортировано %d правило — нажмите ☁, чтобы скачать rule-set'ы, затем включите",
+      "few": "Импортировано %d правила — нажмите ☁, чтобы скачать rule-set'ы, затем включите",
+      "many": "Импортировано %d правил — нажмите ☁, чтобы скачать rule-set'ы, затем включите",
+      "other": "Импортировано %d правила — нажмите ☁, чтобы скачать rule-set'ы, затем включите"
+    }
+  },
+  "Importing replaces the current rules.": {
+    "value": "Импорт заменит текущие правила."
+  },
+  "In Rules": {
+    "value": "В правилах"
+  },
+  "In packet order: the first position is the hop closest to you, the last one is what the destination sees.": {
+    "value": "В порядке пакета: первая позиция — ближайший к вам хоп, последнюю видит цель."
+  },
+  "In the next screen (system App info) look for:\n\n• Autostart / Startup manager — allow\n• Background activity / Allow in background — allow\n• Battery / Power usage → \"Don't optimize\" or \"No restrictions\"\n• Battery saver exceptions — add L×Box\n\nLocation of these toggles varies by OEM (Xiaomi/MIUI, Samsung/One UI, Oppo/ColorOS, Huawei, Google Pixel). Some are under Battery, others under App permissions.": {
+    "value": "На следующем экране (системный «О приложении») найдите:\n\n• Автозапуск / Startup manager — разрешить\n• Фоновая активность / Разрешить в фоне — разрешить\n• Батарея / Энергопотребление → «Не оптимизировать» или «Без ограничений»\n• Исключения энергосбережения — добавьте L×Box\n\nРасположение зависит от производителя (Xiaomi/MIUI, Samsung/One UI, Oppo/ColorOS, Huawei, Google Pixel): что-то в разделе «Батарея», что-то в «Разрешениях приложений»."
+  },
+  "Include (regex)": {
+    "value": "Включить (regex)"
+  },
+  "Include DNS": {
+    "value": "Добавить DNS"
+  },
+  "Include auto (urltest)": {
+    "value": "Добавлять auto (urltest)"
+  },
+  "Include block": {
+    "value": "Добавлять block"
+  },
+  "Include detour servers in auto-proxy-out urltest": {
+    "value": "Включать detour-серверы в urltest-группу auto-proxy-out"
+  },
+  "Include direct-out": {
+    "value": "Добавлять direct-out"
+  },
+  "Includes the access token. Sensitive — leave OFF unless you know why.": {
+    "value": "Содержит токен доступа. Чувствительные данные — оставьте выключенным, если не уверены."
+  },
+  "Includes:": {
+    "value": "Содержит:"
+  },
+  "Info": {
+    "value": "Информация"
+  },
+  "Inline": {
+    "value": "Встроенный"
+  },
+  "Input is empty": {
+    "value": "Поле ввода пусто"
+  },
+  "Input is not a subscription URL, proxy link, or outbound JSON": {
+    "value": "Ввод не похож на URL подписки, proxy-ссылку или outbound-JSON"
+  },
+  "Insert emoji": {
+    "value": "Вставить эмодзи"
+  },
+  "Inspect node": {
+    "value": "Разобрать узел"
+  },
+  "Installed from %s": {
+    "value": "Установлено из %s"
+  },
+  "Installed from here": {
+    "value": "Установлено отсюда"
+  },
+  "Interrupt connections on switch": {
+    "value": "Разрывать соединения при переключении"
+  },
+  "Interval": {
+    "value": "Интервал"
+  },
+  "Interval must be ≤ idle timeout": {
+    "value": "Интервал должен быть ≤ тайм-аута простоя"
+  },
+  "Invalid JSON: %s": {
+    "value": "Некорректный JSON: %s"
+  },
+  "Invalid MASQUE config": {
+    "value": "Некорректный конфиг MASQUE"
+  },
+  "Invalid WARP config": {
+    "value": "Некорректный конфиг WARP"
+  },
+  "Invalid WARP config (obfuscated)": {
+    "value": "Некорректный конфиг WARP (обфускация)"
+  },
+  "Invalid WireGuard config": {
+    "value": "Некорректный конфиг WireGuard"
+  },
+  "Invalid backup": {
+    "value": "Некорректная резервная копия"
+  },
+  "Invalid duration (e.g. 2m, 90s)": "Неверная длительность (напр. 2m, 90s)",
+  "Invalid pool JSON — check the structure.": {
+    "value": "Некорректный JSON пула — проверьте структуру."
+  },
+  "Invalid port": {
+    "value": "Некорректный порт"
+  },
+  "Invalid regular expression": {
+    "value": "Некорректное регулярное выражение"
+  },
+  "Invalid subscription": {
+    "value": "Некорректная подписка"
+  },
+  "Invert": {
+    "value": "Инвертировать"
+  },
+  "It will be rebuilt clean on the next connect.": {
+    "value": "Чистый кэш будет создан при следующем подключении."
+  },
+  "JSON": {
+    "value": "JSON"
+  },
+  "JSON copied": {
+    "value": "JSON скопирован"
+  },
+  "JSON or JSON5 (// and /* */ comments)": {
+    "value": "JSON или JSON5 (комментарии // и /* */)"
+  },
+  "JSON outbound": {
+    "value": "JSON outbound"
+  },
+  "JSON, source and replacements": {
+    "value": "JSON, исходник и замены"
+  },
+  "Junk traffic masquerades as a real protocol. Pick protocol/domain in Advanced.": {
+    "value": "Мусорный трафик маскируется под настоящий протокол. Протокол и домен выбираются в разделе «Дополнительно»."
+  },
+  "Just the outbound this node was built from": {
+    "value": "Только outbound, из которого собран узел"
+  },
+  "Keep": {
+    "value": "Остаться"
+  },
+  "Keep %s": {
+    "value": "Хранить %s"
+  },
+  "Keep VPN on exit": {
+    "value": "Сохранять VPN при выходе"
+  },
+  "Keep servers": {
+    "value": "Оставить серверы"
+  },
+  "Keep the node list of switched-off subscriptions fresh, so it is not stale when you switch one back on. Their nodes stay out of the config either way.": {
+    "value": "Держать список узлов выключенных подписок свежим, чтобы он не устарел к моменту, когда вы их включите. В конфиг их узлы всё равно не попадают."
+  },
+  "Keep-alive (sec)": {
+    "value": "Keep-alive (сек)"
+  },
+  "Keeping all closed (tap for 30s window)": {
+    "value": "Закрытые хранятся всегда (нажмите — окно 30 с)"
+  },
+  "Keeps the tunnel alive while idle so it doesn't rot to timeouts (default 25). 0 = off.": {
+    "value": "Держит туннель живым при простое, чтобы он не деградировал в таймауты (по умолчанию 25). 0 = выкл."
+  },
+  "Language": {
+    "value": "Язык"
+  },
+  "Larger values save battery": {
+    "value": "Большие значения экономят батарею"
+  },
+  "Last 100 events": {
+    "value": "Последние 100 событий"
+  },
+  "Last GC": {
+    "value": "Последний GC"
+  },
+  "Last attempt: %s": {
+    "value": "Последняя попытка: %s"
+  },
+  "Last check: %s": {
+    "value": "Последняя проверка: %s"
+  },
+  "Last check: never": {
+    "value": "Последняя проверка: никогда"
+  },
+  "Last success: %s": {
+    "value": "Обновлено: %s"
+  },
+  "Later": {
+    "value": "Позже"
+  },
+  "Lazy sleep": {
+    "value": "Ленивый сон"
+  },
+  "Leave IP empty to use the server from registration. HTTP/3 only works on a few Cloudflare addresses, HTTP/2 works across the whole block.": {
+    "value": "Оставьте IP пустым, чтобы использовать сервер из регистрации. HTTP/3 работает лишь на нескольких адресах Cloudflare, HTTP/2 — на всём блоке."
+  },
+  "Leave empty for the default SNI": {
+    "value": "Пусто — SNI по умолчанию"
+  },
+  "Leave empty to substitute across the whole node": {
+    "value": "Пустой путь — замена по всему узлу"
+  },
+  "Lifecycle": {
+    "value": "Жизненный цикл"
+  },
+  "List %d": {
+    "value": "Список %d"
+  },
+  "Live path in packet order. Tap a hop to open its source.": {
+    "value": "Живой путь в порядке следования пакета. Нажмите на хоп, чтобы открыть его источник."
+  },
+  "Live retention window": {
+    "value": "Окно хранения Live-журнала"
+  },
+  "Load balance": {
+    "value": "Балансировка"
+  },
+  "Load from file": {
+    "value": "Загрузить из файла"
+  },
+  "Loaded from file": {
+    "value": "Загружено из файла"
+  },
+  "Loading apps...": {
+    "value": "Загрузка приложений…"
+  },
+  "Loading installed apps…": {
+    "value": "Загрузка списка приложений…"
+  },
+  "Local file": {
+    "value": "Локальный файл"
+  },
+  "Local proxy": {
+    "value": "Локальный прокси"
+  },
+  "Location (background)": {
+    "value": "Местоположение (в фоне)"
+  },
+  "Lock config (debug)": {
+    "value": "Блокировать конфиг (debug)"
+  },
+  "Log": {
+    "value": "Лог"
+  },
+  "Long-press the L×Box icon on your home screen → choose \"Toggle VPN\".": {
+    "value": "Долгое нажатие на иконку L×Box на главном экране → выберите «Toggle VPN»."
+  },
+  "L×Box %1$s available (you have v%2$s)": {
+    "value": "Доступна L×Box %1$s (у вас v%2$s)"
+  },
+  "L×Box can ping github.com once a day to see whether a new version is out. Nothing installs by itself — you get a link to the release page.\n\nIf you installed from an app store, its client already handles updates and you can skip this.": {
+    "value": "L×Box может раз в сутки обращаться к github.com и смотреть, не вышла ли новая версия. Само ничего не устанавливается — вы получите ссылку на страницу релиза.\n\nЕсли приложение установлено из магазина, его клиент уже следит за обновлениями, и этот пункт можно пропустить."
+  },
+  "L×Box runs as a foreground service while VPN is active. A persistent notification is required by Android — it lets you see at a glance that VPN is on, and prevents the system from killing the tunnel in the background.\n\nNo promotional or alert notifications will be sent.": {
+    "value": "Пока VPN активен, L×Box работает как foreground-сервис. Android требует для него постоянное уведомление — по нему видно, что VPN включён, и система не закрывает туннель в фоне.\n\nРекламных и прочих оповещений не будет."
+  },
+  "MASQUE HTTP version \"%s\" is not h3, h2 or auto — h3 was used instead.": {
+    "value": "Версия HTTP «%s» для MASQUE — не h3, не h2 и не auto, поэтому использован h3."
+  },
+  "MASQUE registration failed": {
+    "value": "Не удалось зарегистрировать MASQUE"
+  },
+  "MASQUE tunnels IP over HTTP/3 (QUIC) to Cloudflare — standard HTTPS transport, and the exit IP is often in another country.": {
+    "value": "MASQUE туннелирует IP поверх HTTP/3 (QUIC) в Cloudflare — стандартный транспорт HTTPS, а выходной IP часто находится в другой стране."
+  },
+  "Make experiment": {
+    "value": "Провести эксперимент"
+  },
+  "Managed by presets automatically": {
+    "value": "Управляется пресетами автоматически"
+  },
+  "Match RFC1918 (10/8, 172.16/12, 192.168/16) + loopback + link-local": {
+    "value": "Совпадает с RFC1918 (10/8, 172.16/12, 192.168/16) + loopback + link-local"
+  },
+  "Match when the packet SOURCE is a private address": {
+    "value": "Совпадает, когда ИСТОЧНИК пакета — приватный адрес"
+  },
+  "Matches": {
+    "value": "Совпадения"
+  },
+  "Matches when traffic is on a selected network AND matches a selected L7 protocol.": {
+    "value": "Совпадает, когда трафик идёт по выбранной сети И соответствует выбранному L7-протоколу."
+  },
+  "Measuring…": {
+    "value": "Замеряю…"
+  },
+  "Members": "Члены группы",
+  "Members connect through their personal detours": {
+    "value": "Члены папки подключаются через свои личные detour"
+  },
+  "Members with their own detour keep it; this outbound is set only where none is defined": {
+    "value": "Члены со своим detour сохраняют его; этот исходящий канал назначается только там, где detour не задан"
+  },
+  "Memory": {
+    "value": "Память"
+  },
+  "Memory limit": {
+    "value": "Лимит памяти"
+  },
+  "Memory snapshots taken by the core when it approached its memory limit.": {
+    "value": "Снимки памяти, сделанные ядром при приближении к лимиту памяти."
+  },
+  "Merge with existing (recommended)": {
+    "value": "Объединить с текущими (рекомендуется)"
+  },
+  "Metadata is missing or unreadable.": {
+    "value": "Метаданные отсутствуют или не читаются."
+  },
+  "Mode": {
+    "value": "Режим"
+  },
+  "Mode:": {
+    "value": "Режим:"
+  },
+  "Modified by import rules": {
+    "value": "Изменено правилами импорта"
+  },
+  "More": {
+    "value": "Ещё"
+  },
+  "More loops may remain — fix these and try again.": {
+    "value": "Могут остаться и другие петли — исправьте эти и попробуйте снова."
+  },
+  "Move out of folder": {
+    "value": "Вынести из папки"
+  },
+  "Move subscriptions, servers, rules and settings between this app and the desktop launcher. Anything the other side has no place for is dropped, and the app tells you exactly what did not make it.": {
+    "value": "Перенос подписок, серверов, правил и настроек между этим приложением и десктопным лаунчером. Всё, чему на другой стороне нет места, отбрасывается, а приложение прямо называет, что не доехало."
+  },
+  "Move to folder": {
+    "value": "Переместить в папку"
+  },
+  "Move to folder…": {
+    "value": "Переместить в папку…"
+  },
+  "Moved out of folder": {
+    "value": "Вынесен из папки"
+  },
+  "My DNS": {
+    "value": "Мой DNS"
+  },
+  "NETWORK & PROTOCOL": {
+    "value": "СЕТЬ И ПРОТОКОЛ"
+  },
+  "Name": {
+    "value": "Имя"
+  },
+  "Name in use — renamed to \"%s\"": {
+    "value": "Имя занято — переименовано в «%s»"
+  },
+  "Name is required": {
+    "value": "Укажите имя"
+  },
+  "Names are not resolving while the connection is alive — the DNS path looks blocked. In DNS settings you can:\n  • route your DNS servers through the VPN — set their outbound to a direction so queries go inside the tunnel;\n  • switch the final resolver to your operator's DNS — works everywhere, but your operator sees every domain.\nFakeIP resolves names inside the tunnel with placeholder IPs — no pre-tunnel DNS leaks.": {
+    "value": "Имена не резолвятся, хотя соединение живо — путь DNS выглядит заблокированным. В настройках DNS можно:\n  • направить DNS-серверы через VPN — задайте им исходящее Направление, чтобы запросы шли внутри туннеля;\n  • переключить финальный резолвер на DNS оператора — работает везде, но оператор видит каждый домен.\nFakeIP резолвит имена внутри туннеля через IP-заглушки — без утечек DNS до туннеля."
+  },
+  "NaïveProxy is not included in this libbox build (rebuild with -tags with_naive_outbound).": {
+    "value": "NaïveProxy не входит в эту сборку libbox (пересоберите с -tags with_naive_outbound)."
+  },
+  "NaïveProxy parameter \"padding=%s\" has no equivalent in the core and was ignored. The node still works.": {
+    "value": "У параметра NaïveProxy «padding=%s» нет соответствия в ядре, поэтому он проигнорирован. Узел остаётся рабочим."
+  },
+  "Nearby Wi-Fi devices": {
+    "value": "Устройства Wi-Fi поблизости"
+  },
+  "Needs Location + Nearby Wi-Fi permissions. Tap to manage.": {
+    "value": "Нужны разрешения «Местоположение» и «Устройства Wi-Fi поблизости». Нажмите, чтобы настроить."
+  },
+  "Networks where you stay ≥ 5 minutes appear in routing rule editor → Pick saved.": {
+    "value": "Сети, где вы находитесь ≥ 5 минут, появляются в редакторе правила маршрутизации → «Pick saved»."
+  },
+  "Never": {
+    "value": "Никогда"
+  },
+  "Never (respect server)": {
+    "value": "Никогда (по указанию сервера)"
+  },
+  "Never (respect server) — manual only unless server sets one": {
+    "value": "Никогда (по указанию сервера) — только вручную, если сервер не задаст интервал"
+  },
+  "Never sleep (recommended)": {
+    "value": "Никогда не засыпать (рекомендуется)"
+  },
+  "Never updated": {
+    "value": "Ещё не обновлялась"
+  },
+  "New auto node": {
+    "value": "Новый авто-узел"
+  },
+  "New direction": {
+    "value": "Новое Направление"
+  },
+  "New folder": {
+    "value": "Новая папка"
+  },
+  "New folder…": {
+    "value": "Новая папка…"
+  },
+  "New hop chain": {
+    "value": "Новая цепочка хопов"
+  },
+  "New nodes apply at once; the connection drops for a few seconds": {
+    "value": "Новые узлы применяются сразу; соединение прервётся на несколько секунд"
+  },
+  "New nodes go into the config; apply the change yourself": {
+    "value": "Новые узлы попадут в конфиг; применить изменение нужно вручную"
+  },
+  "New value": {
+    "value": "Новое значение"
+  },
+  "Next GC at": {
+    "value": "Следующий GC при"
+  },
+  "No DNS rules. Add user rules manually, or enable presets / template defaults.": {
+    "value": "DNS-правил нет. Добавьте свои правила вручную или включите пресеты / шаблонные правила."
+  },
+  "No OOM reports": {
+    "value": "Отчётов OOM нет"
+  },
+  "No Wi-Fi conditions — rule is active on every network.": {
+    "value": "Условий Wi-Fi нет — правило активно в любой сети."
+  },
+  "No WireGuard/AmneziaWG config in vpn:// link": {
+    "value": "В ссылке vpn:// нет конфига WireGuard/AmneziaWG"
+  },
+  "No active connections": {
+    "value": "Активных соединений нет"
+  },
+  "No active connections to close": {
+    "value": "Нет активных соединений для закрытия"
+  },
+  "No apps match": {
+    "value": "Совпадений нет"
+  },
+  "No apps seen yet — traffic will populate this list.": {
+    "value": "Приложений пока нет — список заполнится по мере появления трафика."
+  },
+  "No apps yet. Tap \"Add app\" to pick.": {
+    "value": "Список пуст. Нажмите «Добавить приложение», чтобы выбрать."
+  },
+  "No cached source data": {
+    "value": "Кэшированных данных источника нет"
+  },
+  "No configurable variables": {
+    "value": "Настраиваемых переменных нет"
+  },
+  "No connection to %s — check network or URL": {
+    "value": "Нет соединения с %s — проверьте сеть или URL"
+  },
+  "No connection — check network or URL": {
+    "value": "Нет соединения — проверьте сеть или URL"
+  },
+  "No connections.": {
+    "value": "Соединений нет."
+  },
+  "No crash reports": {
+    "value": "Отчётов о падениях нет"
+  },
+  "No data — tap refresh above": {
+    "value": "Нет данных — нажмите «Обновить» выше"
+  },
+  "No detour for this node": {
+    "value": "У этого узла нет detour"
+  },
+  "No events yet": {
+    "value": "Событий пока нет"
+  },
+  "No file chosen": {
+    "value": "Файл не выбран"
+  },
+  "No file manager on this device. Paste from the clipboard or add by URL instead.": {
+    "value": "На этом устройстве нет файлового менеджера. Вставьте из буфера обмена или добавьте по ссылке."
+  },
+  "No matches for \"%s\"": {
+    "value": "Нет совпадений для «%s»"
+  },
+  "No nodes found": {
+    "value": "Узлы не найдены"
+  },
+  "No nodes in this direction.\nTry another one.": {
+    "value": "В этом Направлении нет узлов.\nПопробуйте другое."
+  },
+  "No nodes loaded yet. Apply rules to load them.": {
+    "value": "Узлы ещё не загружены. Нажмите «Применить правила», чтобы загрузить."
+  },
+  "No nodes match. Check the path against a node's JSON.": {
+    "value": "Совпадений нет. Сверьте путь с JSON узла."
+  },
+  "No other DNS servers to add — create them first": "Других DNS-серверов нет — сначала создайте их",
+  "No other servers in this folder": {
+    "value": "В этой папке нет других серверов"
+  },
+  "No outbounds seen yet — traffic will populate this list.": {
+    "value": "Исходящих каналов пока нет — список заполнится по мере появления трафика."
+  },
+  "No positions yet — add at least two.": {
+    "value": "Позиций пока нет — добавьте хотя бы две."
+  },
+  "No provider yet?": {
+    "value": "Провайдера пока нет?"
+  },
+  "No rule data": {
+    "value": "Данных по правилам нет"
+  },
+  "No rules seen yet — traffic will populate this list.": {
+    "value": "Правил пока нет — список заполнится по мере появления трафика."
+  },
+  "No rules to export — presets stay with the app. You can still bundle DNS on the next step.": {
+    "value": "Экспортировать нечего: пресеты остаются в приложении. На следующем шаге можно вложить DNS."
+  },
+  "No rules yet. Add one to fix broken params or hide nodes.": {
+    "value": "Правил пока нет. Добавьте, чтобы починить параметры или скрыть узлы."
+  },
+  "No servers found at this URL": {
+    "value": "По этому URL серверы не найдены"
+  },
+  "No servers found in input": {
+    "value": "Во вводе не найдено серверов"
+  },
+  "No servers found in selected files": {
+    "value": "В выбранных файлах серверы не найдены"
+  },
+  "No source URI for this node": {
+    "value": "У этого узла нет исходного URI"
+  },
+  "No source provided": {
+    "value": "Источник не указан"
+  },
+  "No standalone servers available": {
+    "value": "Отдельных серверов нет"
+  },
+  "No tested servers slower than %d ms": {
+    "value": "Нет протестированных серверов медленнее %d мс"
+  },
+  "No unreachable or broken servers in last test": {
+    "value": "В последнем тесте нет недоступных или битых серверов"
+  },
+  "No updates pending": {
+    "value": "Обновлений нет"
+  },
+  "No valid outbounds in JSON": {
+    "value": "В JSON нет валидных outbound-объектов"
+  },
+  "Node Settings": {
+    "value": "Настройки узла"
+  },
+  "Node filter (regex)": {
+    "value": "Фильтр узлов (regex)"
+  },
+  "Node info copied": {
+    "value": "Данные узла скопированы"
+  },
+  "Node — direct detour": {
+    "value": "Узел — прямой detour"
+  },
+  "Node — via \"%1$s\"": {
+    "value": "Узел — через \"%1$s\""
+  },
+  "Nodes": {
+    "value": "Узлы"
+  },
+  "Nodes connect directly, detour skipped": {
+    "value": "Узлы подключаются напрямую, detour пропускается"
+  },
+  "Nodes connect through detour servers": {
+    "value": "Узлы подключаются через detour-серверы"
+  },
+  "Nodes update in the list only; the config waits for the next rebuild": {
+    "value": "Узлы обновятся только в списке; конфиг дождётся следующей пересборки"
+  },
+  "Nodes with their own detour keep it; this outbound is set only where none is defined": {
+    "value": "Узлы со своим detour сохраняют его; этот исходящий канал назначается только там, где detour не задан"
+  },
+  "Non-matching hidden": {
+    "value": "Несовпадающие скрыты"
+  },
+  "None (direct)": {
+    "value": "Нет (напрямую)"
+  },
+  "None — nodes connect directly": {
+    "value": "Нет — узлы подключаются напрямую"
+  },
+  "Not": {
+    "value": "Не"
+  },
+  "Not a folder": {
+    "value": "Это не папка"
+  },
+  "Not a subscription": {
+    "value": "Это не подписка"
+  },
+  "Not applied as-is:": {
+    "value": "Применено не полностью:"
+  },
+  "Not available in this app version": {
+    "value": "Недоступно в этой версии приложения"
+  },
+  "Not connected to Wi-Fi.": {
+    "value": "Нет подключения к Wi-Fi."
+  },
+  "Not found (404) — subscription URL may be removed": {
+    "value": "Не найдено (404) — URL подписки, возможно, удалён"
+  },
+  "Not found: %s": {
+    "value": "Не найдено: %s"
+  },
+  "Not imported: %s": {
+    "value": "Не импортируется: %s"
+  },
+  "Not recording": {
+    "value": "Запись не идёт"
+  },
+  "Nothing left to add: every available target is already in the chain.": {
+    "value": "Добавить больше нечего: все доступные цели уже в цепочке."
+  },
+  "Nothing saved yet. Use \"Add current\" / \"Manual\" or stay on a Wi-Fi network for 5 minutes.": {
+    "value": "Пока ничего не сохранено. Используйте «Add current» / «Manual» или пробудьте в сети Wi-Fi 5 минут."
+  },
+  "Nothing to export — pick at least one category.": {
+    "value": "Нечего экспортировать — выберите хотя бы одну категорию."
+  },
+  "Nothing to show": {
+    "value": "Нечего показать"
+  },
+  "Notifications": {
+    "value": "Уведомления"
+  },
+  "Number of nodes": {
+    "value": "Количество узлов"
+  },
+  "OEM-specific toggles to keep VPN alive in background.": {
+    "value": "Фирменные переключатели производителя, не дающие системе закрыть VPN в фоне."
+  },
+  "OK": {
+    "value": "ОК",
+    "special": {
+      "1": {
+        "value": "OK"
+      }
+    }
+  },
+  "OOM": {
+    "value": "OOM"
+  },
+  "OR": {
+    "value": "ИЛИ"
+  },
+  "Obfuscation \"%s\" has no password, so it was dropped (the core requires one and would otherwise break the whole config). The node connects without obfuscation.": {
+    "value": "Обфускация «%s» задана без пароля и отброшена (ядро требует пароль, иначе сломался бы весь конфиг). Узел подключится без обфускации."
+  },
+  "Off": {
+    "value": "Выключено"
+  },
+  "Off — UI actions rebuild config from settings as usual.": {
+    "value": "Выключено — действия в UI пересобирают конфиг из настроек как обычно."
+  },
+  "Off.": {
+    "value": "Выключено."
+  },
+  "Off. Pick saved is populated only by Add current / Manual.": {
+    "value": "Выключено. «Pick saved» пополняется только через Add current / Manual."
+  },
+  "On update": {
+    "value": "При обновлении"
+  },
+  "One node routes traffic back into its own chain. Tap it to open its source, change or remove its detour, then start again.": {
+    "value": "Один узел ведёт трафик обратно в собственную цепочку. Нажмите на него, чтобы открыть источник, измените или уберите его detour, затем запустите снова."
+  },
+  "One-way": {
+    "value": "Одностороннее"
+  },
+  "One-way DPI tricks make no sense on a link that dials through the previous hop.": {
+    "value": "Односторонние приёмы обхода DPI бессмысленны у звена, которое ходит через предыдущий хоп."
+  },
+  "One-way traffic": {
+    "value": "Односторонний трафик"
+  },
+  "Online URL": {
+    "value": "Онлайн-URL"
+  },
+  "Only single servers can be moved": {
+    "value": "Переносить можно только одиночные серверы"
+  },
+  "Open": {
+    "value": "Открыть"
+  },
+  "Open DNS settings": {
+    "value": "Открыть настройки DNS"
+  },
+  "Open Settings": {
+    "value": "Открыть настройки"
+  },
+  "Open in %s": {
+    "value": "Открыть в %s"
+  },
+  "Open settings": {
+    "value": "Открыть настройки"
+  },
+  "Optionally bundle DNS servers and DNS rules the recipient may be missing. Servers referenced by the selected rules are pre-checked.": {
+    "value": "При желании вложите в файл DNS-серверы и DNS-правила, которых может не быть у получателя. Серверы, на которые ссылаются выбранные правила, уже отмечены."
+  },
+  "Orange up to, ms": {
+    "value": "Оранжевый до, мс"
+  },
+  "Other directions": {
+    "value": "Другие Направления"
+  },
+  "Outbound": {
+    "value": "Исходящий канал"
+  },
+  "Outbound \"%1$s\" detour references missing outbound \"%2$s\".": {
+    "value": "Detour исходящего канала «%1$s» ссылается на несуществующий «%2$s»."
+  },
+  "Outbound (detour)": {
+    "value": "Исходящий канал (detour)"
+  },
+  "Outbound JSON": {
+    "value": "JSON исходящего канала"
+  },
+  "Outbound connections to servers": {
+    "value": "Исходящие соединения к серверам"
+  },
+  "Outbound events (emit)": {
+    "value": "Исходящие события (emit)"
+  },
+  "Overridden": {
+    "value": "Переопределён"
+  },
+  "Override global fetch identity for this subscription.": {
+    "value": "Использовать свою идентификацию запросов для этой подписки вместо глобальной."
+  },
+  "Overview": {
+    "value": "Обзор"
+  },
+  "PARAMETERS": {
+    "value": "ПАРАМЕТРЫ"
+  },
+  "Packet encoding \"%s\" is not one the core knows (xudp, packetaddr), so it was dropped — keeping it would crash the core.": {
+    "value": "Упаковка пакетов «%s» ядру неизвестна (оно знает xudp и packetaddr), поэтому отброшена: иначе ядро аварийно завершилось бы."
+  },
+  "Parallel — race every query": "Parallel — каждый запрос гонкой",
+  "Params": {
+    "value": "Параметры"
+  },
+  "Partial: %1$d ok, %2$d failed for \"%3$s\"": {
+    "value": "Частично: %1$d успешно, %2$d с ошибкой для «%3$s»"
+  },
+  "Passive health check": {
+    "value": "Пассивная проверка работоспособности"
+  },
+  "Password (optional)": {
+    "value": "Пароль (необязательно)"
+  },
+  "Paste": {
+    "value": "Вставить"
+  },
+  "Paste JSON": {
+    "value": "Вставить JSON"
+  },
+  "Paste URI": {
+    "value": "Вставить URI"
+  },
+  "Paste a proxy URL": {
+    "value": "Вставьте proxy-ссылку"
+  },
+  "Paste a sing-box outbound JSON": {
+    "value": "Вставьте JSON исходящего канала sing-box"
+  },
+  "Paste from clipboard": {
+    "value": "Вставить из буфера обмена"
+  },
+  "Paste into the \"Send Intent\" of your automation app. Target: Broadcast Receiver.": {
+    "value": "Вставьте в «Send Intent» вашего приложения автоматизации. Цель: Broadcast Receiver."
+  },
+  "Pasted from clipboard": {
+    "value": "Вставлено из буфера обмена"
+  },
+  "Path": {
+    "value": "Путь"
+  },
+  "Paths point into the node JSON: tag, server, tls.utls.fingerprint. Leave a path empty to search the whole node.": {
+    "value": "Пути указывают внутрь JSON узла: tag, server, tls.utls.fingerprint. Оставьте путь пустым, чтобы искать по всему узлу."
+  },
+  "Pause": {
+    "value": "Пауза"
+  },
+  "Pause only in deep Doze (screen off for a long time + no motion). Balanced.": {
+    "value": "Приостанавливать только в глубоком Doze (экран долго выключен, устройство неподвижно). Сбалансированно."
+  },
+  "Pause tunnel whenever screen turns off. Max battery savings, but pushes, incoming calls and background sync stop until unlock.": {
+    "value": "Приостанавливать туннель при каждом выключении экрана. Максимальная экономия, но push-уведомления, входящие звонки и фоновая синхронизация не работают до разблокировки."
+  },
+  "Pay": {
+    "value": "Оплатить"
+  },
+  "Per-key overrides": {
+    "value": "Точечные переопределения"
+  },
+  "Phone → %1$s → %2$s → Internet": {
+    "value": "Телефон → %1$s → %2$s → Интернет"
+  },
+  "Phone → %s → Nodes → Internet": {
+    "value": "Телефон → %s → Узлы → Интернет"
+  },
+  "Pick": {
+    "value": "Выбор"
+  },
+  "Pick a folder on this device": {
+    "value": "Выбрать папку на устройстве"
+  },
+  "Pick another random IP:port": {
+    "value": "Подставить другой случайный IP:port"
+  },
+  "Pick another random domain": {
+    "value": "Подставить другой случайный домен"
+  },
+  "Pick file...": {
+    "value": "Выбрать файл…"
+  },
+  "Pin AUTO to top": {
+    "value": "Закреплять AUTO сверху"
+  },
+  "Pin DIRECT to top": {
+    "value": "Закреплять DIRECT сверху"
+  },
+  "Ping": {
+    "value": "Пинг"
+  },
+  "Ping Settings": {
+    "value": "Настройки пинга"
+  },
+  "Ping URL & timeout…": {
+    "value": "URL и тайм-аут пинга…"
+  },
+  "Ping color thresholds": {
+    "value": "Цветовые пороги пинга"
+  },
+  "Ping color thresholds…": {
+    "value": "Цветовые пороги пинга…"
+  },
+  "Ping nodes of active group 5s after VPN starts (once per connect)": {
+    "value": "Пинговать узлы активной группы через 5 с после запуска VPN (один раз за подключение)"
+  },
+  "Ping target": {
+    "value": "Цель пинга"
+  },
+  "Pings github.com once a day to check for new releases. \"View\" opens the release page in browser; install is manual.": {
+    "value": "Раз в день обращается к github.com за новыми релизами. «Открыть» открывает страницу релиза в браузере; установка вручную."
+  },
+  "Pinned. UI actions skip config rebuild — useful when testing PUT /config overrides.": {
+    "value": "Закреплён. Действия в UI не пересобирают конфиг — удобно при тестировании override через PUT /config."
+  },
+  "Plain UDP · port 53 · fast, unencrypted": {
+    "value": "Обычный UDP · порт 53 · быстро, без шифрования"
+  },
+  "Point the camera at a QR code": {
+    "value": "Наведите камеру на QR-код"
+  },
+  "Pool": {
+    "value": "Пул"
+  },
+  "Pool is empty (not a load-balance group)": {
+    "value": "Пул пуст (группа без балансировки)"
+  },
+  "Pool size": {
+    "value": "Размер пула"
+  },
+  "Pool tolerance (ms)": {
+    "value": "Допуск пула (мс)"
+  },
+  "Pool unavailable — tunnel not connected": {
+    "value": "Пул недоступен — туннель не подключён"
+  },
+  "Pool · %s": {
+    "value": "Пул · %s"
+  },
+  "Port": {
+    "value": "Порт"
+  },
+  "Port 1..65535": {
+    "value": "Порт 1..65535"
+  },
+  "Position %s is MASQUE with fixed h3: QUIC through the previous hop may hang. Set vhttp: auto (or h2) on the node.": {
+    "value": "Позиция %s — MASQUE с фиксированным h3: QUIC через предыдущий хоп может повиснуть. Включите у узла vhttp: auto (или h2)."
+  },
+  "Position %s is WireGuard behind a TCP hop: the previous server must actually proxy UDP, otherwise the handshake goes nowhere.": {
+    "value": "Позиция %s — WireGuard за TCP-хопом: сервер предыдущей позиции должен реально проксировать UDP, иначе хендшейк уходит в никуда."
+  },
+  "Position %s is used more than once — the core rejects a chain with repeats.": {
+    "value": "Позиция %s встречается больше одного раза — цепочку с повторами ядро отвергает."
+  },
+  "Position %s references this chain itself — the core rejects that.": {
+    "value": "Позиция %s ссылается на саму цепочку — ядро этого не принимает."
+  },
+  "Positions": {
+    "value": "Позиции"
+  },
+  "Positions %s are empty — remove them: the core rejects a chain with a blank position.": {
+    "value": "Позиции %s пусты — уберите их: цепочку с пустой позицией ядро отвергает."
+  },
+  "Positions %s have their own detour — it does not apply inside a chain: a link always dials through the previous position. The path is exactly as shown.": {
+    "value": "У позиций %s есть свой detour — внутри цепочки он не действует: звено всегда ходит через предыдущую позицию. Путь ровно такой, как показано."
+  },
+  "Preferences, ping options, auto-update, wifi history": {
+    "value": "Предпочтения, параметры пинга, автообновление, история Wi-Fi"
+  },
+  "Prefix": {
+    "value": "Префикс"
+  },
+  "Prefix applied to every server tag in this folder (e.g. \"BL:\" → \"BL: Frankfurt\"). Lets a routing direction match the whole folder by regex.": {
+    "value": "Префикс добавляется к тегу каждого сервера в этой папке (например, «BL:» → «BL: Frankfurt»). Позволяет Направлению маршрутизации выбирать всю папку одним regex."
+  },
+  "Prefix applied to every tag from this subscription (e.g. \"BL:\" → \"BL: Frankfurt\"). Used to distinguish servers from different subscriptions and resolve name collisions.": {
+    "value": "Префикс добавляется к каждому тегу из этой подписки (например, «BL:» → «BL: Frankfurt»). Помогает различать серверы разных подписок и разрешать совпадения имён."
+  },
+  "Preset": {
+    "value": "Пресет"
+  },
+  "Preset \"%s\" no longer exists in this version of the app. The rule will be skipped when the config is generated. Delete it or update to a newer version that still has this preset.": {
+    "value": "Пресета «%s» больше нет в этой версии приложения. При сборке конфига правило будет пропущено. Удалите его или обновитесь до версии, где этот пресет ещё есть."
+  },
+  "Preset \"%s\" not found": {
+    "value": "Пресет «%s» не найден"
+  },
+  "Preset not found": {
+    "value": "Пресет не найден"
+  },
+  "Preset not found — tap to fix": {
+    "value": "Пресет не найден — нажмите, чтобы исправить"
+  },
+  "Presets": {
+    "value": "Пресеты"
+  },
+  "Presets are not transferable — this app has its own": {
+    "value": "Пресеты не переносятся — они есть в самом приложении"
+  },
+  "Preview (route.rules)": {
+    "value": "Превью (route.rules)"
+  },
+  "Private IP": {
+    "value": "Приватный IP"
+  },
+  "Private source IP": {
+    "value": "Приватный IP источника"
+  },
+  "Probe again": {
+    "value": "Замерить снова"
+  },
+  "Probe by position": {
+    "value": "Замерить по позициям"
+  },
+  "Process memory (RSS)": {
+    "value": "Память процесса (RSS)"
+  },
+  "Profile was empty (timeout?).": {
+    "value": "Профиль оказался пустым (тайм-аут?)."
+  },
+  "Profiler": {
+    "value": "Профайлер"
+  },
+  "Profiling": {
+    "value": "Профилирование"
+  },
+  "Profiling for %ds…": {
+    "value": "Профилирование: %d с…"
+  },
+  "Protocol": {
+    "value": "Протокол"
+  },
+  "Protocol \"%s\" is not supported.": {
+    "value": "Протокол «%s» не поддерживается."
+  },
+  "Protocol and server details": {
+    "value": "Протокол и данные сервера"
+  },
+  "Protocol filter": {
+    "value": "Фильтр протоколов"
+  },
+  "Proxy link, WireGuard config or outbound JSON": {
+    "value": "Proxy-ссылка, конфиг WireGuard или JSON исходящего канала"
+  },
+  "Put unreachable WireGuard tunnels to sleep after they sit idle, freeing memory and saving battery. They wake instantly on use. Only affects tunnels not on the active route.": {
+    "value": "Усыплять недоступные туннели WireGuard после простоя — это освобождает память и экономит батарею. При обращении туннель просыпается мгновенно. Касается только туннелей вне активного маршрута."
+  },
+  "QUIC/STUN decoy carries no hostname — the domain below is cosmetic for this protocol.": {
+    "value": "Приманка QUIC/STUN не содержит имени хоста — домен ниже для этого протокола чисто косметический."
+  },
+  "Query timeout": {
+    "value": "Тайм-аут запроса"
+  },
+  "Quick Settings tile": {
+    "value": "Плитка быстрых настроек"
+  },
+  "Quick connect": {
+    "value": "Быстрое подключение"
+  },
+  "Quit": {
+    "value": "Закрыть"
+  },
+  "Quit & reopen app": {
+    "value": "Закрыть и снова открыть"
+  },
+  "Quit & reopen app?": {
+    "value": "Закрыть и снова открыть приложение?"
+  },
+  "REALITY short id \"%s\" is not valid hex, so it was dropped (keeping it would break the whole config). The node connects without a short id.": {
+    "value": "Короткий идентификатор REALITY «%s» — не корректный hex, поэтому отброшен (иначе сломался бы весь конфиг). Узел подключится без короткого идентификатора."
+  },
+  "Range %1$d..%2$d": {
+    "value": "Диапазон %1$d..%2$d"
+  },
+  "Range 1024..65535": {
+    "value": "Диапазон 1024..65535"
+  },
+  "Rate limited (429) — try again later": {
+    "value": "Слишком много запросов (429) — повторите позже"
+  },
+  "Raw JSON": {
+    "value": "Сырой JSON"
+  },
+  "Raw response": {
+    "value": "Сырой ответ"
+  },
+  "Re-enables matching nodes, clearing disable marks from rules and manual toggles. Later rules can still disable them.": {
+    "value": "Включает совпавшие узлы обратно, снимая отметки выключения — и от правил, и ручные. Правила ниже по списку могут снова их выключить."
+  },
+  "Re-fetch live": {
+    "value": "Запросить с сервера заново"
+  },
+  "Re-register (force new account)": {
+    "value": "Перерегистрировать (новый аккаунт)"
+  },
+  "Re-sort on manual ping": {
+    "value": "Пересортировать при ручном пинге"
+  },
+  "Reachable from other devices on the network — auth required.": {
+    "value": "Доступен с других устройств в сети — требуется аутентификация."
+  },
+  "Reachable only from this device.": {
+    "value": "Доступен только с этого устройства."
+  },
+  "Ready-made rules you can copy into Rules, then edit freely.": {
+    "value": "Готовые правила: скопируйте в «Правила» и свободно редактируйте."
+  },
+  "Rebuild and reload core": {
+    "value": "Пересобрать и перезагрузить ядро"
+  },
+  "Rebuild and reload core — brief connection drop": {
+    "value": "Пересобрать и перезагрузить ядро — короткий обрыв соединения"
+  },
+  "Rebuild config": {
+    "value": "Пересобрать конфиг"
+  },
+  "Rebuild config only": {
+    "value": "Только пересобрать конфиг"
+  },
+  "Rebuild config — apply manually": {
+    "value": "Пересобрать конфиг — применить вручную"
+  },
+  "Recommended. Protects the local proxy port.": {
+    "value": "Рекомендуется. Защищает локальный порт прокси."
+  },
+  "Recorded at": {
+    "value": "Записано"
+  },
+  "Recording system-wide events": {
+    "value": "Идёт запись общесистемных событий"
+  },
+  "Refresh": {
+    "value": "Обновить"
+  },
+  "Refresh SRS": {
+    "value": "Обновить SRS"
+  },
+  "Refresh now": {
+    "value": "Обновить сейчас"
+  },
+  "Refresh on app start, after VPN connects, and periodically. Manual ⟳ works regardless.": {
+    "value": "Обновлять при запуске приложения, после подключения VPN и периодически. Ручное ⟳ работает всегда."
+  },
+  "Refresh rule-sets": {
+    "value": "Обновить rule-set-файлы"
+  },
+  "Refreshing…": {
+    "value": "Обновление…"
+  },
+  "Regenerate": {
+    "value": "Сгенерировать заново"
+  },
+  "Register": {
+    "value": "Зарегистрировать"
+  },
+  "Register detour in auto group": {
+    "value": "Регистрировать detour в auto-группе"
+  },
+  "Register detour servers": {
+    "value": "Регистрировать detour-серверы"
+  },
+  "Registered by preset \"%s\". Parameters are edited in the preset rule (Routing → Rules).": {
+    "value": "Зарегистрирован пресетом «%s». Параметры редактируются в правиле пресета (Маршрутизация → Правила)."
+  },
+  "Registered: WARP": {
+    "value": "Зарегистрировано: WARP"
+  },
+  "Registered: WARP+": {
+    "value": "Зарегистрировано: WARP+"
+  },
+  "Registering…": {
+    "value": "Регистрация…"
+  },
+  "Registers a free WireGuard tunnel on Cloudflare. The private key is generated on this device and never leaves it.": {
+    "value": "Регистрирует бесплатный WireGuard-туннель в Cloudflare. Приватный ключ генерируется на этом устройстве и никогда его не покидает."
+  },
+  "Reject": {
+    "value": "Отклонять"
+  },
+  "Released %s": {
+    "value": "Выпущено %s"
+  },
+  "Reload": {
+    "value": "Перезагрузить"
+  },
+  "Reload failed: %s": {
+    "value": "Не удалось перезагрузить: %s"
+  },
+  "Remote (.srs)": {
+    "value": "Удалённый (.srs)"
+  },
+  "Remove": {
+    "value": "Убрать"
+  },
+  "Remove \"%1$s\" (%2$s)? References to it fall back to vpn-1.": {
+    "value": "Удалить «%1$s» (%2$s)? Ссылки на него переключатся на vpn-1."
+  },
+  "Remove \"%s\" from this folder?": {
+    "value": "Удалить «%s» из этой папки?"
+  },
+  "Remove \"%s\" permanently?": {
+    "value": "Удалить «%s» безвозвратно?"
+  },
+  "Remove \"%s\"?": {
+    "value": "Удалить «%s»?"
+  },
+  "Remove \"%s\"? Other chains using it as a position will stop building until you fix them.": {
+    "value": "Удалить «%s»? Другие цепочки, где она стоит позицией, перестанут собираться, пока вы их не поправите."
+  },
+  "Remove %d servers that failed the test (unreachable or broken)?": {
+    "value": {
+      "one": "Удалить %d сервер, не прошедший тест (недоступен или бит)?",
+      "few": "Удалить %d сервера, не прошедшие тест (недоступны или биты)?",
+      "many": "Удалить %d серверов, не прошедших тест (недоступны или биты)?",
+      "other": "Удалить %d сервера, не прошедших тест (недоступны или биты)?"
+    }
+  },
+  "Remove all %1$d apps from the list. Mode (%2$s) is kept.": {
+    "value": {
+      "one": "Из списка будет убрано %1$d приложение. Режим (%2$s) сохранится.",
+      "few": "Из списка будут убраны %1$d приложения. Режим (%2$s) сохранится.",
+      "many": "Из списка будет убрано %1$d приложений. Режим (%2$s) сохранится.",
+      "other": "Из списка будет убрано %1$d приложения. Режим (%2$s) сохранится."
+    }
+  },
+  "Remove from history": {
+    "value": "Убрать из истории"
+  },
+  "Remove position": {
+    "value": "Убрать позицию"
+  },
+  "Rename": {
+    "value": "Переименовать"
+  },
+  "Rename folder": {
+    "value": "Переименовать папку"
+  },
+  "Rename…": {
+    "value": "Переименовать…"
+  },
+  "Renaming updates all references automatically": {
+    "value": "Переименование автоматически обновит все ссылки"
+  },
+  "Replace": {
+    "value": "Заменить"
+  },
+  "Replace all": {
+    "value": "Заменить все"
+  },
+  "Replace all (destructive)": {
+    "value": "Заменить всё (необратимо)"
+  },
+  "Replace all data?": {
+    "value": "Заменить все данные?"
+  },
+  "Replace all → %s": {
+    "value": "Заменить все → %s"
+  },
+  "Replace the existing server with this one?": {
+    "value": "Заменить существующий сервер этим?"
+  },
+  "Replacements": {
+    "value": "Замены"
+  },
+  "Request is sent through this node": {
+    "value": "Запрос уходит через этот узел"
+  },
+  "Request rejected (%d)": {
+    "value": "Запрос отклонён (%d)"
+  },
+  "Request timed out — server slow or unreachable": {
+    "value": "Тайм-аут запроса — сервер медленный или недоступен"
+  },
+  "Required field \"%s\" is missing.": {
+    "value": "Отсутствует обязательное поле «%s»."
+  },
+  "Required for LAN-exposed proxy (cannot be disabled).": {
+    "value": "Обязательно для прокси, доступного из локальной сети (нельзя отключить)."
+  },
+  "Required for Wi-Fi-based routing rules. Tap to grant.": {
+    "value": "Нужно для правил маршрутизации по Wi-Fi. Нажмите, чтобы выдать."
+  },
+  "Reserved from OS": {
+    "value": "Зарезервировано у ОС"
+  },
+  "Reset": {
+    "value": "Сбросить"
+  },
+  "Reset all": {
+    "value": "Сбросить всё"
+  },
+  "Reset fail count & retry": {
+    "value": "Сбросить счётчик сбоев и повторить"
+  },
+  "Reset to default": {
+    "value": "Сбросить к значениям по умолчанию"
+  },
+  "Reset to default?": {
+    "value": "Сбросить к значениям по умолчанию?"
+  },
+  "Reset to global": {
+    "value": "Сбросить к глобальным"
+  },
+  "Resolve first": {
+    "value": "Сначала резолвить"
+  },
+  "Resolve only": {
+    "value": "Только резолв"
+  },
+  "Resolve options": {
+    "value": "Параметры резолва"
+  },
+  "Resolve the domain before routing — force an address family (e.g. IPv4 only).": {
+    "value": "Резолвить домен до маршрутизации — можно навязать семейство адресов (например, только IPv4)."
+  },
+  "Resolve, then fall through to the next rule.": {
+    "value": "Резолвить и передать трафик следующему правилу."
+  },
+  "Resolves the server hostname itself": {
+    "value": "Резолвит имя самого DNS-сервера"
+  },
+  "Response": {
+    "value": "Ответ"
+  },
+  "Response headers": {
+    "value": "Заголовки ответа"
+  },
+  "Response was longer and got cut off.": {
+    "value": "Ответ был длиннее и обрезан."
+  },
+  "Restart VPN to apply changes": {
+    "value": "Перезапустите VPN, чтобы применить изменения"
+  },
+  "Restart now": {
+    "value": "Перезапустить"
+  },
+  "Restore failed: %s": {
+    "value": "Не удалось восстановить: %s"
+  },
+  "Restore from a backup JSON file. Preview shown before applying.": {
+    "value": "Восстановление из JSON-файла резервной копии. Перед применением показывается предпросмотр."
+  },
+  "Restore from backup": {
+    "value": "Восстановить из резервной копии"
+  },
+  "Restricted — Android may pause VPN in idle. Tap to grant.": {
+    "value": "Ограничено — Android может приостанавливать VPN в простое. Нажмите, чтобы разрешить."
+  },
+  "Resume": {
+    "value": "Продолжить"
+  },
+  "Resumed — syncing tunnel…": {
+    "value": "Возобновлено — синхронизация туннеля…"
+  },
+  "Rewrite TTL": {
+    "value": "Переписывать TTL"
+  },
+  "Rewrite or disable nodes when the subscription is imported": {
+    "value": "Заменять или выключать узлы при импорте подписки"
+  },
+  "Rotate to landscape when the device turns — handy on tablets. Follows the system auto-rotate setting.": {
+    "value": "Поворачивать в альбомную ориентацию вместе с устройством — удобно на планшетах. Учитывает системный автоповорот."
+  },
+  "Route or block by app / domain / IP / port / protocol, or remote .srs rule-set.": {
+    "value": "Маршрутизация или блокировка по приложению / домену / IP / порту / протоколу либо по удалённому .srs rule-set."
+  },
+  "Route through another server first": {
+    "value": "Сначала пропустить трафик через другой сервер"
+  },
+  "Route to outbound": {
+    "value": "Направить в исходящий канал"
+  },
+  "Routing": {
+    "value": "Маршрутизация"
+  },
+  "Routing and DNS are configured in the app.": {
+    "value": "Маршрутизация и DNS настраиваются в приложении."
+  },
+  "Routing loop between groups: %s — fix group membership to start the VPN.": {
+    "value": "Петля маршрутизации между группами: %s — исправьте состав групп, чтобы запустить VPN."
+  },
+  "Routing loop — VPN not started": {
+    "value": "Петля маршрутизации — VPN не запущен"
+  },
+  "Routing loop: \"%1$s\" points back into \"%2$s\" — change or remove its detour to start the VPN.": {
+    "value": "Петля маршрутизации: «%1$s» ведёт обратно в «%2$s» — измените или уберите его detour, чтобы запустить VPN."
+  },
+  "Routing loop: %1$d nodes point back into their own chain — change or remove their detours to start the VPN: %2$s.": {
+    "value": {
+      "one": "Петля маршрутизации: %1$d узел ведёт трафик обратно в собственную цепочку — измените или уберите его detour, чтобы запустить VPN: %2$s.",
+      "few": "Петля маршрутизации: %1$d узла ведут трафик обратно в собственные цепочки — измените или уберите их detour, чтобы запустить VPN: %2$s.",
+      "many": "Петля маршрутизации: %1$d узлов ведут трафик обратно в собственные цепочки — измените или уберите их detour, чтобы запустить VPN: %2$s.",
+      "other": "Петля маршрутизации: %1$d узла ведут трафик обратно в собственные цепочки — измените или уберите их detour, чтобы запустить VPN: %2$s."
+    }
+  },
+  "Rule": {
+    "value": "Правило"
+  },
+  "Rule \"%1$s\" references missing outbound \"%2$s\".": {
+    "value": "Правило «%1$s» ссылается на несуществующий исходящий канал «%2$s»."
+  },
+  "Rule body (JSON)": {
+    "value": "Тело правила (JSON)"
+  },
+  "Rules": {
+    "value": "Правила"
+  },
+  "Rules changed. Refresh the subscription to apply them.": {
+    "value": "Правила изменены. Обновите подписку, чтобы применить их."
+  },
+  "Rules exported": {
+    "value": "Правила экспортированы"
+  },
+  "Rules menu": {
+    "value": "Меню правил"
+  },
+  "Rules run when the subscription body is loaded. Tap Apply rules to reload it now.": {
+    "value": "Правила срабатывают при загрузке тела подписки. Нажмите «Применить правила», чтобы перезагрузить его сейчас."
+  },
+  "Rules: %d": {
+    "value": "Правил: %d"
+  },
+  "Run": {
+    "value": "Запустить"
+  },
+  "Run URLTest": {
+    "value": "Запустить URLTest"
+  },
+  "Running…": {
+    "value": "Выполняется…"
+  },
+  "Runtime HTTP server for adb-forwarded debugging.": {
+    "value": "HTTP-сервер для отладки через adb forward."
+  },
+  "SOCKS5": {
+    "value": "SOCKS5"
+  },
+  "SRS URL is empty": {
+    "value": "URL SRS пуст"
+  },
+  "SRS: %s": {
+    "value": "SRS: %s"
+  },
+  "SSID": {
+    "value": "SSID"
+  },
+  "START": {
+    "value": "START"
+  },
+  "STOP": {
+    "value": "STOP"
+  },
+  "Save": {
+    "value": "Сохранить"
+  },
+  "Save to Downloads": {
+    "value": "Сохранить в «Загрузки»"
+  },
+  "Save to file": {
+    "value": "Сохранить в файл"
+  },
+  "Save your subscriptions, routing setup and preferences as a JSON file.": {
+    "value": "Сохраняет подписки, настройки маршрутизации и параметры в JSON-файл."
+  },
+  "Saved": {
+    "value": "Сохранено"
+  },
+  "Saved as %s (%d bytes)": {
+    "value": "Сохранено как %s (%d байт)"
+  },
+  "Saved direction \"%1$s\" — %2$s": {
+    "value": "Направление «%1$s» сохранено — %2$s"
+  },
+  "Saved direction \"%s\"": {
+    "value": "Направление «%s» сохранено"
+  },
+  "Saved networks": {
+    "value": "Сохранённые сети"
+  },
+  "Saved to Downloads: %s (%d bytes)": {
+    "value": "Сохранено в «Загрузки»: %s (%d байт)"
+  },
+  "Saved. Force-stop & reopen app to apply.": {
+    "value": "Сохранено. Полностью закройте и снова откройте приложение, чтобы применить."
+  },
+  "Scan QR code": {
+    "value": "Сканировать QR-код"
+  },
+  "Search apps...": {
+    "value": "Поиск приложений…"
+  },
+  "Search by name or package": {
+    "value": "Поиск по имени или пакету"
+  },
+  "Search domain / IP / app": {
+    "value": "Поиск: домен / IP / приложение"
+  },
+  "Select a %s file": {
+    "value": "Выберите файл %s"
+  },
+  "Select all": {
+    "value": "Выбрать все"
+  },
+  "Select apps": {
+    "value": "Выбор приложений"
+  },
+  "Select direction": {
+    "value": "Выберите Направление"
+  },
+  "Select server": {
+    "value": "Показать выбранный сервер"
+  },
+  "Selection mode": "Режим выбора",
+  "Selector \"%1$s\" default \"%2$s\" is not in the options list.": {
+    "value": "У селектора «%1$s» значение по умолчанию «%2$s» отсутствует в списке вариантов."
+  },
+  "Send DNS to dedicated server": {
+    "value": "Отправлять DNS на выделенный сервер"
+  },
+  "Send HWID": {
+    "value": "Отправлять HWID"
+  },
+  "Send matched traffic to a direction.": {
+    "value": "Отправлять совпавший трафик в Направление."
+  },
+  "Send to another app": {
+    "value": "Отправить в другое приложение"
+  },
+  "Send x-hwid + device headers on every subscription fetch — for panels with HWID device limits (Remnawave). Off by default.": {
+    "value": "Отправлять x-hwid и заголовки устройства при каждой загрузке подписки — для панелей с лимитом устройств по HWID (Remnawave). По умолчанию выключено."
+  },
+  "Sends the Cloudflare client_id. Off for obfuscation (the device binding tends to get blocked).": {
+    "value": "Отправляет client_id Cloudflare. При обфускации отключено — привязку к устройству часто блокируют."
+  },
+  "Server": {
+    "value": "Сервер"
+  },
+  "Server %d": {
+    "value": "Сервер %d"
+  },
+  "Server address": {
+    "value": "Адрес сервера"
+  },
+  "Server address is required": {
+    "value": "Укажите адрес сервера"
+  },
+  "Server error (%d) — provider is down, try later": {
+    "value": "Ошибка сервера (%d) — провайдер недоступен, попробуйте позже"
+  },
+  "Server lists": {
+    "value": "Списки серверов"
+  },
+  "Server not found": {
+    "value": "Сервер не найден"
+  },
+  "Server type": "Тип сервера",
+  "Servers": {
+    "value": "Серверы"
+  },
+  "Servers can't be tested while the VPN is on — the test needs its own core session, which can't run alongside the active tunnel. Stop the VPN to test the servers.": {
+    "value": "Серверы нельзя протестировать при включённом VPN — тесту нужна собственная сессия ядра, а она не может работать одновременно с активным туннелем. Остановите VPN, чтобы проверить серверы."
+  },
+  "Servers in the pool": {
+    "value": "Серверы в пуле"
+  },
+  "Servers in this folder have no detours yet. You can still route all of them through one of your servers, or set personal detours per server (tap a server on the Servers tab).": {
+    "value": "У серверов этой папки пока нет detour. Тем не менее можно направить их все через один из ваших серверов или задать каждому личный detour (нажмите на сервер на вкладке «Серверы»)."
+  },
+  "Session History": {
+    "value": "История сессии"
+  },
+  "Set whole value": {
+    "value": "Заменить целиком"
+  },
+  "Set whole value needs a target path": {
+    "value": "Режим «Заменить целиком» требует путь цели"
+  },
+  "Setting is saved immediately, but `Libbox.setup` reads the `debug` flag once per process. Stop/start VPN does NOT re-apply — force-stop the app (or use the button below) and reopen.": {
+    "value": "Настройка сохраняется сразу, но `Libbox.setup` читает флаг `debug` один раз на процесс. Перезапуск VPN её НЕ применяет — полностью закройте приложение (или нажмите кнопку ниже) и откройте снова."
+  },
+  "Settings": {
+    "value": "Настройки"
+  },
+  "Settings changed — tap to rebuild config": {
+    "value": "Настройки изменены — нажмите, чтобы пересобрать конфиг"
+  },
+  "Several servers behind one tag — survives a member failure": "Несколько серверов под одним тегом — переживает сбой члена",
+  "Share": {
+    "value": "Поделиться"
+  },
+  "Share %d events (JSON)": {
+    "value": {
+      "one": "Поделиться %d событием (JSON)",
+      "few": "Поделиться %d событиями (JSON)",
+      "many": "Поделиться %d событиями (JSON)",
+      "other": "Поделиться %d событиями (JSON)"
+    }
+  },
+  "Share URL…": {
+    "value": "Поделиться URL…"
+  },
+  "Share dump (config + vars + subs + log)": {
+    "value": "Поделиться дампом (конфиг + переменные + подписки + лог)"
+  },
+  "Share failed: %s": {
+    "value": "Не удалось поделиться: %s"
+  },
+  "Share the OOM report": {
+    "value": "Поделиться отчётом OOM"
+  },
+  "Share the crash report": {
+    "value": "Поделиться отчётом о падении"
+  },
+  "Shared with the home screen ping": {
+    "value": "Общие с пингом на главном экране"
+  },
+  "Show": {
+    "value": "Показать"
+  },
+  "Show NON-matching": {
+    "value": "Показывать НЕсовпадающие"
+  },
+  "Show NON-selected": {
+    "value": "Показывать НЕвыбранные"
+  },
+  "Show all (%d)": {
+    "value": "Показать все (%d)"
+  },
+  "Show filters": {
+    "value": "Показать фильтры"
+  },
+  "Show loop": {
+    "value": "Показать петлю"
+  },
+  "Show only detour servers": {
+    "value": "Показывать только detour-серверы"
+  },
+  "Show system apps": {
+    "value": "Показать системные приложения",
+    "special": {
+      "1": {
+        "value": "Показывать системные приложения"
+      }
+    }
+  },
+  "Show the decoded body — what import rules see": {
+    "value": "Показать раскодированное тело — то, что видят правила импорта"
+  },
+  "Shown as the server title in the Servers list. If empty, \"%s\" is used.": {
+    "value": "Показывается как заголовок сервера в списке «Серверы». Если пусто, используется «%s»."
+  },
+  "Single object or array of outbounds. WireGuard routes to endpoints[] automatically.": {
+    "value": "Один объект или массив исходящих каналов. WireGuard автоматически направляется в endpoints[]."
+  },
+  "Skip": {
+    "value": "Пропустить"
+  },
+  "Skip periodic server probes while your own traffic already proves the connection works. Fewer wakeups and less battery; ping numbers refresh less often.": {
+    "value": "Не опрашивать серверы, пока ваш собственный трафик и так подтверждает, что соединение работает. Меньше пробуждений и расхода батареи; значения пинга обновляются реже."
+  },
+  "Slower than, ms": {
+    "value": "Медленнее чем, мс"
+  },
+  "Some panels return the config by a substring in the User-Agent — a custom UA without the \"LxBox\" token may yield an unsupported format and break the update. Change only if you know why.": {
+    "value": "Некоторые панели выбирают формат конфига по подстроке в User-Agent — свой UA без токена «LxBox» может вернуть неподдерживаемый формат и сломать обновление. Меняйте, только если понимаете зачем."
+  },
+  "Something went wrong in this section.\nCheck Debug → Logs.": {
+    "value": "В этом разделе произошла ошибка.\nПодробности: Отладка → Логи."
+  },
+  "Sort by ping": {
+    "value": "Сортировать по пингу"
+  },
+  "Sort options": {
+    "value": "Параметры сортировки"
+  },
+  "Source": {
+    "value": "Источник"
+  },
+  "Source Code": {
+    "value": "Исходный код"
+  },
+  "Source copied": {
+    "value": "Источник скопирован"
+  },
+  "Source not found in your lists": {
+    "value": "Источник не найден в ваших списках"
+  },
+  "Source: local file": {
+    "value": "Источник: локальный файл"
+  },
+  "Speed Test": {
+    "value": "Тест скорости"
+  },
+  "Stable — stick to one until it fails": "Stable — держится за один, пока тот не сбоит",
+  "Stack in use": {
+    "value": "Стек занят"
+  },
+  "Standalone servers": {
+    "value": "Отдельные серверы"
+  },
+  "Start": {
+    "value": "Start"
+  },
+  "Start / Stop / Toggle / Switch / Refresh / … (default OFF)": {
+    "value": "Start / Stop / Toggle / Switch / Refresh / … (по умолчанию выключено)"
+  },
+  "Start Test": {
+    "value": "Начать тест"
+  },
+  "Start VPN when device turns on": {
+    "value": "Запускать VPN при включении устройства"
+  },
+  "Start the VPN to check this node from here, or open it from its subscription to check it with the VPN off.": {
+    "value": "Включите VPN, чтобы проверить узел отсюда, или откройте его из подписки — там проверка работает и с выключенным VPN."
+  },
+  "Start the VPN to probe this chain — its hops exist only in the running core.": {
+    "value": "Включите VPN, чтобы замерить эту цепочку: её хопы существуют только в работающем ядре."
+  },
+  "State": {
+    "value": "Состояние"
+  },
+  "Statistics": {
+    "value": "Статистика"
+  },
+  "Stats": {
+    "value": "Обзор"
+  },
+  "Stay": {
+    "value": "Остаться"
+  },
+  "Sticky session by": {
+    "value": "Закреплять сессии по"
+  },
+  "Stop": {
+    "value": "Stop"
+  },
+  "Stop VPN": {
+    "value": "Остановить VPN"
+  },
+  "Stop VPN?": {
+    "value": "Остановить VPN?"
+  },
+  "Stop timed out": {
+    "value": "Остановка не завершилась вовремя"
+  },
+  "Stop timed out — reconnect aborted": {
+    "value": "Остановка не завершилась вовремя — переподключение отменено"
+  },
+  "Stopped: %s": {
+    "value": "Остановлено: %s"
+  },
+  "Stopping…": {
+    "value": "Остановка…"
+  },
+  "Stored locally only. Existing entries persist when you turn this off — remove individually in Pick saved (long-press chip → Remove).": {
+    "value": "Хранится только на устройстве. При выключении записи не удаляются — убирайте их по одной в «Pick saved» (долгое нажатие на чип → Remove)."
+  },
+  "Straight to the Downloads folder": {
+    "value": "Сразу в папку «Загрузки»"
+  },
+  "Strategy": {
+    "value": "Стратегия"
+  },
+  "Streams": {
+    "value": "Потоки"
+  },
+  "Strict tunnel — all traffic goes through tun.": {
+    "value": "Строгий туннель — весь трафик идёт через tun."
+  },
+  "Strip evasion tricks from links": {
+    "value": "Снимать приёмы обхода у звеньев"
+  },
+  "Subscription": {
+    "value": "Подписки",
+    "special": {
+      "1": {
+        "value": "Подписка"
+      }
+    }
+  },
+  "Subscription URL": {
+    "value": "URL подписки"
+  },
+  "Subscription URL or proxy link": {
+    "value": "URL подписки или proxy-ссылка"
+  },
+  "Subscription settings…": {
+    "value": "Настройки подписок…"
+  },
+  "Subscriptions": {
+    "value": "Подписки"
+  },
+  "Subscriptions & proxy": {
+    "value": "Подписки и прокси"
+  },
+  "Subscriptions and custom servers": {
+    "value": "Подписки и собственные серверы"
+  },
+  "Subscriptions: %d": {
+    "value": "Подписок: %d"
+  },
+  "Substitute part": {
+    "value": "Заменить часть"
+  },
+  "Support": {
+    "value": "Поддержка"
+  },
+  "Support L×Box": {
+    "value": "Поддержать L×Box"
+  },
+  "Support the project": {
+    "value": "Поддержать проект"
+  },
+  "Supported: vless / vmess / trojan / ss / hy2 / tuic / socks5 / proxy-http(s) / wireguard URLs": {
+    "value": "Поддерживаются ссылки vless / vmess / trojan / ss / hy2 / tuic / socks5 / proxy-http(s) / wireguard"
+  },
+  "Suspend active-route tunnels": {
+    "value": "Усыплять туннели активного маршрута"
+  },
+  "Suspend idle tunnels": {
+    "value": "Усыплять неактивные туннели"
+  },
+  "Switch": {
+    "value": "Переключиться"
+  },
+  "Switch failed: %s": {
+    "value": "Не удалось переключить узел: %s"
+  },
+  "Switch to cloudflare_udp": {
+    "value": "Переключить на cloudflare_udp"
+  },
+  "Switch tolerance (ms)": {
+    "value": "Порог переключения (мс)"
+  },
+  "Switchable detour direction": {
+    "value": "Переключаемое detour-Направление"
+  },
+  "System": {
+    "value": "Система"
+  },
+  "System DNS leaks lookups to your ISP": {
+    "value": "Системный DNS раскрывает запросы вашему провайдеру"
+  },
+  "System default": {
+    "value": "Как в системе"
+  },
+  "System id, cannot be changed later": {
+    "value": "Системный id, потом не изменить"
+  },
+  "System setup": {
+    "value": "Настройка системы"
+  },
+  "System-wide events (no owner detected) — %d": {
+    "value": "Общесистемные события (владелец не определён) — %d"
+  },
+  "TLS certificate verification is disabled.": {
+    "value": "Проверка TLS-сертификата отключена."
+  },
+  "TLS server name (SNI) — optional": {
+    "value": "Имя сервера TLS (SNI) — необязательно"
+  },
+  "TUIC congestion control \"%s\" is not one of cubic, new_reno, bbr — the setting was dropped and the core default applies.": {
+    "value": "Управление перегрузкой TUIC «%s» не входит в набор cubic, new_reno, bbr, поэтому настройка отброшена; действует значение ядра по умолчанию."
+  },
+  "Tag": {
+    "value": "Тег"
+  },
+  "Tag \"%s\" exists": {
+    "value": "Тег «%s» уже существует"
+  },
+  "Tag \"%s\" is already in use": {
+    "value": "Тег «%s» уже занят"
+  },
+  "Tag (optional)": {
+    "value": "Тег (необязательно)"
+  },
+  "Tag cannot be empty": {
+    "value": "Тег не может быть пустым"
+  },
+  "Tag copied": {
+    "value": "Тег скопирован"
+  },
+  "Tag is required": {
+    "value": "Укажите тег"
+  },
+  "Tag prefix": {
+    "value": "Префикс тегов"
+  },
+  "Taken by another VPN": {
+    "value": "Занят другим VPN"
+  },
+  "Tap START to begin capture. Recording continues when you leave this tab.": {
+    "value": "Нажмите START, чтобы начать запись. Запись продолжится, когда вы уйдёте с этой вкладки."
+  },
+  "Tap Start to begin": {
+    "value": "Для запуска нажмите «Начать тест»"
+  },
+  "Tap to add match fields": {
+    "value": "Нажмите, чтобы добавить условия"
+  },
+  "Tap to connect": {
+    "value": "Нажмите, чтобы подключиться"
+  },
+  "Tap to edit": {
+    "value": "Нажмите, чтобы изменить"
+  },
+  "Tap to edit or delete": {
+    "value": "Нажмите, чтобы изменить или удалить"
+  },
+  "Target path": {
+    "value": "Путь назначения"
+  },
+  "Tech Stack": {
+    "value": "Технологии"
+  },
+  "Template": {
+    "value": "Шаблон"
+  },
+  "Test URL": {
+    "value": "Тестовый URL"
+  },
+  "Test actions": {
+    "value": "Действия теста"
+  },
+  "Test download/upload speed": {
+    "value": "Проверка скорости загрузки и отдачи"
+  },
+  "Test servers": {
+    "value": "Тест серверов"
+  },
+  "Test servers list unavailable": {
+    "value": "Список тестовых серверов недоступен"
+  },
+  "Test ≤": {
+    "value": "Тест ≤"
+  },
+  "Testing download...": {
+    "value": "Тест загрузки…"
+  },
+  "Testing ping...": {
+    "value": "Тест пинга…"
+  },
+  "Testing upload...": {
+    "value": "Тест отдачи…"
+  },
+  "Testing...": {
+    "value": "Тестирование…"
+  },
+  "Testing… %d done": {
+    "value": "Тестирование… готово %d"
+  },
+  "The VPN will briefly reload to apply.": {
+    "value": "VPN ненадолго перезагрузится, чтобы применить."
+  },
+  "The core crashed last session — tap to share the report": {
+    "value": "В прошлой сессии упало ядро — нажмите, чтобы отправить отчёт"
+  },
+  "The core has not hit its memory limit. Snapshots appear here only when the OOM killer fires.": {
+    "value": "Ядро не упиралось в лимит памяти. Снимки появляются здесь только при срабатывании OOM killer."
+  },
+  "The core has not panicked. Note that this channel only covers Go panics — native crashes and kills by the system are not recorded here.": {
+    "value": "Ядро не паниковало. Учтите: сюда попадают только паники Go — нативные падения и убийства системой здесь не фиксируются."
+  },
+  "The first position (%s) dials through its own detour — the real path is longer than shown: one more hop precedes it that is not in this list.": {
+    "value": "Первая позиция (%s) ходит через свой detour — реальный путь длиннее показанного: перед ней есть ещё один хоп, которого нет в списке."
+  },
+  "The name \"%s\" is already taken by another node, direction or chain — two outbounds with one tag cannot coexist.": {
+    "value": "Имя «%s» уже занято другим узлом, Направлением или цепочкой — два исходящих канала с одним тегом не уживутся."
+  },
+  "The servers it selects from stay in the folder.": {
+    "value": "Серверы, из которых он выбирает, останутся в папке."
+  },
+  "The whole element as the provider sent it": {
+    "value": "Элемент целиком, как прислал провайдер"
+  },
+  "Theme, appearance": {
+    "value": "Тема и внешний вид"
+  },
+  "These depend on dead node \"%1$s\" and are not working:": {
+    "value": "Они зависят от мёртвого узла \"%1$s\" и не работают:"
+  },
+  "These headers identify your device to the panel. Defaults come from the device — override any of them (empty = device default).": {
+    "value": "По этим заголовкам панель опознаёт ваше устройство. Значения по умолчанию берутся с устройства — любое можно переопределить (пусто = как на устройстве)."
+  },
+  "These positions are no longer among the available targets: %s. A chain with such a reference will not reach the config.": {
+    "value": "Этих позиций больше нет среди доступных целей: %s. Цепочка с такой ссылкой до конфига не доедет."
+  },
+  "These route through this node:": {
+    "value": "Через этот узел ходят:"
+  },
+  "This chain has no positions to probe.": {
+    "value": "В этой цепочке нет позиций для замера."
+  },
+  "This deletes the DNS cache (FakeIP allocations and cached responses).\n\n%s": {
+    "value": "Кэш DNS будет удалён (выделения FakeIP и закэшированные ответы).\n\n%s"
+  },
+  "This folder (%d)": {
+    "value": "Эта папка (%d)"
+  },
+  "This frees %s. Memory profiles cannot be recovered afterwards.": {
+    "value": "Освободится %s. Восстановить профили памяти после удаления нельзя."
+  },
+  "This is OS-level split-tunneling. It controls which apps see the VPN tunnel at all — packets from excluded apps go directly via cellular/wifi without entering sing-box.\n\n• Off — every app uses the VPN (default)\n• Allow-list — ONLY listed apps go through VPN; everything else bypasses\n• Deny-list — listed apps bypass VPN; everything else goes through\n\nNote: apps in the Allow-list still go through your normal routing rules. Apps that bypass the tunnel are not visible to sing-box at all — your custom rules with package_name will not match them.\n\nChanges require a full VPN restart to apply (Android creates the tun interface only at start).": {
+    "value": "Это разделение туннеля на уровне ОС: оно определяет, какие приложения вообще видят VPN-туннель — пакеты исключённых приложений идут напрямую через мобильную сеть или Wi-Fi, минуя sing-box.\n\n• Выключено — все приложения используют VPN (по умолчанию)\n• Белый список — через VPN идут ТОЛЬКО перечисленные приложения, остальные в обход\n• Чёрный список — перечисленные приложения идут в обход VPN, остальные через туннель\n\nВажно: приложения из белого списка по-прежнему проходят через обычные правила маршрутизации. Приложения в обход туннеля для sing-box невидимы — правила с package_name их не поймают.\n\nИзменения требуют полного перезапуска VPN (Android создаёт tun-интерфейс только при старте)."
+  },
+  "This is an auto-select node — it has no connection of its own. Open a member to diagnose it.": {
+    "value": "Это узел автовыбора — своего соединения у него нет. Откройте участника, чтобы проверить его."
+  },
+  "This rule changes DNS settings — it adds a DNS server and/or a DNS rule. See DNS Settings.": {
+    "value": "Правило меняет настройки DNS — добавляет DNS-сервер и/или DNS-правило. См. «Настройки DNS»."
+  },
+  "This subscription has no detour servers of its own. You can still route all its nodes through one of your servers.": {
+    "value": "У этой подписки нет собственных detour-серверов. Тем не менее можно направить все её узлы через один из ваших серверов."
+  },
+  "This tag collides with an auto twin (<tag>-auto)": {
+    "value": "Тег конфликтует с авто-двойником (<tag>-auto)"
+  },
+  "This tag is already taken by another chain or direction": {
+    "value": "Этот тег уже занят другой цепочкой или Направлением"
+  },
+  "This tag is reserved by the config": {
+    "value": "Этот тег зарезервирован конфигом"
+  },
+  "This will fully close the app process so the new \"Forward sing-box logs\" value is picked up at next launch (Libbox.setup is one-shot per process). VPN service will stop. Tap the app icon to reopen.": {
+    "value": "Процесс приложения будет полностью завершён, чтобы новое значение «Пересылать логи sing-box» подхватилось при следующем запуске (Libbox.setup вызывается один раз на процесс). Сервис VPN остановится. Чтобы открыть приложение снова, нажмите на его иконку."
+  },
+  "This will overwrite your current data in the selected categories. This cannot be undone.": {
+    "value": "Текущие данные в выбранных категориях будут перезаписаны. Это действие необратимо."
+  },
+  "This would create a detour loop inside the folder": {
+    "value": "Это создало бы detour-петлю внутри папки"
+  },
+  "Through this node in a temporary core session": {
+    "value": "Через этот узел во временной сессии ядра"
+  },
+  "Through this node in the running core — not through your current route": {
+    "value": "Через этот узел в работающем ядре — не через ваш текущий маршрут"
+  },
+  "Timed out after %ds — server slow or unreachable": {
+    "value": "Тайм-аут через %ds — сервер медленный или недоступен"
+  },
+  "Timeout (ms)": {
+    "value": "Тайм-аут (мс)"
+  },
+  "Timeout, ms": {
+    "value": "Тайм-аут, мс"
+  },
+  "Tip: pull down to refresh, or tap ⟳ in the top bar after adding.": {
+    "value": "Совет: потяните список вниз для обновления или нажмите ⟳ в верхней панели после добавления."
+  },
+  "Title": {
+    "value": "Название"
+  },
+  "To keep the VPN running in background, also disable battery restrictions for L×Box. The settings screen will open — find and toggle:\n\n• \"Battery usage\" → \"Don't optimize\" or \"Allow background activity\"\n\n• On OnePlus / OPPO / Realme also:\n  \"Stop activity when idle\" → OFF": {
+    "value": "Чтобы VPN работал в фоне, отключите для L×Box и ограничения батареи. Откроется экран настроек — найдите и переключите:\n\n• «Использование батареи» → «Не оптимизировать» или «Разрешить фоновую активность»\n\n• На OnePlus / OPPO / Realme также:\n  «Останавливать при бездействии» → выкл."
+  },
+  "Token": {
+    "value": "Токен"
+  },
+  "Token copied": {
+    "value": "Токен скопирован"
+  },
+  "Token is shown only here. It is NOT written to any file — use Copy to save. Server binds on 127.0.0.1 only; use `adb forward tcp:9269 tcp:9269`.": {
+    "value": "Токен показывается только здесь и НЕ записывается в файлы — сохраните его кнопкой «Копировать». Сервер слушает только 127.0.0.1; используйте `adb forward tcp:9269 tcp:9269`."
+  },
+  "Tolerance (ms)": {
+    "value": "Допуск (мс)"
+  },
+  "Traffic by Rule": {
+    "value": "Трафик по правилам"
+  },
+  "Traffic by outbound": {
+    "value": "Трафик по исходящим каналам"
+  },
+  "Traffic goes directly to this server.": {
+    "value": "Трафик идёт на этот сервер напрямую."
+  },
+  "Transfer to desktop": {
+    "value": "Перенос на десктоп"
+  },
+  "Transport \"%1$s\" is not supported by sing-box; using \"%2$s\" fallback (node may fail to connect).": {
+    "value": "Транспорт «%1$s» не поддерживается sing-box; используется резервный «%2$s» (узел может не подключиться)."
+  },
+  "Tries HTTP/3 first, falls back to HTTP/2 where QUIC/UDP is blocked — best for hop chains.": {
+    "value": "Сначала HTTP/3, при недоступности QUIC/UDP — откат на HTTP/2. Лучший выбор для цепочек хопов."
+  },
+  "Try a public test server — free, limited, good for first-time check:": {
+    "value": "Попробуйте публичный тестовый сервер — бесплатный, с ограничениями, подойдёт для первой проверки:"
+  },
+  "Tunnel apps": {
+    "value": "Приложения туннеля"
+  },
+  "Tunnel apps — OS-level split": {
+    "value": "Приложения туннеля — разделение на уровне ОС"
+  },
+  "Tunnel is always active. Best reliability — pushes and long-lived sockets survive. Higher battery use.": {
+    "value": "Туннель активен всегда. Максимальная надёжность — push-уведомления и долгоживущие соединения сохраняются. Расход батареи выше."
+  },
+  "Tunnel options": {
+    "value": "Параметры туннеля"
+  },
+  "Tunnel sleep mode": {
+    "value": "Режим сна туннеля"
+  },
+  "URI copied": {
+    "value": "URI скопирован"
+  },
+  "URL": {
+    "value": "URL"
+  },
+  "URL copied": {
+    "value": "URL скопирован"
+  },
+  "URL-test group \"%s\" has no outbounds.": {
+    "value": "В URL-test-группе «%s» нет исходящих каналов."
+  },
+  "Unattributed (no owner)": {
+    "value": "Без владельца (unattributed)"
+  },
+  "Unavailable with port/protocol filters — they are unknown at DNS-query time.": {
+    "value": "Недоступно при фильтрах порта/протокола — в момент DNS-запроса они ещё неизвестны."
+  },
+  "Unique id — referenced by DNS rules / resolvers": {
+    "value": "Уникальный идентификатор — на него ссылаются DNS-правила и резолверы"
+  },
+  "Unknown": {
+    "value": "Неизвестно"
+  },
+  "Unknown format": {
+    "value": "Неизвестный формат"
+  },
+  "Unknown obfuscation type \"%s\" was dropped (the core supports salamander and gecko only, and would otherwise break the whole config). The node connects without obfuscation.": {
+    "value": "Неизвестный тип обфускации «%s» отброшен (ядро знает только salamander и gecko, иначе сломался бы весь конфиг). Узел подключится без обфускации."
+  },
+  "Unknown preset (newer app version?)": {
+    "value": "Неизвестный пресет (файл из более новой версии?)"
+  },
+  "Unknown uTLS fingerprint \"%s\" replaced with \"chrome\" (would otherwise break the whole config).": {
+    "value": "Неизвестный uTLS fingerprint «%s» заменён на «chrome» (иначе сломался бы весь конфиг)."
+  },
+  "Unlimited": {
+    "value": "никогда"
+  },
+  "Unreadable entry": {
+    "value": "Нечитаемая запись"
+  },
+  "Unsaved changes": {
+    "value": "Несохранённые изменения"
+  },
+  "Unsupported entry": {
+    "value": "Неподдерживаемая запись"
+  },
+  "Unsupported entry — skipped": {
+    "value": "Неподдерживаемая запись — пропущена"
+  },
+  "Update": {
+    "value": "Обновить"
+  },
+  "Update all & generate": {
+    "value": "Обновить всё и собрать конфиг"
+  },
+  "Update disabled subscriptions": {
+    "value": "Обновлять выключенные подписки"
+  },
+  "Update failed — using cached copy": {
+    "value": "Не удалось обновить — используется сохранённая копия"
+  },
+  "Update interval": {
+    "value": "Интервал обновления"
+  },
+  "Update now": {
+    "value": "Обновить сейчас"
+  },
+  "Update subscription to see nodes": {
+    "value": "Обновите подписку, чтобы увидеть узлы"
+  },
+  "Updated %s": {
+    "value": "Обновлено %s"
+  },
+  "Updates": {
+    "value": "Обновления"
+  },
+  "Upload": {
+    "value": "Отдача"
+  },
+  "Use \"%s\" as…": {
+    "value": "Использовать «%s» как…"
+  },
+  "Use $1, $2 for regex capture groups": {
+    "value": "Используйте $1, $2 для групп захвата"
+  },
+  "Use as detour": {
+    "value": "Использовать как detour"
+  },
+  "Use node": {
+    "value": "Использовать узел"
+  },
+  "Use servers' own detours": {
+    "value": "Использовать собственные detour серверов"
+  },
+  "Use subscription detour servers": {
+    "value": "Использовать detour-серверы подписки"
+  },
+  "Use this node": {
+    "value": "Использовать этот узел"
+  },
+  "Used by routing engine to resolve hostnames internally (outbound endpoints, routing rules). Not the resolver apps use.\n\nRecommended:\n  • dns_shield — default; races 9 providers, answers from whichever replies first\n  • cloudflare_udp — UDP to 1.1.1.1 (fast)\n  • google_udp — UDP to 8.8.8.8 (fast)\n  • google_doh — encrypted\n\n⚠ local_dns_resolver here leaks lookups to your ISP — system DNS bypasses the VPN.": {
+    "value": "Используется движком маршрутизации для внутреннего резолва имён (адреса исходящих серверов, правила маршрутизации). Это не резолвер приложений.\n\nРекомендуется:\n  • dns_shield — по умолчанию; опрашивает 9 провайдеров наперегонки, отвечает тот, кто первым откликнулся\n  • cloudflare_udp — UDP к 1.1.1.1 (быстро)\n  • google_udp — UDP к 8.8.8.8 (быстро)\n  • google_doh — шифрованный\n\n⚠ local_dns_resolver здесь сливает запросы провайдеру — системный DNS идёт мимо VPN."
+  },
+  "User": {
+    "value": "Свой"
+  },
+  "User guide": {
+    "value": "Руководство пользователя"
+  },
+  "Username (optional)": {
+    "value": "Имя пользователя (необязательно)"
+  },
+  "VPN Settings": {
+    "value": "Настройки VPN"
+  },
+  "VPN core": {
+    "value": "Ядро VPN"
+  },
+  "VPN is running": {
+    "value": "VPN работает"
+  },
+  "VPN must be running to capture a profile.": {
+    "value": "Для снятия профиля VPN должен быть запущен."
+  },
+  "VPN settings": {
+    "value": "Настройки VPN"
+  },
+  "VPN settings (System)": {
+    "value": "Настройки VPN (Система)"
+  },
+  "VPN stays active when app is closed": {
+    "value": "VPN остаётся активным после закрытия приложения"
+  },
+  "VPN system toggles": {
+    "value": "Системные переключатели VPN"
+  },
+  "Value": {
+    "value": "Значение"
+  },
+  "Variables: %d": {
+    "value": "Переменных: %d"
+  },
+  "Verbose (TRACE/DEBUG)": {
+    "value": "Подробно (TRACE/DEBUG)"
+  },
+  "Via: %s": {
+    "value": "Через: %s"
+  },
+  "Vibrate on connect, disconnect and errors. Respects system \"Touch feedback\" setting": {
+    "value": "Вибрация при подключении, отключении и ошибках. Учитывает системную настройку «Виброотклик при касании»"
+  },
+  "View": {
+    "value": "Открыть",
+    "special": {
+      "1": {
+        "value": "Просмотр"
+      }
+    }
+  },
+  "View details": {
+    "value": "Подробности"
+  },
+  "View on GitHub": {
+    "value": "Открыть на GitHub"
+  },
+  "View pool": {
+    "value": "Показать пул"
+  },
+  "View release": {
+    "value": "Открыть релиз"
+  },
+  "View, edit, import JSON": {
+    "value": "Просмотр, правка и импорт JSON"
+  },
+  "Visible in Debug → Core.": {
+    "value": "Видны в Debug → Core."
+  },
+  "WARP accounts: %d": {
+    "value": "Аккаунтов WARP: %d"
+  },
+  "WARP registration failed": {
+    "value": "Не удалось зарегистрировать WARP"
+  },
+  "WARP+ adds Argo Smart Routing (lower latency). Privacy is the same as free. Leave empty for free WARP.": {
+    "value": "WARP+ добавляет Argo Smart Routing (меньше задержка). Приватность та же, что и у бесплатного. Оставьте пустым для бесплатного WARP."
+  },
+  "Web page": {
+    "value": "Сайт"
+  },
+  "WebSocket early data \"?ed=%d\" was moved out of the path into a separate field, as the core requires. The node works; the path in the config is not literally the one from the link.": {
+    "value": "Ранние данные WebSocket «?ed=%d» перенесены из пути в отдельное поле, как требует ядро. Узел работает, но путь в конфиге отличается от указанного в ссылке."
+  },
+  "Where to get L×Box": {
+    "value": "Где взять L×Box"
+  },
+  "What goes into this direction": {
+    "value": "Что входит в Направление"
+  },
+  "When to pause the tunnel to save battery. Takes effect on next VPN connect.": {
+    "value": "Когда приостанавливать туннель ради экономии батареи. Вступает в силу при следующем подключении VPN."
+  },
+  "Which direction carries DNS queries to this server. Direct — no detour key in the config.": {
+    "value": "Какое Направление несёт DNS-запросы к этому серверу. «Напрямую» — без ключа detour в конфиге."
+  },
+  "While this is on, the per-subscription \"On update\" setting is hidden — everything is applied immediately. Turning it off brings each subscription's own choice back.": {
+    "value": "Пока включено, настройка «При обновлении» в подписках скрыта — всё применяется сразу. Выключите — вернётся собственный выбор каждой подписки."
+  },
+  "Whitelisted — VPN can run in background": {
+    "value": "В белом списке — VPN может работать в фоне"
+  },
+  "Whole-node replace needs a pattern to find": {
+    "value": "Замене по всему узлу нужен паттерн поиска"
+  },
+  "Wi-Fi rules need permissions": {
+    "value": "Правилам Wi-Fi нужны разрешения"
+  },
+  "Will be disabled": {
+    "value": "Будет выключен"
+  },
+  "Will be enabled": {
+    "value": "Будет включён"
+  },
+  "Win TTL": "TTL победы",
+  "Wipes existing data in selected categories.": {
+    "value": "Стирает текущие данные в выбранных категориях."
+  },
+  "Works only if the rule-set contains domains — IP-only lists never match DNS queries.": {
+    "value": "Работает, только если rule-set содержит домены — списки из одних IP никогда не совпадают с DNS-запросами."
+  },
+  "Writes a new value into the matching nodes.": {
+    "value": "Записывает новое значение в подходящие узлы."
+  },
+  "XHTTP mode was set to \"packet-up\": the link asks for header uplink data placement, which the core accepts only in that mode (the config would otherwise fail to load).": {
+    "value": "Режим XHTTP установлен в «packet-up»: ссылка требует передавать данные восходящего потока в заголовке, а ядро принимает это только в таком режиме (иначе конфиг не загрузился бы)."
+  },
+  "XHTTP \"%1$s\" reset to default — %2$s (would otherwise break the whole config).": {
+    "value": "Параметр XHTTP «%1$s» сброшен на значение по умолчанию — %2$s (иначе сломался бы весь конфиг)."
+  },
+  "XHTTP padding": {
+    "value": "набивка XHTTP"
+  },
+  "Yellow up to, ms": {
+    "value": "Жёлтый до, мс"
+  },
+  "You have unsaved changes. Save before leaving?": {
+    "value": "Есть несохранённые изменения. Сохранить перед выходом?"
+  },
+  "You have unsaved text in the input field. Leave and discard it?": {
+    "value": "В поле ввода остался несохранённый текст. Выйти и сбросить его?"
+  },
+  "You're up to date": {
+    "value": "У вас последняя версия"
+  },
+  "applied after include": {
+    "value": "применяется после «включить»"
+  },
+  "auto": {
+    "value": "авто"
+  },
+  "auto-start, keep on exit, background mode, allow bypass": {
+    "value": "автозапуск, сохранение при выходе, фоновый режим, обход VPN"
+  },
+  "broken": {
+    "value": "битый"
+  },
+  "built-in": {
+    "value": "встроенный"
+  },
+  "cached": {
+    "value": "кэш"
+  },
+  "can be picked as a detour target for servers and folders": {
+    "value": "Направление можно выбирать как detour-цель для серверов и папок"
+  },
+  "chain": {
+    "value": "цепочка"
+  },
+  "chains: %d": {
+    "value": "цепочек: %d"
+  },
+  "closed": {
+    "value": "закрыто"
+  },
+  "connect to see the full path": {
+    "value": "подключитесь, чтобы увидеть весь путь"
+  },
+  "connect to see the live pool": {
+    "value": "подключитесь, чтобы увидеть живой пул"
+  },
+  "connections with the same key keep one server": {
+    "value": "соединения с одним ключом держатся одного сервера"
+  },
+  "contains": {
+    "value": "содержит"
+  },
+  "deleted": {
+    "value": "удалён"
+  },
+  "detour → %s": {
+    "value": "detour → %s"
+  },
+  "direct connection option in the selector": {
+    "value": "вариант прямого соединения в селекторе"
+  },
+  "direction": {
+    "value": "Направление"
+  },
+  "disabled": {
+    "value": "выключен"
+  },
+  "dns.example.com — needed when address is an IP": {
+    "value": "dns.example.com — нужно, когда адрес задан IP"
+  },
+  "drop traffic option in the selector": {
+    "value": "вариант сброса трафика в селекторе"
+  },
+  "e.g. 1.2.3.0/24, empty = off": {
+    "value": "например 1.2.3.0/24, пусто = выключено"
+  },
+  "e.g. 15m": {
+    "value": "например, 15m"
+  },
+  "e.g. 30m": {
+    "value": "например, 30m"
+  },
+  "e.g. 5s, empty = default": {
+    "value": "например 5s, пусто = по умолчанию"
+  },
+  "e.g. 🇩🇪|🇳🇱 — empty = all nodes": {
+    "value": "например 🇩🇪|🇳🇱 — пусто = все узлы"
+  },
+  "empty = all servers": {
+    "value": "пусто = все серверы"
+  },
+  "empty = core default": {
+    "value": "пусто = значение ядра по умолчанию"
+  },
+  "empty = core default (5m); 0s = keep until stop": {
+    "value": "пусто = умолчание ядра (5m); 0s = жить до остановки"
+  },
+  "empty = no prefix": {
+    "value": "пусто = без префикса"
+  },
+  "equals": {
+    "value": "равно"
+  },
+  "err": {
+    "value": "сбой"
+  },
+  "error": {
+    "value": "ошибка"
+  },
+  "file": {
+    "value": "файл"
+  },
+  "final": {
+    "value": "final"
+  },
+  "first matching node becomes default": {
+    "value": "первый совпавший узел станет узлом по умолчанию"
+  },
+  "group": {
+    "value": "группа"
+  },
+  "header/cookie placement requires packet-up mode": {
+    "value": "placement header/cookie требует режима packet-up"
+  },
+  "host:port of the Cloudflare peer. With obfuscation a random working IP:port is filled in — tap the dice to reroll, or type your own to pin a specific one.": {
+    "value": "host:port пира Cloudflare. При обфускации подставляется случайный рабочий IP:port — нажмите на кубик, чтобы сменить, или впишите свой, чтобы закрепить конкретный."
+  },
+  "how much faster a rival must be to win": {
+    "value": "насколько быстрее должен быть соперник, чтобы победить"
+  },
+  "how this direction acts when used": {
+    "value": "как Направление ведёт себя в работе"
+  },
+  "invalid": {
+    "value": "некорректный"
+  },
+  "invalid pattern — skipped": {
+    "value": "некорректный шаблон — пропущено"
+  },
+  "just now": {
+    "value": "только что"
+  },
+  "kept": {
+    "value": "остаётся"
+  },
+  "latency-tested twin of this direction": {
+    "value": "двойник этого Направления с тестом задержки"
+  },
+  "loading…": {
+    "value": "загрузка…"
+  },
+  "matches": {
+    "value": "совпадает с regex"
+  },
+  "matches only domains in the rule-set": {
+    "value": "совпадает только с доменами из rule-set"
+  },
+  "multiplex padding": {
+    "value": "набивка мультиплекса"
+  },
+  "never": {
+    "value": "никогда"
+  },
+  "no stickiness — every connection re-picks": {
+    "value": "без липкости — каждое соединение выбирает заново"
+  },
+  "node": {
+    "value": "узел"
+  },
+  "not found": {
+    "value": "не найдено"
+  },
+  "not reached": {
+    "value": "не достигнут"
+  },
+  "of %d nodes": {
+    "value": {
+      "one": "из %d узла",
+      "few": "из %d узлов",
+      "many": "из %d узлов",
+      "other": "из %d узла"
+    }
+  },
+  "off: open connections finish on the old server": {
+    "value": "выкл: открытые соединения доживают на прежнем сервере"
+  },
+  "only directions listed above this one": {
+    "value": "только Направления выше этого по списку"
+  },
+  "optional — defaults to the tag": {
+    "value": "необязательно — по умолчанию тег"
+  },
+  "options offered in the selector": {
+    "value": "варианты, предлагаемые в селекторе"
+  },
+  "platform error: %s": {
+    "value": "ошибка платформы: %s"
+  },
+  "ports %1$s · %2$d/%3$d conns · ↑%4$s ↓%5$s%6$s": {
+    "value": "порты %1$s · %2$d/%3$d соед. · ↑%4$s ↓%5$s%6$s"
+  },
+  "preset": {
+    "value": "пресет"
+  },
+  "private ip": {
+    "value": "приватные IP"
+  },
+  "private src": {
+    "value": "приватный источник"
+  },
+  "regex pattern": {
+    "value": "regex-шаблон"
+  },
+  "routing rule": {
+    "value": "правило маршрутизации"
+  },
+  "seconds, empty = keep": {
+    "value": "секунды, пусто = не менять"
+  },
+  "select": {
+    "value": "выберите"
+  },
+  "server missing": {
+    "value": "сервер отсутствует"
+  },
+  "sing-box config preview": {
+    "value": "превью конфига sing-box"
+  },
+  "sing-box server JSON — tag editable here or in Params; description/enabled live on the list entry": {
+    "value": "JSON сервера sing-box — тег правится здесь или в «Параметрах»; описание и вкл/выкл хранятся в записи списка"
+  },
+  "sing-box server JSON — tag locked while editing; description/enabled live on the list entry": {
+    "value": "JSON сервера sing-box — тег заблокирован при редактировании; описание и вкл/выкл хранятся в записи списка"
+  },
+  "sing-box server preview (read-only)": {
+    "value": "превью сервера sing-box (только чтение)"
+  },
+  "single best server by latency": {
+    "value": "один лучший сервер по задержке"
+  },
+  "slot %d": {
+    "value": "слот %d"
+  },
+  "spread connections across a pool of servers": {
+    "value": "распределяет соединения по пулу серверов"
+  },
+  "srs": {
+    "value": "srs"
+  },
+  "storage shape (lxbox_settings.json)": {
+    "value": "формат хранения (lxbox_settings.json)"
+  },
+  "stripped": {
+    "value": "снимается"
+  },
+  "taken from member names; empty = no badges. Display only — not sent to the core": {
+    "value": "берётся из имён участников; пусто = без значков. Только для вида — в ядро не уходит"
+  },
+  "template": {
+    "value": "шаблон"
+  },
+  "timeout %ss": {
+    "value": "тайм-аут %ss"
+  },
+  "traffic is spread across slots": {
+    "value": "трафик распределяется по слотам"
+  },
+  "unknown": {
+    "value": "неизвестно"
+  },
+  "unknown server — will be skipped": "неизвестный сервер — будет пропущен",
+  "used by %s": {
+    "value": "используется: %s"
+  },
+  "used in Fastest mode": {
+    "value": "используется в режиме «Самый быстрый»"
+  },
+  "user rule": {
+    "value": "своё правило"
+  },
+  "value \"%1$s\" is not a valid %2$s": {
+    "value": "значение «%1$s» недопустимо для %2$s"
+  },
+  "value \"%s\" is not valid": {
+    "value": "значение «%s» недопустимо"
+  },
+  "whole node": {
+    "value": "весь узел"
+  },
+  "yesterday": {
+    "value": "вчера"
+  },
+  "— (default DNS)": {
+    "value": "— (DNS по умолчанию)"
+  },
+  "— (none)": {
+    "value": "— (нет)"
+  },
+  "— turn on 'Forward sing-box logs'": {
+    "value": "— включите пересылку логов sing-box"
+  },
+  "→ in: %s": {
+    "value": "→ в: %s"
+  },
+  "↳ via %s": {
+    "value": "↳ через %s"
+  },
+  "≤%dms": {
+    "value": "≤%d мс"
+  },
+  "✳ Resolve first%s": {
+    "value": "✳ Сначала резолвить%s"
+  },
+  "✳ Resolve only%s": {
+    "value": "✳ Только резолв%s"
+  },
+  "Servers: %d": {
+    "value": "Серверов: %d"
+  },
+  "These settings have no place in the shared format:": {
+    "value": "Этим настройкам нет места в общем формате:"
+  },
+  "Not included in the file": {
+    "value": "Не попало в файл"
+  },
+  "Node \"%1$s\" was dropped: its relay \"%2$s\" is missing, unusable or loops. Connecting directly would have bypassed the relay.": {
+    "value": "Узел «%1$s» отброшен: релей «%2$s» отсутствует, непригоден или зациклен. Прямое подключение прошло бы мимо релея."
+  },
+  "Workspaces": {
+    "value": "Рабочие пространства"
+  },
+  "Load": {
+    "value": "Загрузить"
+  },
+  "Save as…": {
+    "value": "Сохранить как…"
+  },
+  "Workspace name": {
+    "value": "Имя рабочего пространства"
+  },
+  "Overwrite “%s”?": {
+    "value": "Перезаписать «%s»?"
+  },
+  "A workspace with this name already exists. Its saved state will be replaced.": {
+    "value": "Рабочее пространство с таким именем уже есть. Его сохранённое состояние будет заменено."
+  },
+  "Overwrite": {
+    "value": "Перезаписать"
+  },
+  "Loading workspace…": {
+    "value": "Загрузка рабочего пространства…"
+  },
+  "Workspace “%s” loaded": {
+    "value": "Рабочее пространство «%s» загружено"
+  },
+  "Saved as “%s”": {
+    "value": "Сохранено как «%s»"
+  },
+  "Failed to load workspace: %s": {
+    "value": "Не удалось загрузить рабочее пространство: %s"
+  },
+  "Name is empty": {
+    "value": "Имя пустое"
+  },
+  "Name is too long": {
+    "value": "Имя слишком длинное"
+  },
+  "Name must not contain / or \\": {
+    "value": "Имя не должно содержать / или \\"
+  },
+  "Name must not start with a dot": {
+    "value": "Имя не должно начинаться с точки"
+  },
+  "Workspace not found": {
+    "value": "Рабочее пространство не найдено"
+  },
+  "A workspace with this name already exists": {
+    "value": "Рабочее пространство с таким именем уже есть"
+  },
+  "The current workspace cannot be deleted": {
+    "value": "Текущее рабочее пространство удалить нельзя"
+  },
+  "Delete workspace “%s”?": {
+    "value": "Удалить рабочее пространство «%s»?"
+  },
+  "Its saved state will be removed. This cannot be undone.": {
+    "value": "Его сохранённое состояние будет удалено. Отменить это нельзя."
+  },
+  "Config rebuild failed: %s": {
+    "value": "Сборка конфига не удалась: %s"
+  },
+  "Auto · %s": {
+    "value": "Auto · %s"
+  },
+  "Usage region": {
+    "value": "Регион использования"
+  },
+  "The country you use the app in. Drives region-specific defaults: today the WARP SNI pool, later routing rule presets. Auto = country of the mobile network, then of the device locale.": {
+    "value": "Страна, в которой вы пользуетесь приложением. Определяет региональные дефолты: сегодня SNI-пул WARP, дальше пресеты правил маршрутизации. Auto = страна мобильной сети, затем локали устройства."
+  },
+  "Not set": {
+    "value": "Не задан"
+  },
+  "Auto · country not detected": {
+    "value": "Auto · страна не определена"
+  },
+  "Other country code…": {
+    "value": "Другой код страны…"
+  },
+  "Country code (2 letters)": {
+    "value": "Код страны (2 буквы)"
+  },
+  "Region": {
+    "value": "Регион"
+  }
+}

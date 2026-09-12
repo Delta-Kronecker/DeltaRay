@@ -1,0 +1,1220 @@
+# Wizard Template
+
+The complete schema of `app/assets/wizard_template.json` — L×Box's single **catalog**: which presets, DNS servers, ping settings, Wizard UI sections and routing nodes exist in the app out of the box. This document is the source of truth for the file's shape and for the vars-substitution syntax. `ARCHITECTURE.md` links here.
+
+## What it is
+
+`app/assets/wizard_template.json` is bundled into the APK through `flutter assets`. It is loaded with `rootBundle.loadString` in `app/lib/services/template_loader.dart` (an async singleton). It holds the **catalog** (what exists at all), the **defaults** (the values a fresh install starts with) and the **substitution shape** (the native sing-box section with `@var` placeholders).
+
+At runtime the builder (`app/lib/services/builder/build_config.dart`) merges:
+- `config` (the template's native sing-box section), plus
+- `selectable_rules[*]` (the presets the user picked in `custom_rules`), plus
+- `dns_options.{servers,rules}` (the current state of storage), plus
+- `group_templates` and `default_directions` (the direction assembly templates, §267), plus
+- the `vars` substitution (the template vars from storage)
+
+→ into the final `<filesDir>/singbox_config.json` for libbox (native `files/`, see STORAGE.md → Disk layout).
+
+`wizard_template.json` is NEVER modified by the user — it is a catalog. The user's state lives in `lxbox_settings.json` (see [`STORAGE.md`](./STORAGE.md)).
+
+## `wizard_template.json` — full tree
+
+> **Notation**:
+> - `object{N keys}` — an object with N keys
+> - `list[N]` — an array of N elements; a bare `list` is variable-length
+> - `<TypeName>` — the element type of an array (shown separately below)
+> - a `?` after the type means the field is optional
+> - `"@varname"` — a substitution placeholder; at build time the value from `vars` is put in its place
+
+```
+wizard_template.json
+│
+├─ parser_config                   object{2 keys}
+│   ├─ version                     int           the parser pipeline's schema (§026)
+│   └─ parser                      object{1 keys}
+│       └─ reload                  duration      auto-refresh subscriptions interval (Go-style "12h")
+│
+├─ dns_options                     object{2 keys}       the default DNS shape for the builder
+│   ├─ servers[]                   list          template-level DNS servers (7 defaults)
+│   │   └─ <DnsServerRef>          object          the §117 wrapper (the tag lives in server.tag):
+│   │       ├─ description         string?       UI label
+│   │       ├─ enabled             bool?         default true (default-enabled for auto-discovery)
+│   │       ├─ vars[]              list?         the same definitions as preset vars (§033)
+│   │       └─ server              object          sing-box DNS server body + @placeholders:
+│   │           ├─ type            "udp"|"https"|"tls"|"local"
+│   │           ├─ tag             string        a unique id for references
+│   │           ├─ server          string?       IP/host (udp/tls/h3)
+│   │           ├─ server_port     int?
+│   │           ├─ path            string?       (https) "/dns-query"
+│   │           ├─ tls             object?         {enabled, server_name}
+│   │           ├─ detour          tag?          which outbound to resolve through
+│   │           └─ domain_resolver tag?          which DNS resolves the server's own host
+│   └─ rules[]                     list          template-level DNS rules (§061, formerly feature §041); currently empty
+│
+├─ ping_options                    object{3 keys}       (§040)
+│   ├─ url                         string        global default (e.g. gstatic.com/generate_204)
+│   ├─ timeout_ms                  int           default 5000
+│   └─ presets[]                   list          the dropdown options in the Ping Settings UI
+│       └─ {id, name, url}         object        id — stable machine-id (§279)
+│
+├─ speed_test_options              object{3 keys}       (§015)
+│   ├─ servers[]                   list[10]      Cloudflare, Selectel, Hetzner, OVH, etc.
+│   │   └─ {id, name, download_url, upload_url, upload_method, ping_url}
+│   ├─ stream_options              list[3]       parallel-streams choices (e.g. [1,4,10])
+│   └─ default_streams             int           default 4
+│
+├─ group_templates                 object        the direction assembly templates (§267)
+│   ├─ magic_nodes                  object        a registry of service nodes, keyed by role
+│   │   └─ <role>                   object        role ∈ {auto, direct, block}
+│   │       ├─ title                string        UI-label ("Auto"/"Direct"/"Block")
+│   │       ├─ source               "generate"|"preset"  how the node comes into being
+│   │       ├─ tag                  string?       (preset) a reference into config.outbounds
+│   │       └─ tpl                  string?       (generate) the tag template ("{parent_tag}-auto")
+│   ├─ direction                      object        the template of an ordinary direction (a selector)
+│   │   ├─ type                     "selector"
+│   │   ├─ include[]                list[role]    the role keys of magic_nodes (["direct","auto"])
+│   │   └─ options                  object          sing-box selector options (interrupt_exist_connections)
+│   └─ auto                         object        the template of the auto subgroup (a urltest)
+│       ├─ type                     "urltest"
+│       └─ options                  object          url / interval / tolerance (raw @vars)
+│
+├─ default_directions[]               list          the first-launch direction seed (§267)
+│   └─ <DefaultDirection>             object
+│       ├─ tag                      string        "vpn-1".."vpn-10"
+│       ├─ label                    string        UI display ("VPN ①")
+│       └─ default_enabled          bool          enabled in a fresh install?
+│
+├─ sections[]                      list[8]       Wizard UI chapters (§022)
+│   └─ <Section>                   object
+│       ├─ id                      string        stable machine-id, kebab-case (§279: "general", "auto-proxy", …)
+│       ├─ name                    string        "General", "DNS", "TUN", etc. — the internal join key between vars and sections
+│       ├─ chapter                 string        grouping ("core"|"routing"|"dns")
+│       ├─ description             string
+│       └─ vars[]                  list          the section's variables
+│           └─ <Var>               object
+│               ├─ name            string        the @name used for substitution
+│               ├─ type            string        "text"|"int"|"bool"|"enum"|"secret"|"outbound"|"dns_servers"
+│               ├─ default_value   any
+│               ├─ required        bool?
+│               ├─ options[]       list?         for an enum: ["a","b"] or [{title,value}, ...]
+│               ├─ wizard_ui       string?       "edit"|"fix"|"hidden"
+│               ├─ title           string?       UI label
+│               └─ tooltip         string?       help text
+│
+├─ config                          object{7 keys}       the NATIVE sing-box section; the base of the final config
+│   ├─ log                         object{2 keys}
+│   │   ├─ level                   "@log_level"
+│   │   └─ timestamp               bool
+│   ├─ dns                         object{4 keys}       an empty shell, filled in by the builder
+│   │   ├─ servers[]               list          [] — filled in from dns_options plus selectable_rules
+│   │   ├─ rules[]                 list          [] — the same
+│   │   ├─ final                   "@dns_final"
+│   │   └─ strategy                "@dns_strategy"
+│   ├─ inbounds[]                  list[1]       tun definition
+│   │   └─ <SingboxTunInbound>     object
+│   │       ├─ type                "tun"
+│   │       ├─ tag                 "tun-in"
+│   │       ├─ interface_name      "@tun_name"
+│   │       ├─ address             ["@tun_address", {#if @ipv6_enabled → "@tun_address6"}]  §227/§232 — v6 behind a checkbox
+│   │       ├─ {#if @route_address_enable → route_address: ["0.0.0.0/1","128.0.0.0/1","::/1","8000::/1"]}  §232 — behind a checkbox
+│   │       ├─ mtu                 "@tun_mtu"
+│   │       ├─ auto_route          "@tun_auto_route"
+│   │       ├─ strict_route        "@tun_strict_route"
+│   │       └─ stack               "@tun_stack"
+│   ├─ endpoints[]                 list          the wireguard endpoints (filled in from server_lists)
+│   ├─ outbounds[]                 list[2]       the base — direct-out plus block; the rest is added by the builder
+│   │   ├─ {type:"direct", tag:"direct-out"}
+│   │   └─ {type:"block",  tag:"block"}        §201 — the drop-out; a direction selector option and a route_final
+│   ├─ route                       object{5 keys}
+│   │   ├─ find_process            bool          true enables package_name detection
+│   │   ├─ default_domain_resolver "@dns_default_domain_resolver"
+│   │   ├─ rules[]                 list[0]       [] — §264: sniff/hijack-dns/resolve
+│   │   │                                         MOVED into the locked traffic-processing preset
+│   │   │                                         (num:0 → first in route.rules).
+│   │   │                                         In the template route.rules is empty.
+│   │   ├─ rule_set[]              list          (the key is ABSENT from the template — the builder creates it
+│   │   │                                         from selectable_rules[].rule_set)
+│   │   ├─ final                   tag           default selector ("vpn-1")
+│   │   └─ auto_detect_interface   "@auto_detect_interface"
+│   └─ experimental                object{1 keys}
+│       └─ cache_file              object          {enabled:true, path:"cache.db"}
+│                                                  (clash_api was REMOVED in §122 — the block in a custom template
+│                                                   kills the core's startup: "clash api is not included in this build")
+│
+└─ selectable_rules[]              list[8]       the preset CATALOG
+    └─ <Preset>                    object
+        ├─ preset_id               string        the id referenced from custom_rules (§030)
+        ├─ ui                      object          §264 — the preset's metadata (the flat
+        │   ├─ label               string        UI display                label/description/
+        │   ├─ description         string        the tooltip            defaults were REMOVED,
+        │   ├─ default             bool?         on for new users?       the fallback is GONE):
+        │   ├─ locked              bool?         §264 — cannot be disabled or deleted
+        │   ├─ num                 int?          §370 — the position on the rule ordering axis
+        │   └─ isSortable          bool?         §370 — whether it can be dragged
+        ├─ vars[]                  list?         the variables visible while the preset is enabled
+        │                                        (the same shape as sections[*].vars[*];
+        │                                         §265: an element may be {"ref":"<global>"})
+        ├─ rule_set[]              list?         sing-box rule-set definitions
+        │   └─ <SingboxRuleSet>    object
+        │       ├─ tag             string
+        │       ├─ type            "inline"|"local"|"remote"
+        │       ├─ format          "binary"|"source"?     (local/remote)
+        │       ├─ rules[]         list?                  (inline) the match conditions
+        │       ├─ url             string?                (remote)
+        │       ├─ download_detour tag?                   (remote) usually "direct-out"
+        │       └─ update_interval duration?              (remote) "168h"
+        ├─ rule                    object?         single routing rule:
+        │   └─ <SingboxRoutingRule>                {rule_set?, domain[]?, domain_suffix[]?,
+        │                                           ip_cidr[]?, ip_is_private?, port[]?,
+        │                                           package_name[]?, protocol[]?,
+        │                                           outbound:"@var"?, action:"reject"?}
+        ├─ dns_rule                object?         a DNS-level rule — the legacy single form (a Map)
+        ├─ dns_rules               list?           §253: an array of DNS rules (the canonical
+        │                                          key; it beats `dns_rule`)
+        └─ dns_servers[]           list?         the DNS servers visible while the preset is enabled
+                                                 (FLAT sing-box bodies, shaped like the inside of
+                                                  `dns_options.servers[*].server`, with NO wrapper;
+                                                  filtered by the top-level `tag`)
+```
+
+Every key is described in detail in the sections below.
+
+---
+
+## Top-level (annotated)
+
+```jsonc
+{
+  "parser_config":       { … },     // §026 parser version + reload interval
+  "dns_options":         { … },     // §043+§044 (servers) + §061 (rules) — defaults
+  "ping_options":        { … },     // §040 — ping/test URL + presets
+  "speed_test_options":  { … },     // §015 — speed-test endpoints
+  "group_templates":     { … },     // §267 — the magic_nodes registry plus the direction/auto templates
+  "default_directions":    [ … ],     // §267 — the first-launch direction seed (vpn-1, vpn-2)
+  "sections":            [ … ],     // Wizard UI chapters (variables grouped by topic)
+  "config":              { … },     // the native sing-box sections (log/dns/inbounds/outbounds/route/...)
+  "selectable_rules":    [ … ]      // §033 — the preset catalog
+}
+```
+
+---
+
+## `parser_config` — §026
+
+```jsonc
+{
+  "version": 5,
+  "parser":  { "reload": "12h" }
+}
+```
+
+| Key | Type | Purpose |
+|---|---|---|
+| `version` | int | The parser pipeline's version ([§026]). It is bumped on breaking parser changes. |
+| `parser.reload` | a duration string | The periodic auto-refresh interval for subscriptions ([§027]). Go style: `12h`, `30m`, and so on. It is overridden per subscription. |
+
+---
+
+## `dns_options` — §043+§044 (servers) + §061 (rules)
+
+The default DNS configuration for a fresh install. It is stockpiled into the `dns_options` storage on the first launch.
+
+```jsonc
+{
+  "servers": [ <ServerRef>, … ],   // kind-refs (template-side: kind=template implicit)
+  "rules":   [ <RuleRef>, … ]      // template-defined DNS rules (if any)
+}
+```
+
+### `dns_options.servers[i]` — a DNS server catalog entry (§117)
+
+The wrapper is `{description, enabled, vars?, server}`, where `server` is a sing-box body carrying
+`@var` placeholders, and `vars` holds the same definitions as preset vars (§033).
+The tag lives in `server.tag` (there is no top-level `tag` any more — see `templateDnsServerTag`).
+The builder (`resolveTemplateDnsServerBody`) substitutes the vars with the user's values
+(`varValues` from the storage ref) or with `default_value`:
+
+```jsonc
+{
+  "description": "Google DNS (direct)",
+  "enabled":     true,               // default-enabled for auto-discovery
+  "vars": [                          // optional (local_dns_resolver has none)
+    {"name": "outbound", "type": "outbound", "default_value": "direct-out",
+     "title": "Outbound", "tooltip": "Which direction carries DNS queries…"},
+    {"name": "dns_ip", "type": "enum", "default_value": "8.8.8.8",
+     "title": "UDP server IP", "options": [ {"title": "…", "value": "8.8.8.8"}, … ]}
+  ],
+  "server": {                        // sing-box DNS server body + @placeholders
+    "type": "udp", "tag": "google_udp", "server_port": 53,
+    "server": "@dns_ip",
+    "detour": "@outbound"            // direct-out, or a vanished direction, erases the key
+  }
+}
+```
+
+The conventions (§117):
+
+- `detour: "@outbound"` with a var default of `direct-out` means the key is **not**
+  written by default (`normalizeDnsDetour`: `direct-out`, an empty value and a direction
+  unknown to the builder all erase the key; “no detour” is both the default and the fallback).
+- For domain-addressed servers (the address is a hostname): `domain_resolver: "@dom_resolver"` plus
+  the var `{type: dns_servers, default_value: "google_udp"}` decides what resolves the
+  DNS server's own hostname.
+
+The seven default servers in the current template:
+
+| Tag | Type | Description |
+|---|---|---|
+| `local_dns_resolver` | local | The system DNS (through Android's getaddrinfo), with no vars |
+| `google_udp` | udp | 8.8.8.8:53 (`dns_ip` enum v4/v6) |
+| `google_dot` | tls | 8.8.8.8:853 |
+| `google_doh` | https | IP-based DoH, with the SNI pinned to `dns.google` |
+| `cloudflare_udp` | udp | 1.1.1.1:53 |
+| `cloudflare_dot` | tls | 1.1.1.1:853 |
+| `safe_dns_dot` | tls | Safe DNS: Quad9 / AdGuard / AdGuard Family (`safe_profile` enum) + `dom_resolver` |
+
+### `dns_options.rules[]` — template DNS rules (optional)
+
+Currently empty. Since [§039](./spec/tasks/039-empty-template-dns-rules.md) this is deliberate — the user builds their DNS rules themselves.
+
+For the full ref-level shape see [`STORAGE.md` § dns_options](./STORAGE.md#dns_options--061-rules--043043-dns--044-servers).
+
+---
+
+## `ping_options` — §040
+
+The default URL and timeout for a ping or a mass URLTest. Storage can override them through `ping_options` ([STORAGE.md § ping_options](./STORAGE.md#ping_options--040)).
+
+```jsonc
+{
+  "url":        "https://www.gstatic.com/generate_204",   // global default
+  "timeout_ms": 5000,
+  "presets": [
+    {"id": "google-204", "name": "Google 204",   "url": "https://www.gstatic.com/generate_204"},
+    {"id": "cloudflare", "name": "Cloudflare",   "url": "..."},
+    …
+  ]
+}
+```
+
+| Key | Purpose |
+|---|---|
+| `url` | The default ping endpoint. The user can override it globally or per group. |
+| `timeout_ms` | The default timeout. Raise it for slow networks. |
+| `presets[]` | The pre-configured options in the Ping Settings dropdown — `{id, name, url}`. `id` is a stable machine id (§279, so that the name can be localized). |
+
+---
+
+## `speed_test_options` — §015
+
+The endpoints for the speed-test screen. The user does not override them (though they can switch the active server).
+
+```jsonc
+{
+  "servers": [
+    {
+      "id":            "cloudflare",
+      "name":          "Cloudflare",
+      "download_url":  "https://speed.cloudflare.com/__down?bytes=25000000",
+      "upload_url":    "https://speed.cloudflare.com/__up",
+      "upload_method": "POST",
+      "ping_url":      "https://speed.cloudflare.com/__down?bytes=0"
+    },
+    …
+  ],
+  "stream_options":  [1, 4, 10],   // the parallel-stream choices in the UI
+  "default_streams": 4
+}
+```
+
+The current template holds ten servers (Cloudflare, Selectel, Hetzner, OVH and others).
+`id` is a stable machine id (§279): the runtime choice of server on the speed-test screen
+is keyed by it rather than by index; an unknown id falls back to the default (the first server).
+
+---
+
+## `group_templates` and `default_directions` — the direction assembly templates (§267)
+
+> **§125/§267 — the directions live in storage; the template only seeds them.** The
+> directions moved into storage (`directions[]`, see
+> [STORAGE.md](STORAGE.md#directions--125-the-routing-directions-templatestorage)). On the
+> first launch a one-shot migration seeds `directions[]` from `default_directions` plus
+> `group_templates.direction`; after that the set of directions lives in storage and is
+> edited by the user. The builder reads `directions[]`, not the template. `auto` is not a
+> direction but a subgroup: each direction produces its own `<tag>-auto` twin (a urltest)
+> whenever `direction.include ∋ auto`.
+>
+> **§267 replaced the flat `preset_groups[]`** (three heterogeneous entries plus the
+> fake variable `@auto_proxy_tag`) with three parts:
+> - `magic_nodes` — a registry of the service nodes (auto/direct/block), keyed by role;
+> - `direction` and `auto` — the templates for assembling a direction and its urltest subgroup;
+> - `default_directions` — a flat list of directions for the seed.
+>
+> **The seed → `directions[i]` mapping** (the one-shot migration):
+>
+> | template | directions[] |
+> |---|---|
+> | `default_directions[i].tag` | `tag` (vpn-1 is forced to `enabled=true`) |
+> | `default_directions[i].label` | `label` (empty falls back to `tag`) |
+> | `default_directions[i].default_enabled` / legacy `enabled_groups[]` | `enabled` |
+> | `direction.include` ∋ `direct` | `include_direct` |
+> | `direction.include` ∋ `auto` | `auto` (a DirectionAuto built from the `auto` template plus the `@urltest_*` vars) |
+> | `direction.include` ∋ `block` | `include_block` (absent from the default → false) |
+> | `direction.options.interrupt_exist_connections` | `interrupt_exist_connections` |
+> | (not from the template) | `node_filter` and `default_filter` are `''` |
+>
+> Every direction is assembled from the **shared** `direction` template (one `include`);
+> they differ only in `tag`, `label` and `default_enabled` from `default_directions`.
+
+### `magic_nodes` — the registry of service nodes
+
+The service nodes (auto/direct/block) are declared by role key. `magic_nodes.*.tag` is the
+source of truth for the tags; the const mirrors `kAuto/Direct/BlockOutboundTag` in
+`consts.dart` are checked against it on load (`assertMagicNodeMirrors` — a divergence is a
+`StateError`, so that renaming a tag in the template cannot break routing silently).
+
+```jsonc
+"magic_nodes": {
+  "auto":   { "title": "Auto",   "source": "generate", "tpl": "{parent_tag}-auto" },
+  "direct": { "title": "Direct", "source": "preset",   "tag": "direct-out" },
+  "block":  { "title": "Block",  "source": "preset",   "tag": "block" }
+}
+```
+
+| Key | Type | Purpose |
+|---|---|---|
+| `title` | string | The UI label of the service node (the Home node display). |
+| `source` | `"generate"` \| `"preset"` | How the node comes into being: `generate` means the builder synthesizes one per direction, `preset` means it references an existing outbound. |
+| `tag` | string? | (preset) A reference to an existing outbound in `config.outbounds`. Absent for `generate`. |
+| `tpl` | string? | (generate) The tag template of the synthesized node. `{parent_tag}` expands to the parent direction's tag. |
+
+### `direction` — the template of an ordinary direction (a selector)
+
+```jsonc
+"direction": {
+  "type": "selector",
+  "include": ["direct", "auto"],   // the magic_nodes role keys shown in the selector
+  "options": { "interrupt_exist_connections": true }
+}
+```
+
+`include` holds `magic_nodes` role keys, not tags. `block` is not part of the default.
+
+### `auto` — the template of the auto subgroup (a urltest)
+
+```jsonc
+"auto": {
+  "type": "urltest",
+  "options": {
+    "url":       "@urltest_url",
+    "interval":  "@urltest_interval",
+    "tolerance": "@urltest_tolerance",
+    "interrupt_exist_connections": true
+  }
+}
+```
+
+`options` is a raw template (the `@urltest_*` placeholders are resolved later, in the
+builder or the seed). The parameters go into every direction's `<tag>-auto` twin that has
+`direction.include ∋ auto`.
+
+### `default_directions[]` — the first-launch direction seed
+
+```jsonc
+"default_directions": [
+  { "tag": "vpn-1", "label": "VPN ①", "default_enabled": true  },
+  { "tag": "vpn-2", "label": "VPN ②", "default_enabled": false }
+]
+```
+
+The template holds only **two seed directions** (`vpn-1` and `vpn-2`). Further directions are
+created by the user in storage (`directions[]`) — §393 removed the cap, so there is no
+limit on how many there can be, and their tags are arbitrary.
+
+| Key | Type | Purpose |
+|---|---|---|
+| `tag` | string | The direction's immutable id. §393 — arbitrary, not a fixed `vpn-N` vocabulary; the seed uses `vpn-1`/`vpn-2`. |
+| `label` | string | The UI display name (empty falls back to `tag`). |
+| `default_enabled` | bool | Affects only the first-launch seed. After the migration, being enabled is decided by `directions[i].enabled` in storage. |
+
+The storage source of truth is `directions[]` in `lxbox_settings.json` (§125). The legacy `enabled_groups[]` is **DEPRECATED** — it is read only by the one-shot migration into `directions[]` and as a fallback seed when `directions[]` is empty (see [STORAGE.md](STORAGE.md#directions--125-the-routing-directions-templatestorage) and the callout above).
+
+---
+
+## `sections[]` — Wizard UI chapters (§022)
+
+How the template vars are grouped in the Wizard UI (App Settings → Configuration). Each section is a separate card.
+
+```jsonc
+[
+  {
+    "id":          "general",               // a stable machine id (§279, the l10n address)
+    "name":        "General",
+    "chapter":     "core",                  // the grouping tag (the UI tabs)
+    "description": "Logging and core settings",
+    "vars": [
+      {
+        "name":          "log_level",
+        "type":          "enum",
+        "default_value": "warn",
+        "options":       ["trace","debug","info","warn","error","fatal","panic"],
+        "wizard_ui":     "edit",            // edit | hidden | fix
+        "title":         "Log level",
+        "tooltip":       "Verbosity of sing-box logs"
+      },
+      …
+    ]
+  },
+  …
+]
+```
+
+The current template has eight sections: `General`, `Network`, `Internal`, `Auto Proxy`, `DNS`, `TUN`, `VPN Mode` and `DPI Bypass`. How they are distributed across screens is described below.
+
+`id` is a stable kebab-case machine id (§279): `general`, `network`, `internal`,
+`auto-proxy`, `dns`, `tun`, `vpn-mode`, `dpi-bypass`. It serves as the l10n overlay's
+address for the display fields (`name` and `description`). The internal join key between
+a section and its vars remains `name` (`parser_config.dart`, `settings_screen.dart`) —
+`id` does not replace it.
+
+### `chapter` — who renders the section
+
+`chapter` is the category of the owning screen. A screen requests its sections through
+`WizardTemplate.sectionsFor(chapter)` / `varsFor(chapter)` (`parser_config.dart`).
+A section whose chapter no screen requests **never appears in the UI at all** (but its
+vars stay in `template.vars`, so the builder and the ref resolution still see them).
+
+| `chapter` | Rendered on | Sections |
+|---|---|---|
+| `core` | VPN Settings (App Settings → Configuration) | General, Network, TUN, VPN Mode, DPI Bypass |
+| `routing` | Routing screen | Auto Proxy |
+| `dns` | DNS Settings screen | DNS |
+| `internal` | **nowhere** (§265) | Internal |
+
+### `internal` — the service section (§265)
+
+The `Internal` section (chapter `internal`) holds vars that **must not** be shown in VPN
+Settings but must exist globally: the builder substitutes them, and presets reference them
+through a **ref-var** `{"ref":"<name>"}` (§265, see `selectable_rules`). No screen requests
+the `internal` chapter, so the section is never rendered; meanwhile the vars sit in
+`template.vars`, so `@name` substitution and ref resolution work. The user edits them
+**through the owning preset** (for example `resolve_enabled` and `resolve_strategy` live in
+the `traffic-processing` rule, which pulls them in as ref-vars).
+
+| Var | Type | Purpose |
+|---|---|---|
+| `resolve_enabled` | bool | §263 — the gate for the route-resolve rule of the `traffic-processing` preset (turn it off for FakeIP). Changed through the rule. |
+| `resolve_strategy` | enum | The IP version for route-resolve (`ipv4_only` / `prefer_ipv4` / …). Written by the toggle's on_change. |
+
+> **Why `internal` rather than `wizard_ui: hidden`.** `hidden` conceals a var inside its
+> chapter's section, but the section still belongs to a screen that renders (VPN
+> Settings). The `internal` chapter takes the var out from under every screen entirely —
+> its only editing point is the preset that references it.
+
+The `VPN Mode` section is entirely `wizard_ui: hidden` (build-time vars, not shown in the UI). Its seven variables are edited on their own screen (VPN Mode), not through the Wizard.
+
+| Var | Type | Purpose |
+|---|---|---|
+| `vpn_mode` | enum | `vpn` / `proxy` / `vpn_proxy` — which inbounds to raise |
+| `proxy_type` | enum | The type of the proxy inbound (`mixed`, …) |
+| `proxy_listen` | text | The proxy's listen address |
+| `proxy_port` | int | The proxy's listen port |
+| `proxy_user` | text | The username (when auth is on) |
+| `proxy_pass` | secret | The password (when auth is on; a `secret` is never coerced) |
+| `proxy_auth` | bool | Include `users[]` in the proxy inbound |
+
+### `vars[i]` — the description of a template variable
+
+| Key | Type | Purpose |
+|---|---|---|
+| `name` | string | The variable's name. An `@name` inside the template's `config` block is replaced by its value. |
+| `type` | enum | The input type — it decides the UI control and the validation. See below. |
+| `default_value` | any | The default when the user has not overridden it through the UI or `PUT /settings/vars/...`. |
+| `required` | bool? | When true, an empty value is forbidden. |
+| `options[]` | list? | For the `enum` type, the choices. Either `[string, ...]` or `[{title, value}, ...]`. |
+| `wizard_ui` | `"edit" \| "fix" \| "hidden"`? | The display mode in the Wizard UI. `hidden` is an internal var (not shown); `fix` is read-only. |
+| `title` | string? | The display label in the UI. |
+| `tooltip` | string? | The help text shown when the info icon is tapped. |
+| `on_change` | object? | §232 — a declarative side effect when the var is toggled (in memory, `VarValuesModel`). |
+
+### `var.type` values
+
+Seen in the template:
+
+| Type | Coerced into the config (§120) | UI control |
+|---|---|---|
+| `text` | **the string verbatim** | TextField |
+| `int` | `int.tryParse` (a non-number stays a string) | TextField |
+| `bool` | `'true'` becomes true, anything else false | Switch |
+| `enum` | **a string** (membership in `options[]` is advisory) | Dropdown |
+| `secret` | **the string verbatim** (never coerce it) | TextField (masked) |
+| `outbound` | **a string** (a selector or node tag) | A dropdown filled at runtime |
+| `dns_servers` | **a string** (a tag from `dns_options.servers`) | A dropdown filled at runtime |
+
+> **§120 — coercion follows the declared type, NOT the content.** `if_engine.dart::coerceVarValue` coerces a value by the `var.type` from the template; the string `"true"` in a `text` var stays a string, while `"1"` in an `int` var becomes a number. That way the value in the config is predictable from the declaration rather than from how it happens to look.
+
+When extending it (adding a new type), update the Wizard UI renderer in `app/lib/screens/settings_screen.dart` and the coercion logic in `if_engine.dart`.
+
+### Keyword marking and `#enable` (SPEC 107)
+
+**One rule end to end:** `#` marks an engine keyword, `@` marks a variable
+reference, everything else is data.
+
+Canonical keywords: `#if`, `#enable`, `#and`, `#or`, `#not`, `#value`, `#else`,
+`#in`, `#notIn`, `#matches`, `#notEmpty`, `#isEmpty`, `#on_change`, `#set`.
+The unmarked spellings (`and`, `or`, `value`, `else`, `on_change`, `set`) are
+**read indefinitely** — existing templates keep working, and mixed spelling is
+valid.
+
+Conditions nest to any depth:
+
+```jsonc
+{"#enable": {"#or": ["@tun", {"#and": [{"@runtime.platform": "windows"}, "@proxy"]}]}}
+```
+
+`#enable` is a flat gate deciding whether a node exists at all — a preset
+fragment, a variable declaration, a `params` block. It replaces the former
+`enabled: "@var"` convention (§045), which is still accepted:
+
+```jsonc
+{"tag": "geoip", "type": "remote", "#enable": ["@geoip_enabled"], "url": "…"}
+```
+
+`false` drops the node entirely and its contents are not evaluated. Note that a
+**boolean** `enabled` inside a nested object (`tls.enabled`,
+`cache_file.enabled`) is a real sing-box field, never a gate — only the
+top-level rule_set form is our convention.
+
+The full normative specification is `contract/docs/TEMPLATE_LANG.md`; both apps
+are verified against the shared corpus `contract/corpus/template/`.
+
+### `on_change` — a var's declarative side effect (§232 / §266)
+
+Toggling a var can set derived vars. The syntax reuses the existing `#if` (value/else),
+and the condition already sees the NEW value of the toggled var. What follows is the
+section-level variant (§232, in memory); the preset-level one (§266, the global
+`userVars`) is described under “A preset's `on_change`”.
+
+```jsonc
+{
+  "name": "ipv6_enabled", "type": "bool", "default_value": "false",
+  "#on_change": {
+    "#set": {
+      "@dns_strategy":     {"#if": {"#and": ["@ipv6_enabled"], "#value": "prefer_ipv4", "#else": "ipv4_only"}},
+      "@resolve_strategy": {"#if": {"#and": ["@ipv6_enabled"], "#value": "prefer_ipv4", "#else": "ipv4_only"}}
+    }
+  }
+}
+```
+
+> **§264/§265 — `resolve_strategy` lives globally in the `internal` section**, while
+> the route-resolve rule moved into the locked `traffic-processing` preset (see §264
+> below). The preset references it through the ref-var `{"ref": "resolve_strategy"}`
+> (§265): both the metadata and the value come from that global, and `@resolve_strategy`
+> inside the rule resolves globally. The `on_change` above (the IPv6 toggle, chapter
+> `core`) still writes it globally into `userVars`, and the preset sees the effect. The
+> `sniff_enabled` var became a var of the `traffic-processing` preset itself, and
+> `resolve_enabled` moved into `internal` (§265) — its §263 toggle is edited inside the
+> preset's rule rather than in a section.
+
+The current semantics of the IPv6 toggle (§249): both strategy vars default to
+`ipv4_only` (IPv6 on the tun is off by default — applications do not need AAAA); enabling
+IPv6 moves resolution to `prefer_ipv4` (v6 is available, but v4 first — on networks with
+half-working v6, `prefer_ipv6` produced dead direct connections, see §246); disabling it
+forces `ipv4_only`. Fine tuning lives in DNS Settings → Strategy (the toggle is a one-off
+effect, not a lock).
+
+The semantics:
+
+- **A one-off effect of the toggle, not a lock** — the target vars are written at the
+  moment of the click; afterwards the user is free to override them by hand.
+- **In memory only** — the targets are written into the screen's reactive `VarValuesModel`
+  (a per-key `ValueNotifier`; each `TemplateVarListView` field subscribes to its own key
+  and updates instantly). Storage is touched ONLY by the shared write-on-exit
+  (`_persist` over `dirtyKeys`) — a user who leaves before exiting the screen (a
+  force-kill) has saved nothing. See ARCHITECTURE.md → “VarValuesModel”.
+- **Chains** — if a target var has its own `on_change`, it is applied recursively; a
+  fixpoint guard breaks the cycle: writing an unchanged value stops it.
+- **The values are string literals.** An `#if` node is evaluated by the engine through
+  `evalIfScalar` (`if_engine.dart`) and NOT through `walk` directly: a bare map
+  `{"#if":…}` sent through `walk` falls into map-spread mode and collapses the scalar to `{}`.
+- **Cross-screen targets** (for example `dns_strategy`, chapter `dns`, rendered on the
+  DNS Settings screen): there is NO live update on the other screen (the model is
+  per-screen); the value arrives through the cache the next time that screen opens. The
+  screens are never co-mounted, so the user never sees the divergence.
+
+### A preset's `on_change` — reacting to being enabled or disabled (§266)
+
+`on_change` lives not only on section vars but on a **preset's vars** too. The difference
+from §232 is in the source and the sink:
+
+| | §232 (a section) | §266 (a preset) |
+|---|---|---|
+| **Trigger** | a click on a var in the Wizard screen | a change of the preset's state (the on/off switch, the dns_enable toggle) |
+| **Source** | the var's own value (`VarValuesModel`) | **the preset's state** — the pseudo-vars `@rule_enable` / `@dns_enable` |
+| **Sink** | the screen's in-memory `VarValuesModel` | **the global `userVars`** (`SettingsStorage.setVar` — straight to disk) |
+| **Engine** | `settings_screen._applyOnChange` | `preset_on_change.dart::applyPresetOnChange` |
+
+**The preset's pseudo-vars** (never stored — computed from its state):
+
+- `@rule_enable` = `cr.enabled` (the preset is on, via the switch).
+- `@dns_enable` = the §257 `presetDnsEnableVar` (the preset's DNS aspect — the master
+  toggle of the DNS block).
+
+Both carry an **identical** on_change formula, so either of them triggers a recomputation
+of the targets (that way the formula fires both when the routing switch changes and when
+the DNS toggle does). Resolution happens in the namespace
+`{...userVars, rule_enable, dns_enable}` (the pseudo-vars shadow `userVars`, since their value is the live one), through the same `evalIfScalar`.
+
+An example — the FakeIP preset silences route-resolve while it is active (route-resolve is
+a SECOND resolver that bypasses FakeIP through `default_domain_resolver`; with FakeIP
+active it must stay quiet, §263):
+
+```jsonc
+// both vars of the fakeip preset carry this; @resolve_enabled is a var of the internal section
+"on_change": {
+  "set": {
+    "@resolve_enabled": {"#if": {"and": ["@rule_enable", "@dns_enable"], "value": "false", "else": "true"}}
+  }
+}
+```
+
+Read it as: “FakeIP is on (`@rule_enable`) AND its DNS aspect is on (`@dns_enable`)
+→ `resolve_enabled = false`; otherwise `true`.”
+
+The semantics:
+
+- **It writes into `userVars` immediately** (not in memory) — the target
+  `@resolve_enabled` lives in the `internal` section (a global var), and its storage is
+  `userVars` rather than the preset's `varsValues`. It is event-driven rather than
+  declaratively permanent: it fires at the moment of the change, and the user is then free
+  to override it inside the `traffic-processing` rule.
+- **It is called from ALL five places** where `rule_enable` / `dns_enable` change:
+  creating a preset (`routing_screen._copyPreset`), the routing switch toggle
+  (`routing_screen` plus the editor's `edit_controller.onBoolVarToggle`), the dns_enable
+  toggle in the rule editor, and the one **in DNS Settings**
+  (`dns_settings_screen._togglePresetDnsEnable`). Miss any of them and the target is not
+  recomputed along that path.
+- **It is idempotent** — `setVar` overwrites, so calling it again with the same state
+  yields the same value.
+
+> **A §266 gotcha (caught on a device).** A pseudo-var (`rule_enable` / `dns_enable`)
+> **must** carry a `default_value` plus `required: false`. In the sing-box schema a var
+> with no `default_value` is **required**; with an empty value `expandPreset` returns early
+> (“required var … unset”) and **the preset's entire DNS block is silently not emitted**
+> (FakeIP never wrote its `dns_rules`, so DNS was not intercepted). The symptom is quiet —
+> the preset is there in the UI but does nothing. See `29fe61c`.
+
+---
+
+## `config` — the native sing-box section
+
+The base of the final sing-box config. It carries `@var` placeholders; the substitution happens at build time in `build_config.dart`.
+
+```jsonc
+{
+  "log": {
+    "level":     "@log_level",
+    "timestamp": true
+  },
+  "dns": {
+    "servers":  [],                              // empty; filled in from dns_options.servers plus selectable_rules[].dns_servers
+    "rules":    [],                              // empty; filled in from dns_options.rules plus selectable_rules[].dns_rules
+    "final":    "@dns_final",
+    "strategy": "@dns_strategy"
+  },
+  "inbounds": [
+    {"type": "tun", "tag": "tun-in", "interface_name": "...", "address": "...", "mtu": ..., "auto_route": ..., "strict_route": ..., "stack": "..."}
+  ],
+  "endpoints": [],                               // wireguard endpoints (from server_lists user nodes)
+  "outbounds": [
+    {"type": "direct", "tag": "direct-out"},     // base
+    {"type": "block",  "tag": "block"}           // the §201 drop-out; the rest is added by the builder
+  ],
+  "route": {
+    "find_process":            true,
+    "default_domain_resolver": "@dns_default_domain_resolver",
+    "rules": [
+      // §264: route.rules is EMPTY in the template. The base sniff/hijack-dns/resolve
+      // rules MOVED into the locked traffic-processing preset (first in selectable_rules,
+      // num:0 → the builder puts its rules first in the final route.rules).
+      // The order (sniff BEFORE resolve) is critical for FakeIP: sniff extracts the domain
+      // before resolve (resolving a fake 198.18.x.x IP is meaningless). Each of the three
+      // rules is wrapped in an #if inside the preset: @sniff_enabled / (the dns protocol
+      // for hijack-dns) / @resolve_enabled (off for FakeIP — the real lookup bypasses
+      // FakeIP through default_domain_resolver). See the selectable_rules section below.
+    ],
+    "final":                  "vpn-1",
+    "auto_detect_interface":  "@auto_detect_interface"
+  },
+  "experimental": {
+    // clash_api was REMOVED in §122 (the CommandClient migration). Control goes through
+    // the libbox CommandClient, not an HTTP Clash API. The core is built WITHOUT
+    // with_clash_api: an experimental.clash_api block in a custom template is a FATAL
+    // startup failure ("clash api is not included in this build"). Do not add it.
+    "cache_file": {"enabled": true, "path": "..."}
+  }
+}
+```
+
+What the builder adds to this base:
+- `config.outbounds[+]` ← the node outbounds from the enabled `server_lists[]`, plus a selector and a urltest per direction (`directions[]`, §125)
+- `config.dns.servers[+]` ← `dns_options.servers[*]` (resolved through [§044]) plus `selectable_rules[*].dns_servers[*]`
+- `config.dns.rules[+]` ← `dns_options.rules[*]` ([§061]) + `selectable_rules[*].dns_rules`
+- `config.route.rules[+]` ← `selectable_rules[*].rule` (after the enabled check on `selectable_rules[*]`) plus `custom_rules[*]`
+- `config.route.rule_set[+]` ← `selectable_rules[*].rule_set[*]` (see the section below)
+- `config.inbounds[*]` and the `inbound` route rules are **declarative through `#if`** ([§120]): `tun-in` and `mixed-in` appear according to the mode
+
+`config.route.rule_set[]` is **empty on its own** in the template — every rule set is registered through the presets.
+
+---
+
+## `selectable_rules[]` — the preset catalog (§033)
+
+Each element is a bundle the user enables or disables on the Routing screen. On expansion its parts are merged into the config.
+
+```jsonc
+{
+  "preset_id":   "<unique-id>",        // referenced from custom_rules[].presetId
+  "ui": {                               // §264 — the preset's metadata. REQUIRED.
+    "label":       "<UI display>",      //   The flat label/description/default at the
+    "description": "<tooltip>",         //   top level are GONE; the fallback in
+    "default":     <bool>?,             //   SelectableRule.fromJson is REMOVED — only
+    "locked":      <bool>?,             //   ui is read.
+    "num":         <int>?,              //   §370 — the ordering axis, see below.
+    "isSortable":  <bool>?              //
+  },
+  "vars": [ <Var> | {"ref":"<global>"}, … ]?, // vars visible only while the preset is on;
+                                        //   §265: a reference element {"ref":"<global name>"}
+  "rule_set": [ <SingboxRuleSet>, … ]?, // the rule sets that must be registered
+  "rule":     <SingboxRoutingRule>?,    // routing rule — legacy single (Map)
+  "rules":    [ <SingboxRoutingRule>, … ]?, // §246: an array of routing rules (the canonical key; it beats `rule`)
+  "dns_rule": <SingboxDnsRule>?,        // a DNS-level rule — the legacy single form (a Map)
+  "dns_rules": [ <SingboxDnsRule>, … ]?, // §253: an array of DNS rules (the canonical key; it beats `dns_rule`)
+  "dns_servers": [ <FlatDnsServer>, … ]?  // FLAT sing-box DNS bodies (not the §117 wrapper; a top-level tag)
+}
+```
+
+### `ui` — the preset's metadata (§264)
+
+Since §264, label/description/default/locked (plus §370's num/isSortable) live in the
+`ui` object (**REQUIRED**; the flat top-level `label` / `description` / `default` were
+removed from the template and the fallback in `SelectableRule.fromJson` is gone — only
+`ui` is read). All eight presets have been moved onto `ui`.
+
+| `ui.*` | Type | Purpose |
+|---|---|---|
+| `label` | string | UI display. |
+| `description` | string | The tooltip. |
+| `default` | bool? | When true, the preset is on in a fresh install. |
+| `locked` | bool? | §264 — the preset **cannot be turned off** (the switch is disabled) and **cannot be deleted**. |
+| `num` | int? | §370 — the position on the **sparse rule ordering axis**. |
+| `isSortable` | bool? | §370 — whether the rule can be dragged. `false` pins the position. |
+
+### The field matrix of the current eight presets
+
+The metadata comes from `ui.*` (§264/§370): `default`, `locked`, `num`, `isSortable`.
+`traffic-processing` comes first in the catalog (locked, num:0, isSortable:false) and carries
+the base sniff/hijack-dns/resolve rules.
+
+| `preset_id` | `ui.default` | `ui.locked` | `ui.num` | `vars` | `rule_set` | `rule(s)` | `dns_rule(s)` | `dns_servers` |
+|---|---|---|---|---|---|---|---|---|
+| `traffic-processing` | true | true | 0 | ✓ (sniff_enabled, sniff_timeout §264 enum 100ms/300ms/500ms/1s/3s, hijack_dns_enabled §264 bool with a WARNING tooltip, `{"ref":"resolve_enabled"}` + `{"ref":"resolve_strategy"}` §265 — both ref the `internal` section) | — | ✓ an array: `[sniff #if @sniff_enabled, hijack-dns, resolve strategy:@resolve_strategy #if @resolve_enabled]` | — | — |
+| `block-ads` | false | — | — | — | ✓ (remote ads-all) | ✓ (action: reject) | — | — |
+| `ru-direct` | true | — | — | ✓ (outbound, dns_enable §257, dns_server, dns_ip, geoip_enabled, force_ipv4) | ✓ (inline `.ru` suffixes) | ✓ an array: `[resolve ipv4_only #if @force_ipv4, @outbound]` (§246) | ✓ an array: `[predefined-NOERROR ip_version:6 #if @force_ipv4, → @dns_server]` (§253) | ✓ (yandex_udp/doh/dot) |
+| `fakeip` | false | — | — | ✓ (rule_enable §266 pseudo + on_change, dns_enable §257 + on_change, dns_server — **hidden**) | — | — | ✓ (`query_type: [A,AAAA]` → `@dns_server`) | ✓ (type `fakeip`, ranges 198.18/15 + fc00::/18) |
+| `ru-inside` | (false) | — | — | ✓ (outbound, force_ipv4) | ✓ (remote ru-inside) | ✓ an array: `[resolve ipv4_only #if @force_ipv4, @outbound]` (§246) | — | — |
+| `bittorrent` | true | — | — | ✓ (outbound) | — | ✓ (`protocol: bittorrent` → `@outbound`) | — | — |
+| `private-ip` | (false) | — | — | ✓ (outbound) | — | ✓ (`ip_is_private` → `@outbound`) | — | — |
+| `unknown-traffic` | false | — | — | ✓ (`outbound`=reject) | ✓ (inline `unknown-apps`, invert `package_name_regex: "^"`) | ✓ (`@outbound`) | — | — |
+
+**`traffic-processing` (§264/§370)** is a locked, unsortable preset and the FIRST in `selectable_rules`. It carries the base route rules `sniff`, `hijack-dns` and `resolve`, which before §264 lived directly in `config.route.rules` (now empty). `num:0` plus `isSortable:false` guarantee its rules come first.
+
+`unknown-traffic` is reject or direct for traffic inside the tunnel that is attributed to no installed application (background or foreign processes). Its inline `rule_set` `unknown-apps` matches “everything that is NOT an application” through `invert: true` plus `package_name_regex: "^"`.
+
+**The `reject`→`action` backstop.** `unknown-traffic` has the var default `outbound: "reject"` and `rule.outbound: "@outbound"`. In sing-box `reject` is an `action`, NOT an outbound tag: the literal `{outbound: "reject"}` is rejected by the validator as a dangling ref and the core will not start. That is why `preset_expand.dart` normalises it UNCONDITIONALLY.
+
+**`fakeip` (§228)** is FakeIP DNS: `dns_servers` supplies a server of `type: fakeip` (the ranges 198.18.0.0/15 and fc00::/18), and `dns_rule` routes every `A` and `AAAA` query to it. The application receives a placeholder IP instantly (zero latency, no pre-tunnel DNS leak), while the real domain resolution happens inside the tunnel.
+
+### The presets' magic variables (§033, §228, §257, §264, §265, §266)
+
+The names of preset vars are **not arbitrary**: several of them carry special semantics.
+
+| Var (name / type) | Who looks at it | What it does | If you omit it → |
+|---|---|---|---|
+| `dns_server` (`type: dns_servers`) | `preset_expand.dart` | **Selects** which of the preset's `dns_servers[]` is poured into `config.dns.servers`. The builder emits EXACTLY ONE server — the one whose `tag == varsValues['dns_server']` (or the `default_value`). | every server of the preset would be emitted |
+| `outbound` (`type: outbound`) | `preset_expand.dart` plus the Routing UI | The value for `@outbound` in `rule` and `dns_servers.detour`. The UI draws an outbound picker on the preset's row (see `hasOutboundAffordance`). A default of `"reject"` goes through the backstop normalisation. | the picker would vanish from the row |
+| `dns_enable` (`type: bool`) | `custom_rules.dart` (`presetDnsEnableVar`) plus the DNS Settings UI | §257: the **master toggle of the preset's DNS block** (dns_servers plus dns_rules plus the mirror group). The builder gates the DNS aspect on the var's value. | the DNS block could not be turned off separately |
+| `rule_enable` (`type: bool`, a pseudo-var) | `preset_on_change.dart` | §266: the **pseudo-var** of an on_change formula. It is never stored — the resolver substitutes `cr.enabled` (the preset is on, via the switch). It carries the `on_change`. | the formula would never fire |
+
+**§265 — ref-vars (`{"ref": "<global>"}`).** An element of a preset's `vars[]` may be a **reference** to a global var (one from a section, including `internal`).
+
+In the UI a ref-var **is rendered** in the rule editor (`preset_params_tab.dart`) with the metadata of the global it points at.
+
+> **§265 — a data cleanup: a ref-var does NOT belong in `varsValues`.** A ref-var's value
+> belongs to `userVars`; if it has settled into a preset's `varsValues` (through a
+> migration, or from old storage) it is a “stuck” copy that diverges from the global (the
+> subtitle showed `resolve_enabled: true` while the global was already `false`).
+> `stripRefVarsFromVarsValues` (`rule_order.dart`) clears the ref keys out of `varsValues`
+> when the Routing screen loads; every reader of `varsValues` by var name **must** skip
+> `v.isRef` (the subtitle, the Debug serializer, the rule_set.enabled gate — see
+> `366beec`).
+
+**§264 — the new vars of the `traffic-processing` preset.** `sniff_timeout` (an enum of 100ms/300ms/500ms/1s/3s) replaced the hardcoded `timeout:"1s"` on the sniff rule. `hijack_dns_enabled` (a bool) toggles the hijack-dns rule; ⚠ its tooltip warns that turning it off lets DNS out past the tunnel.
+
+**Rules for adding a preset:**
+
+1. **A preset carrying `dns_servers[]`** requires a `dns_server` var (`type: dns_servers`, with `default_value` set to the tag of the default server).
+2. **A preset that routes traffic** (it has a `rule` with an `outbound` or `action`, or an outbound var) gets an outbound picker on its row.
+3. An `outbound` var defaulting to `reject`: the builder itself turns `{outbound:reject}` into `{action:reject}`.
+
+### `selectable_rules[*].rule_set[i]` — sing-box rule-set definition
+
+```jsonc
+{
+  "tag":              "<string>",                // a unique id inside the final config.route.rule_set
+  "type":             "inline" | "local" | "remote",
+  "format":           "binary" | "source"?,       // for local and remote
+  "rules":            [ … ]?,                      // for inline — the list of match conditions
+  "url":              "https://..."?,              // for remote
+  "path":             "<filesystem>"?,             // for local — the path to the .srs (the builder fills it in)
+  "download_detour":  "<outbound-tag>"?,           // a declarative catalog field — stripped out
+  "update_interval":  "<duration>"?                // a declarative catalog field — stripped out
+}
+```
+
+⚠ **sing-box downloads NOTHING by itself.** The `remote` form never reaches the final config.
+
+Downloading happens only by hand, through the **Download** button in the UI (`RuleSetDownloader`).
+
+### `selectable_rules[*].rule` / `rules` — routing rule(s)
+
+`rule` is a Map (a single rule, legacy); `rules` is an **array** (§246, the canonical key; when both are present the array wins).
+
+```jsonc
+{
+  "rule_set":    "<tag>"?,
+  "domain":      ["..."]?,
+  "domain_suffix": ["..."]?,
+  "domain_keyword": ["..."]?,
+  "ip_cidr":     ["..."]?,
+  "ip_is_private": <bool>?,
+  "port":        [<int>, ...]?,
+  "package_name": ["..."]?,
+  "protocol":    [ "bittorrent" | "tls" | "http" | ... ]?,
+
+  "outbound":    "<tag-or-@var>"?,    // where to route
+  "action":      "reject" | "..."?     // a shorthand instead of outbound
+}
+```
+
+The standard pattern in the template is a reference to a `rule_set` plus an outbound. See the examples in `selectable_rules[]`.
+
+**The array form (§246, the `rules` key).** A preset can emit several route rules at once.
+
+- an element with `action ∈ {resolve, sniff, route-options}` is **intermediate** (non-terminal): the outbound override does not apply to it;
+- the remaining elements are **terminal**: the override and the backstop behave as they do for a single rule;
+- the dangling-rule_set guard is per element: a broken element is dropped with a warning and the rest survive;
+- the substitution runs over the whole array (otherwise an array-element `#if` would never fire).
+
+The motivating example is `ru-direct`: on devices with no global IPv6, direct traffic needs a forced `ipv4_only` resolve before the terminal rule.
+
+```jsonc
+"rules": [
+  {"#if": {"and": ["@force_ipv4"],
+           "value": {"rule_set": ["ru-domains", "ru-services"],
+                     "action": "resolve", "server": "@dns_server", "strategy": "ipv4_only"}}},
+  {"rule_set": ["ru-domains", "ru-services", "geoip-ru"], "outbound": "@outbound"}
+]
+```
+
+⚠ The `server` in a resolve element references a DNS server emitted by the preset's **DNS aspect**, so the two must stay in sync.
+
+For the UI's outbound picker the default comes from the **terminal** element (`SelectableRule.terminalRule`).
+
+### `selectable_rules[*].dns_rule(s)` / `dns_servers`
+
+The same as a routing rule, but for the DNS pipeline. The canonical key is `dns_rules` (an array, §253); the legacy `dns_rule` is a single Map.
+
+The array form supports an **array-element `#if`** (the §246 mechanism): an `#if` that is false with no else drops the element.
+
+⚠ The legacy `strategy` inside a DNS rule is **forbidden** (deprecated in core 1.14 and incompatible with `query_type`).
+
+⚠ Unlike `dns_options.servers[*]` (the `{description, enabled, vars?, server}` wrapper of §117), a preset's `dns_servers[*]` holds FLAT sing-box bodies with a top-level tag.
+
+### `vars` substitution
+
+The vars declared in a preset are **visible only while the preset is enabled**. The UI renders them on the Routing screen.
+
+The universal `outbound` override (spec [§033], Expansion §5): when `varsValues['outbound']` holds a non-empty value, it replaces the rule's outbound.
+
+---
+
+## Vars-substitution syntax
+
+Everywhere in the `config` block (and in preset expansion) only a **whole-string** value of the form `"@varname"` is substituted. The value comes from:
+1. `lxbox_settings.json` `vars[varname]` (when overridden)
+2. the `default_value` of the matching var in `sections[*].vars[*]` or `selectable_rules[*].vars[*]`
+
+Inline substitution is **not supported**: `"prefix-@varname-suffix"` is not a `@var` string, so it is left as-is.
+
+The result is **typed by the declared `var.type`** (§120): `bool` and `int` are coerced by `coerceVarValue`, while `text`, `enum` and `secret` stay strings.
+
+Examples:
+- `"final": "@dns_final"` becomes `cloudflare_udp`, or whatever the user chose
+- `"server": "@dns_ip"` (inside the ru-direct preset) becomes the IP picked in the dropdown
+
+See the implementation in `app/lib/services/builder/build_config.dart` and `preset_expand.dart`. The shared substitution core lives in `if_engine.dart`.
+
+## The `#if` construct (§120)
+
+Declarative conditionals right inside the `config` and preset bodies. They are resolved during the substitution phase.
+
+```jsonc
+"#if": {
+  "and":   [<predicate>, ...],   // mutually exclusive with or; all must be true
+  "or":    [<predicate>, ...],   // at least one must be true
+  "value": <any JSON>,           // the then branch (required)
+  "else":  <any JSON>            // the else branch (optional)
+}
+```
+
+**Two modes:**
+- **map-spread** — `#if` as a key of an object: when true, the fields of `value` (an object) are merged into the parent;
+- **array-element** — `#if` as the only key of an array element: when true the element becomes `value`, and when false with no else it is dropped.
+
+**Predicates:** `"@var"` (a bool), `{"@var":"literal"}` (equality), `{"@var":"#notEmpty"/"#isEmpty"}`, `{"@var":{"#in":[...]}}`.
+
+**Naming:** `#` marks a construct or predicate, `@` marks a var reference, and bare names are the inner keys of an `#if` body. An unknown key is an error.
+
+An example (the §119 inbounds, see `wizard_template.json`):
+```jsonc
+{"#if": {"and": [{"@vpn_mode": {"#in": ["proxy", "vpn_proxy"]}}], "value": {
+  "type": "@proxy_type", "tag": "mixed-in", "listen_port": "@proxy_port",
+  "#if": {"and": ["@proxy_auth"], "value": {
+    "users": [{"username": "@proxy_user", "password": "@proxy_pass"}]
+  }}
+}}}
+```
+
+---
+
+## Formatting style (how `wizard_template.json` is laid out)
+
+The editorial conventions for the **bundled** template (`app/assets/wizard_template.json`). The ordering
+of keys and the line breaks **do not affect** the loader or the builder — they are there for the maintainer's readability.
+The semantics (`#if`, the magic vars, the rule order) are mandatory; the formatting is not, but keep it
+uniform. Custom or imported templates may ignore this section.
+
+### The general principle
+
+**Compact** (one line) for literals and small metadata objects. **Expanded**
+(multiline) for expressions (`@…`, `#if`) and long lists. The criterion: a line holding an `@`
+placeholder or a nested `#if` is expanded; pure literals may be squeezed.
+
+### Vars (`sections[*].vars[]` and `selectable_rules[*].vars[]`)
+
+| Part of a var | Layout |
+|---|---|
+| The “header” — `name`, `type`, `wizard_ui`, `title`, `tooltip` | **Line 1** (together) |
+| `default_value` | **Its own line**, indented |
+| `options[]` | **Multiline** — one element per line (`{title,value}` or a bare string) |
+| A ref-var (§265) `{"ref": "<name>"}` | **One line** in full (it carries no metadata) |
+| A simple bool var with no options | **One line** in full |
+
+```jsonc
+{ "name": "resolve_strategy", "type": "enum", "wizard_ui": "edit", "title": "Resolve strategy", "tooltip": "IP version preference for DNS resolution",
+  "default_value": "ipv4_only",
+  "options": ["prefer_ipv4", "prefer_ipv6", "ipv4_only", "ipv6_only"]
+},
+{ "name": "sniff_enabled", "type": "bool", "default_value": "true", "wizard_ui": "edit", "title": "Packet sniffing", "tooltip": "..." },
+{ "ref": "resolve_strategy" }
+```
+
+### A preset's `ui` object (§264)
+
+A preset's metadata (`label`, `description`, `default`, `locked`, `num`, `isSortable`) goes on
+**one line** when it fits; otherwise `label` and `description` on line 1 and the flags on the
+line below. Flags that are `false`, and `isSortable:true`, are NOT written (they are the model's
+defaults); `num` is always written — it is part of the axis layout.
+
+```jsonc
+"ui": {"label": "Traffic Processing", "description": "...", "default": true, "locked": true, "num": 0, "isSortable": false}
+```
+
+### JSON payload (`config`, `dns_servers`, `rule_set`)
+
+| Context | Rule |
+|---|---|
+| Fields holding an `@` placeholder | **one field per line** |
+| Literals (`type`, `tag`, `auto_route`, `server_port`) | may share one line |
+| Small structs of two or three literals (`direct-out`, hijack-dns) | **one line** |
+| Large objects (`dns_options.servers[]`, a preset's `dns_servers[]`) | **multiline** — one field per line |
+| `options` and `filters` **without** an `@` | **one line** |
+
+### The `#if` construct (§120)
+
+| `value` / `else` | Layout |
+|---|---|
+| **A scalar** | `{"#if": {"and": [...], "value": "..."}}` — one line |
+| **An object** | the condition plus `"value": {` on line 1; the body below; closing with `}}}` |
+
+```jsonc
+{"#if": {"and": ["@force_ipv4"], "value": {
+  "rule_set": ["ru-domains", "ru-services"], "ip_version": 6,
+  "action": "predefined", "rcode": "NOERROR"
+}}}
+```
+
+### A preset's rules (`rule`/`rules`, `dns_rule`/`dns_rules`)
+
+| Case | Layout |
+|---|---|
+| A single literal rule (no `#if`, no `@`) | **one line** |
+| A rule under an `#if` with a scalar | one line |
+| A rule under an `#if` with an object `value` | multiline (condition → body → `}}}`) |
+| `rule_set[]`, inline or remote | line 1: the metadata (`tag`/`type`/`format`); line 2: `rules`/`url` |
+| Long inline suffix lists | one line when it fits; otherwise wrapped |
+
+```jsonc
+"dns_rules": [
+  {"#if": {"and": ["@force_ipv4"], "value": {
+    "query_type": ["HTTPS", "SVCB"], "action": "predefined", "rcode": "NOERROR"
+  }}},
+  {"rule_set": ["ru-domains", "ru-services"], "server": "@dns_server", "action": "route"}
+]
+```
+
+### Cheat sheet
+
+| | One line | Multiline |
+|---|---|---|
+| A var header (`name`/`type`/`title`/`tooltip`) | ✓ | — |
+| `default_value` | — | ✓ |
+| The elements of `options[]` | — | ✓ |
+| ref-var `{"ref":...}` | ✓ | — |
+| A preset's `ui` object | ✓ (when it fits) | the flags below |
+| An `@` field in a payload | — | ✓ (per field) |
+| `#if` plus an object `value` | the condition | the body |
+| `#if` plus a scalar | ✓ | — |
+| A preset's literal rule | ✓ | — |
+
+> **A gotcha:** do NOT put comment keys (`"//": "..."`) into the `config` block — sing-box's
+> strict decode does not know them and the core start is fatal (§264). Explanations belong in
+> this file, not in the config JSON. In the meta sections (`vars`, `sections`, `ui`) any field
+> is fine — they never reach the config.
+
+---
+
+## Localizing the display text — the l10n overlay (§279)
+
+`wizard_template.json` remains the **single structural template**, holding the English
+display text. Translations do not fork the structure — they are flat overlay files that patch
+the decoded JSON **before parsing and before the preset_expand snapshots**
+(`TemplateOverlay.apply`, called from `TemplateLoader`; the loader's cache is keyed by the
+locale tag):
+
+```
+app/assets/l10n/ru/template.json   # a hand-written translation (the same shape as the UI dictionary)
+```
+
+The English display text lives in `wizard_template.json` itself (the base language, in the
+code) — there is no separate en file. The overlay's key is **the English text itself** of the
+display field (the same principle as the natural-key UI dictionary
+`assets/l10n/<tag>/ui.json`), rather than a structural address.
+`TemplateOverlay.apply` walks the template's whitelist schema, reads a node's English value
+and swaps in the translation keyed by that text.
+
+- The English keys are the base language and live in the code: there is no committed or
+  generated en file. `template_check` extracts them live from `wizard_template.json` through
+  `TemplateOverlay.extract()` on every run and validates each locale's overlay against that
+  extraction. The same English text repeated in different places of the template collapses
+  into a single key (a feature, not a conflict).
+- `template.json` (and any future `<lang>/template.json`) has the same object shape as the
+  UI dictionary: `{ "<english>": { "value": "<translation>" } }`:
+
+  ```json
+  "DNS server": { "value": "DNS-сервер" }
+  ```
+
+  When the English text changes the key changes with it: the old entry becomes an unknown
+  key (a `template_check` failure) and the new English key is missing (a warning; a failure
+  under strict). The workflow is identical to a UI string: rename the key and revisit the translation.
+
+**The traversal schema** (the full table is in [the §279 spec, §3.2](./spec/features/279%20localization/spec.md)):
+the applier visits the display fields of sections, of global and rule-local vars, of magic nodes,
+of directions, of DNS servers and of the ping and speed presets. Not visited (the applier's
+whitelist): everything under `config` and `parser_config`, plus `name`, `tag`, `value`,
+`default_value`, `preset_id`, bare-string enum options and `dns_options.rules[].name` (a latent
+identity key) — so those strings never reach an overlay.
+
+**Load-bearing prohibitions**: a translation starting with `@` would be read as a var
+reference (the overlay is applied before `substituteVars`), and a `{` breaks parsing — both are
+forbidden unconditionally by `template_check`. The per-key fallback is quiet (a missing key
+yields the English value); the failure of a whole file is loud (`AppLog.error` plus a
+debug assert plus a Flutter test that loads every overlay from rootBundle).
+
+### Adding a display field to the template
+
+A new user-visible field must be added to both the **extractor and the whitelist** of
+`TemplateOverlay` (`template_overlay.dart`) — otherwise it silently ships untranslated.
+in English in every locale. The `template_check` self-check ensures the whitelist covers
+every display field of the extractor (the English key is extracted from
+`wizard_template.json`, since there is no separate en file); after adding one, put the
+translation in `ru/template.json` and run `flutter test` (the applier tests).
+
+---
+
+## What breaks when
+
+### Adding a new top-level key
+
+Update this file (the top-level section plus a new per-key section) and add a reader to the builder.
+
+### Changing the shape of a preset or its vars
+
+If it is breaking, bump `parser_config.version` (that is the signal for the migration code). Describe it here.
+
+### Adding a var with a new `type`
+
+Update the var.type table in this file and add a renderer to `settings_screen.dart`.
+
+### Changing the base rules in `config.route.rules`
+
+Since §264 there are **no** base rules in `config.route.rules` any more (the key is empty) — sniff, hijack-dns and resolve live in the `traffic-processing` preset.
+
+### Adding a ref-var to a preset (§265)
+
+You put `{"ref":"<global>"}` into the preset's `vars[]`. The target global **must exist**
+in some section (`WizardTemplate.globalVar` searches all of them, including `internal`) —
+otherwise the metadata does not resolve. If the var must not show up in VPN Settings,
+declare it in the `internal` section (its chapter is never rendered). The value lives in
+`userVars`; do **not** duplicate it into `varsValues` (the straggler would diverge from the
+global — see `stripRefVarsFromVarsValues`). Every reader of `varsValues` by name skips
+`v.isRef`.
+
+### Adding an on_change to a preset (§266)
+
+The magic pseudo-var (`rule_enable` / `dns_enable`) carries `on_change: {"set":{...}}`.
+Mandatory: (1) a `default_value` plus `required:false` on the pseudo-var (otherwise the preset
+silently fails to emit — the `29fe61c` gotcha); (2) the target is an existing global (usually in
+`internal`); (3) call `applyPresetOnChange` from **every** point where the preset's state
+changes (the routing switch, the DNS toggle, the editor, DNS Settings — five places today). If
+the formula depends on both the routing and the DNS state, hang an **identical** on_change
+on both pseudo-vars (`rule_enable` AND `dns_enable`), so it fires along either path.
+
+---
+
+## Related documents
+
+- [`STORAGE.md`](./STORAGE.md) — the user state in `lxbox_settings.json` (what the user changes, including the directions)
+- [§058 config generator v1 (superseded)](./spec/tasks/058-config-generator-wizard-v1-superseded/spec.md) — substitution and expansion (formerly feature §005x, superseded by §026)
+- [§026 parser v2](./spec/features/026%20parser%20v2/spec.md) — `parser_config.version`
+- [§033 preset bundles](./spec/features/033%20preset%20bundles/spec.md) — `selectable_rules[]` and expansion
+- [§030 custom routing rules](./spec/features/030%20custom%20routing%20rules/spec.md) — `selectable_rules[*].rule` shape, order matters
+- [§061 dns rules refactor](./spec/tasks/061-dns-rules-refactor/spec.md) — `dns_options.rules[]` (formerly feature §041)
+- [§043 dns servers refs by kind](./spec/tasks/043-dns-servers-refs-by-kind.md) plus [§044 clean schema](./spec/tasks/044-dns-servers-clean-schema.md) — `dns_options.servers[]` and the template-versus-storage relationship
+- [§040 per-group ping settings](./spec/tasks/040-per-group-ping-test-settings.md) — `ping_options`
+- [§015 speed test](./spec/features/015%20speed%20test/spec.md) — `speed_test_options`
+- [§022 app settings](./spec/features/022%20app%20settings/spec.md) — the Wizard UI and `sections[]`
+- [§279 localization](./spec/features/279%20localization/spec.md) — the l10n overlay of the template's display text; the overlay key is the English text itself (the same principle as the `ui/` dictionary, the `{value}` format, with no addresses and no `src` hash — §285); the translator guide is [`l10n.md`](./l10n.md)

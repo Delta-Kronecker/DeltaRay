@@ -1,0 +1,323 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  WINDIVERT_VERSION: "2.2.2"
+  ANDROID_API_LEVEL: "36"
+  ANDROID_NDK_VERSION: "27.2.12479018"
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      release_name: ${{ steps.meta.outputs.release_name }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare release metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="$(python3 - <<'PY'
+          import tomllib
+
+          with open("Cargo.toml", "rb") as cargo_toml:
+              manifest = tomllib.load(cargo_toml)
+
+          print(manifest["workspace"]["package"]["version"])
+          PY
+          )"
+
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          unique="$(git rev-parse --short=12 HEAD)"
+
+          release_tag="v${timestamp}-${unique}"
+          release_name="ZeroDPI ${release_tag}"
+
+          prerelease=false
+          if [[ "$version" == *-* ]]; then
+            prerelease=true
+          fi
+
+          {
+            echo "release_tag=$release_tag"
+            echo "release_name=$release_name"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Generate release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repo_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          current_sha="$(git rev-parse HEAD)"
+          current_short_sha="$(git rev-parse --short=12 HEAD)"
+          previous_tag="$(git tag --merged HEAD --sort=-creatordate | head -n 1 || true)"
+
+          {
+            echo "## Changes"
+            echo
+            echo "- Commit: [\`$current_short_sha\`]($repo_url/commit/$current_sha)"
+
+            if [[ -n "$previous_tag" ]]; then
+              echo "- Previous release: [$previous_tag]($repo_url/releases/tag/$previous_tag)"
+              echo "- Compare: [$previous_tag...$current_short_sha]($repo_url/compare/$previous_tag...$current_sha)"
+              range="$previous_tag..HEAD"
+            else
+              echo "- Previous release: none"
+              range="HEAD"
+            fi
+
+            echo
+            echo "### Commits"
+            echo
+
+            if [[ "$(git rev-list --count "$range")" == "0" ]]; then
+              echo "- No commits since \`$previous_tag\`."
+            else
+              git log --pretty=format:'%H%x09%h%x09%s' "$range" |
+                while IFS=$'\t' read -r full_sha short_sha subject; do
+                  printf -- "- %s ([%s](%s/commit/%s))\n" "$subject" "$short_sha" "$repo_url" "$full_sha"
+                done
+            fi
+          } > release-notes.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
+          if-no-files-found: error
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install Linux build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libnetfilter-queue-dev
+
+      - name: Build Linux package
+        run: python3 build.py --platform linux
+
+      - name: Verify Linux installer script
+        run: test -x dist/linux/install-systemd.sh
+
+      - name: Archive Linux package
+        run: tar -C dist/linux -czf zerodpi-linux-x86_64.tar.gz .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zerodpi-linux-x86_64
+          path: zerodpi-linux-x86_64.tar.gz
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-latest
+    env:
+      WINDIVERT_PATH: ${{ github.workspace }}\windivert
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Download WinDivert
+        shell: pwsh
+        run: |
+          $ver = $env:WINDIVERT_VERSION
+          $url = "https://github.com/basil00/WinDivert/releases/download/v$ver/WinDivert-$ver-A.zip"
+          Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP\windivert.zip"
+          Expand-Archive -Path "$env:RUNNER_TEMP\windivert.zip" -DestinationPath "$env:RUNNER_TEMP\windivert-extract"
+
+          $extracted = Get-ChildItem "$env:RUNNER_TEMP\windivert-extract" -Directory | Select-Object -First 1
+          $archDir = Join-Path $extracted.FullName "x64"
+
+          New-Item -ItemType Directory -Force -Path $env:WINDIVERT_PATH | Out-Null
+          Copy-Item -Recurse -Force "$archDir\*" $env:WINDIVERT_PATH
+          Set-Content -Path "$env:WINDIVERT_PATH\.version" -Value $ver -NoNewline
+
+      - name: Build Windows package
+        run: python build.py --platform windows --toolchain ""
+
+      - name: Archive Windows package
+        shell: pwsh
+        run: Compress-Archive -Path "dist\windows\*" -DestinationPath "zerodpi-windows-x86_64.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zerodpi-windows-x86_64
+          path: zerodpi-windows-x86_64.zip
+          if-no-files-found: error
+
+  termux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: armv7
+            rust_target: armv7-linux-androideabi
+          - arch: armv8
+            rust_target: aarch64-linux-android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build Termux Android package
+        shell: bash
+        run: printf '\n' | python3 build.py --platform termux --termux-arch "${{ matrix.arch }}"
+
+      - name: Archive Termux Android package
+        run: tar -C "dist/termux/${{ matrix.arch }}" -czf "zerodpi-termux-${{ matrix.arch }}.tar.gz" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zerodpi-termux-${{ matrix.arch }}
+          path: zerodpi-termux-${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
+
+  android:
+    runs-on: ubuntu-latest
+    env:
+      ZERODPI_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+      ZERODPI_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+      ZERODPI_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+          cache-dependency-path: |
+            android/*.gradle.kts
+            android/gradle.properties
+            android/gradle/wrapper/gradle-wrapper.properties
+            android/app/*.gradle.kts
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ""
+
+      - name: Configure Android release keystore path
+        shell: bash
+        run: echo "ZERODPI_RELEASE_STORE_FILE=${RUNNER_TEMP}/zerodpi-release.jks" >> "$GITHUB_ENV"
+
+      - name: Install Android SDK and NDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager \
+            "platforms;android-${ANDROID_API_LEVEL}" \
+            "build-tools;${ANDROID_API_LEVEL}.0.0" \
+            "ndk;${ANDROID_NDK_VERSION}"
+          echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Decode Android release keystore
+        shell: bash
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          : "${ANDROID_RELEASE_KEYSTORE_BASE64:?Missing ANDROID_RELEASE_KEYSTORE_BASE64 secret}"
+          : "${ZERODPI_RELEASE_STORE_PASSWORD:?Missing ANDROID_RELEASE_STORE_PASSWORD secret}"
+          : "${ZERODPI_RELEASE_KEY_ALIAS:?Missing ANDROID_RELEASE_KEY_ALIAS secret}"
+          if ! printf '%s' "$ANDROID_RELEASE_KEYSTORE_BASE64" \
+            | tr -d '[:space:]' \
+            | base64 --decode > "$ZERODPI_RELEASE_STORE_FILE"; then
+            echo "::error title=Invalid Android keystore secret::ANDROID_RELEASE_KEYSTORE_BASE64 must contain the Base64-encoded bytes of the JKS file."
+            exit 1
+          fi
+          test -s "$ZERODPI_RELEASE_STORE_FILE"
+
+      - name: Build signed rootless and full-root Android APKs
+        run: >-
+          python3 build.py
+          --platform android-app
+          --android-app-abi public
+          --android-app-runtime both
+          --android-app-build-type release
+
+      - name: Verify signed Android APKs and packaged ABIs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for runtime in rootless full; do
+            apk="dist/android-app/${runtime}/zerodpi-android-${runtime}-release.apk"
+            test -f "$apk"
+            "${ANDROID_HOME}/build-tools/${ANDROID_API_LEVEL}.0.0/apksigner" verify --verbose "$apk"
+
+            entries="$(unzip -Z1 "$apk")"
+            grep -qx "lib/armeabi-v7a/libzerodpi_exec.so" <<< "$entries"
+            grep -qx "lib/arm64-v8a/libzerodpi_exec.so" <<< "$entries"
+
+            if [[ "$runtime" == "full" ]]; then
+              grep -qx "lib/armeabi-v7a/libzerodpi_root_helper_exec.so" <<< "$entries"
+              grep -qx "lib/arm64-v8a/libzerodpi_root_helper_exec.so" <<< "$entries"
+            fi
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zerodpi-android-rootless
+          path: dist/android-app/rootless/zerodpi-android-rootless-release.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zerodpi-android-full
+          path: dist/android-app/full/zerodpi-android-full-release.apk
+          if-no-files-found: error
+
+  publish:
+    needs: [prepare, linux, windows, termux, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Show release changes
+        run: cat dist/release-notes/release-notes.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.release_tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ needs.prepare.outputs.release_name }}
+          prerelease: ${{ needs.prepare.outputs.prerelease }}
+          body_path: dist/release-notes/release-notes.md
+          files: |
+            dist/zerodpi-linux-x86_64/zerodpi-linux-x86_64.tar.gz
+            dist/zerodpi-windows-x86_64/zerodpi-windows-x86_64.zip
+            dist/zerodpi-termux-armv7/zerodpi-termux-armv7.tar.gz
+            dist/zerodpi-termux-armv8/zerodpi-termux-armv8.tar.gz
+            dist/zerodpi-android-rootless/zerodpi-android-rootless-release.apk
+            dist/zerodpi-android-full/zerodpi-android-full-release.apk

@@ -1,0 +1,863 @@
+//! Windows backend: WinDivert-based packet interception.
+//!
+//! Mirrors the Linux NFQUEUE backend but uses the WinDivert kernel driver.
+//! No system rules need to be installed externally — the driver itself
+//! receives a filter expression and diverts matching packets to user space.
+
+use std::borrow::Cow;
+use std::time::Duration;
+
+use anyhow::{Context, Result};
+use etherparse::{Ipv4HeaderSlice, TcpHeaderSlice};
+use tracing::{debug, info, warn};
+use windivert::layer::NetworkLayer;
+use windivert::prelude::{WinDivert, WinDivertFlags, WinDivertPacket};
+use windivert_sys::ChecksumFlags;
+
+use zerodpi_core::interceptor::{
+    Direction, FilterSpec, InterceptorShutdown, PacketHandler, PacketInterceptor, PacketView,
+    TcpFlags, Verdict,
+};
+
+pub struct WinDivertInterceptor {
+    divert: WinDivert<NetworkLayer>,
+}
+
+impl PacketInterceptor for WinDivertInterceptor {
+    fn open(filter: FilterSpec) -> Result<Self> {
+        let filter_str = build_filter(&filter);
+        info!(%filter_str, "opening WinDivert");
+        let divert = WinDivert::network(filter_str, 0, WinDivertFlags::default())
+            .context("WinDivert::network failed (Administrator and WinDivert.dll/sys required)")?;
+        Ok(Self { divert })
+    }
+
+    fn run_until<H: PacketHandler>(
+        self,
+        mut handler: H,
+        _shutdown: InterceptorShutdown,
+    ) -> Result<()> {
+        let mut buf = vec![0u8; 0xFFFF];
+        loop {
+            let packet = match self.divert.recv(Some(&mut buf)) {
+                Ok(p) => p,
+                Err(e) => {
+                    warn!(error = %e, "WinDivert recv error; exiting loop");
+                    return Ok(());
+                }
+            };
+            let direction = if packet.address.outbound() {
+                Direction::Outbound
+            } else {
+                Direction::Inbound
+            };
+
+            let (mut view, layout) = match parse_view(direction, &packet.data) {
+                Ok(v) => v,
+                Err(_) => {
+                    // Not a TCP/IPv4 packet — pass through.
+                    if let Err(e) = self.divert.send(&packet) {
+                        debug!(error = %e, "passthrough send failed");
+                    }
+                    continue;
+                }
+            };
+
+            match handler.on_packet(&mut view) {
+                Verdict::Accept => {
+                    if let Err(e) = self.divert.send(&packet) {
+                        debug!(error = %e, "send failed");
+                    }
+                }
+                Verdict::Drop => {
+                    // Don't send: WinDivert drops packets that aren't reinjected.
+                }
+                Verdict::AcceptModified => {
+                    let new_bytes = match build_modified(&packet.data, &layout, &view) {
+                        Ok(b) => b,
+                        Err(e) => {
+                            warn!(error = %e, "build_modified failed; sending original");
+                            let _ = self.divert.send(&packet);
+                            continue;
+                        }
+                    };
+                    if let Some(frag_size) = view.ip_frag_payload_size {
+                        // Split the rebuilt packet into IPv4 fragments and
+                        // reinject each one; the original is dropped (never
+                        // reinjected) so the fragments replace it on the
+                        // wire. build_modified already computed valid IP/TCP
+                        // checksums and the fragmenter recomputes the
+                        // per-fragment IP header checksums —
+                        // recalculate_checksums must not run on fragments
+                        // (the TCP checksum lives inside fragment 1's
+                        // payload only).
+                        let fragments =
+                            zerodpi_core::ip_fragment::fragment_ipv4_packet(&new_bytes, frag_size);
+                        for frag in &fragments {
+                            let frag_pkt = WinDivertPacket::<NetworkLayer> {
+                                address: packet.address.clone(),
+                                data: Cow::Owned(frag.clone()),
+                            };
+                            if let Err(e) = self.divert.send(&frag_pkt) {
+                                debug!(error = %e, "fragment send failed");
+                            }
+                        }
+                    } else if let Some(spec) = view.disorder_spec {
+                        let segments = zerodpi_core::tcp_segment::split_tcp_payload(
+                            &new_bytes,
+                            spec.segments,
+                            spec.reverse,
+                        );
+                        if segments.len() > 1 {
+                            // Emit the first segment synchronously and never
+                            // reinject the original: the segments replace it
+                            // on the wire. Remaining segments follow on a
+                            // short-lived thread so the capture loop never
+                            // blocks on the delay.
+                            let send_segment = |data: &[u8]| -> bool {
+                                let seg_pkt = WinDivertPacket::<NetworkLayer> {
+                                    address: packet.address.clone(),
+                                    data: Cow::Owned(data.to_vec()),
+                                };
+                                match self.divert.send(&seg_pkt) {
+                                    Ok(_) => true,
+                                    Err(e) => {
+                                        debug!(error = %e, "disorder segment send failed");
+                                        false
+                                    }
+                                }
+                            };
+                            if !send_segment(&segments[0]) {
+                                // Fall back: forward the original packet.
+                                if let Err(e) = self.divert.send(&packet) {
+                                    debug!(error = %e, "disorder fallback send failed");
+                                }
+                                continue;
+                            }
+                            if spec.delay_ms > 0 {
+                                let remaining = segments[1..].to_vec();
+                                let address = packet.address.clone();
+                                let delay = Duration::from_millis(spec.delay_ms);
+                                std::thread::spawn(move || {
+                                    // A send-only handle: the filter "false"
+                                    // matches nothing, so this handle only
+                                    // injects. The segments already carry
+                                    // valid checksums from the splitter, so
+                                    // no recalculation happens here.
+                                    let handle = match WinDivert::network(
+                                        "false",
+                                        0,
+                                        WinDivertFlags::default(),
+                                    ) {
+                                        Ok(h) => h,
+                                        Err(e) => {
+                                            warn!(error = %e, "failed to open delayed-emission WinDivert handle; abandoning delayed disorder segments (TCP retransmission will heal the connection)");
+                                            return;
+                                        }
+                                    };
+                                    for (i, seg) in remaining.iter().enumerate() {
+                                        std::thread::sleep(delay * (i as u32 + 1));
+                                        let seg_pkt = WinDivertPacket::<NetworkLayer> {
+                                            address: address.clone(),
+                                            data: Cow::Owned(seg.clone()),
+                                        };
+                                        if let Err(e) = handle.send(&seg_pkt) {
+                                            debug!(error = %e, "delayed disorder segment send failed");
+                                            break;
+                                        }
+                                    }
+                                });
+                            } else {
+                                for seg in &segments[1..] {
+                                    if !send_segment(seg) {
+                                        break;
+                                    }
+                                }
+                            }
+                        } else {
+                            let mut new_pkt = WinDivertPacket::<NetworkLayer> {
+                                address: packet.address.clone(),
+                                data: Cow::Owned(new_bytes),
+                            };
+                            if let Err(e) = new_pkt.recalculate_checksums(ChecksumFlags::default())
+                            {
+                                warn!(error = %e, "recalculate_checksums failed");
+                            }
+                            if let Err(e) = self.divert.send(&new_pkt) {
+                                debug!(error = %e, "modified send failed");
+                            }
+                        }
+                    } else {
+                        let mut new_pkt = WinDivertPacket::<NetworkLayer> {
+                            address: packet.address.clone(),
+                            data: Cow::Owned(new_bytes),
+                        };
+                        if let Err(e) = new_pkt.recalculate_checksums(ChecksumFlags::default()) {
+                            warn!(error = %e, "recalculate_checksums failed");
+                        }
+                        if let Some(delta) = view.corrupt_tcp_checksum_delta {
+                            if let Err(e) = corrupt_tcp_checksum(
+                                new_pkt.data.to_mut().as_mut_slice(),
+                                &layout,
+                                delta,
+                            ) {
+                                warn!(error = %e, "failed to corrupt TCP checksum");
+                            }
+                        }
+                        if let Err(e) = self.divert.send(&new_pkt) {
+                            debug!(error = %e, "modified send failed");
+                        }
+                        // Dual emission (fake_tls FAKE_TLS_FORWARD_REAL):
+                        // after the decoy, forward the original packet
+                        // unchanged.
+                        if view.emit_original_after {
+                            if let Err(e) = self.divert.send(&packet) {
+                                debug!(error = %e, "original-after-modified send failed");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Build a WinDivert filter equivalent to the upstream Python project's:
+/// `tcp and ((ip.SrcAddr == iface and ip.DstAddr == remote) or (ip.SrcAddr == remote and ip.DstAddr == iface))`.
+fn build_filter(filter: &FilterSpec) -> String {
+    match filter.remote_ip {
+        Some(remote) => format!(
+            "tcp and ((ip.SrcAddr == {iface} and ip.DstAddr == {remote} and tcp.DstPort == {port}) \
+             or (ip.SrcAddr == {remote} and ip.DstAddr == {iface} and tcp.SrcPort == {port}))",
+            iface = filter.interface_ip,
+            port = filter.remote_port,
+        ),
+        None => format!(
+            "tcp and ((ip.SrcAddr == {iface} and tcp.DstPort == {port}) \
+             or (ip.DstAddr == {iface} and tcp.SrcPort == {port}))",
+            iface = filter.interface_ip,
+            port = filter.remote_port,
+        ),
+    }
+}
+
+struct PacketLayout {
+    ip_hdr_len: usize,
+    tcp_hdr_len: usize,
+    payload_off: usize,
+    total_len: usize,
+}
+
+fn parse_view<'a>(direction: Direction, buf: &'a [u8]) -> Result<(PacketView<'a>, PacketLayout)> {
+    let ip = Ipv4HeaderSlice::from_slice(buf).context("parse ipv4")?;
+    if ip.protocol() != etherparse::IpNumber::TCP {
+        anyhow::bail!("not tcp");
+    }
+    let ip_hdr_len = ip.slice().len();
+    let tcp = TcpHeaderSlice::from_slice(&buf[ip_hdr_len..]).context("parse tcp")?;
+    let tcp_hdr_len = tcp.slice().len();
+    let total_len = ip.total_len() as usize;
+    let payload_off = ip_hdr_len + tcp_hdr_len;
+    let tcp_options_off = ip_hdr_len + etherparse::TcpHeader::MIN_LEN;
+    let payload_len = total_len.saturating_sub(payload_off);
+
+    let view = PacketView {
+        direction,
+        src_ip: ip.source_addr(),
+        dst_ip: ip.destination_addr(),
+        src_port: tcp.source_port(),
+        dst_port: tcp.destination_port(),
+        seq: tcp.sequence_number(),
+        ack: tcp.acknowledgment_number(),
+        flags: TcpFlags {
+            syn: tcp.syn(),
+            ack: tcp.ack(),
+            psh: tcp.psh(),
+            rst: tcp.rst(),
+            fin: tcp.fin(),
+            urg: tcp.urg(),
+        },
+        payload_len,
+        payload: &buf[payload_off..payload_off + payload_len],
+        tcp_options: &buf[tcp_options_off..payload_off],
+        new_seq: None,
+        new_ack: None,
+        new_flags: None,
+        new_urgent_pointer: None,
+        new_payload: None,
+        replace_tcp_options: None,
+        append_tcp_options: Vec::new(),
+        bump_ipv4_ident: false,
+        corrupt_tcp_checksum_delta: None,
+        emit_original_after: false,
+        ip_frag_payload_size: None,
+        disorder_spec: None,
+        new_ipv4_ttl: None,
+    };
+    Ok((
+        view,
+        PacketLayout {
+            ip_hdr_len,
+            tcp_hdr_len,
+            payload_off,
+            total_len,
+        },
+    ))
+}
+
+fn build_modified(orig: &[u8], layout: &PacketLayout, view: &PacketView<'_>) -> Result<Vec<u8>> {
+    let mut ip_hdr = etherparse::Ipv4Header::from_slice(&orig[..layout.ip_hdr_len])?.0;
+    let mut tcp_hdr = etherparse::TcpHeader::from_slice(
+        &orig[layout.ip_hdr_len..layout.ip_hdr_len + layout.tcp_hdr_len],
+    )?
+    .0;
+    let new_payload: &[u8] = match view.new_payload.as_deref() {
+        Some(p) => p,
+        None => &orig[layout.payload_off..layout.total_len],
+    };
+    if let Some(seq) = view.new_seq {
+        tcp_hdr.sequence_number = seq;
+    }
+    if let Some(ack) = view.new_ack {
+        tcp_hdr.acknowledgment_number = ack;
+    }
+    if let Some(flags) = view.new_flags {
+        tcp_hdr.syn = flags.syn;
+        tcp_hdr.ack = flags.ack;
+        tcp_hdr.psh = flags.psh;
+        tcp_hdr.rst = flags.rst;
+        tcp_hdr.fin = flags.fin;
+        tcp_hdr.urg = flags.urg;
+    }
+    if let Some(ptr) = view.new_urgent_pointer {
+        tcp_hdr.urgent_pointer = ptr;
+    }
+    if view.bump_ipv4_ident {
+        ip_hdr.identification = ip_hdr.identification.wrapping_add(1);
+    }
+    if let Some(ttl) = view.new_ipv4_ttl {
+        ip_hdr.time_to_live = ttl;
+    }
+    if let Some(options) = view.replace_tcp_options.as_deref() {
+        tcp_hdr
+            .set_options_raw(options)
+            .context("replace TCP options")?;
+    }
+    append_tcp_options(&mut tcp_hdr, &view.append_tcp_options)?;
+
+    let new_tcp_hdr_len = tcp_hdr.header_len();
+    let new_ip_payload_len = new_tcp_hdr_len + new_payload.len();
+    ip_hdr.set_payload_len(new_ip_payload_len)?;
+    ip_hdr.header_checksum = ip_hdr.calc_header_checksum();
+    tcp_hdr.checksum = tcp_hdr.calc_checksum_ipv4(&ip_hdr, new_payload)?;
+    // WinDivert recalculates these again immediately before send. We compute
+    // them here so rebuilt packet buffers are valid before that final pass.
+    let mut out = Vec::with_capacity(layout.ip_hdr_len + new_tcp_hdr_len + new_payload.len());
+    ip_hdr.write(&mut out)?;
+    tcp_hdr.write(&mut out)?;
+    out.extend_from_slice(new_payload);
+    Ok(out)
+}
+
+fn append_tcp_options(tcp_hdr: &mut etherparse::TcpHeader, append: &[u8]) -> Result<()> {
+    if append.is_empty() {
+        return Ok(());
+    }
+
+    let original = tcp_hdr.options.as_slice();
+    let raw_len = original.len() + append.len();
+    let padded_len = (raw_len + 3) & !3;
+    let max_options_len = etherparse::TcpHeader::MAX_LEN - etherparse::TcpHeader::MIN_LEN;
+    if padded_len > max_options_len {
+        anyhow::bail!(
+            "TCP options would exceed maximum header size: existing={} append={} padded={}",
+            original.len(),
+            append.len(),
+            padded_len
+        );
+    }
+
+    let mut options = Vec::with_capacity(raw_len);
+    options.extend_from_slice(original);
+    options.extend_from_slice(append);
+    tcp_hdr
+        .set_options_raw(&options)
+        .context("append TCP options")?;
+    Ok(())
+}
+
+fn corrupt_tcp_checksum(buf: &mut [u8], layout: &PacketLayout, delta: u16) -> Result<()> {
+    let checksum_off = layout.ip_hdr_len + 16;
+    if buf.len() < checksum_off + 2 {
+        anyhow::bail!("packet too short for TCP checksum field");
+    }
+    let checksum = u16::from_be_bytes([buf[checksum_off], buf[checksum_off + 1]]);
+    let corrupted = checksum.wrapping_add(delta);
+    buf[checksum_off..checksum_off + 2].copy_from_slice(&corrupted.to_be_bytes());
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::Ipv4Addr;
+
+    fn make_view() -> PacketView<'static> {
+        PacketView {
+            direction: Direction::Outbound,
+            src_ip: Ipv4Addr::new(10, 0, 0, 1),
+            dst_ip: Ipv4Addr::new(1, 2, 3, 4),
+            src_port: 12345,
+            dst_port: 443,
+            seq: 1001,
+            ack: 5001,
+            flags: TcpFlags {
+                ack: true,
+                ..Default::default()
+            },
+            payload_len: 0,
+            payload: &[],
+            tcp_options: &[],
+            new_seq: Some(1001),
+            new_ack: None,
+            new_flags: Some(TcpFlags {
+                ack: true,
+                psh: true,
+                ..Default::default()
+            }),
+            new_urgent_pointer: None,
+            new_payload: Some(vec![0xAB; 517]),
+            replace_tcp_options: None,
+            append_tcp_options: Vec::new(),
+            bump_ipv4_ident: true,
+            corrupt_tcp_checksum_delta: Some(11),
+            emit_original_after: false,
+            ip_frag_payload_size: None,
+            disorder_spec: None,
+            new_ipv4_ttl: None,
+        }
+    }
+
+    fn bare_ack_packet() -> Vec<u8> {
+        use etherparse::{IpNumber, Ipv4Header, TcpHeader};
+
+        let mut ip = Ipv4Header::new(20, 64, IpNumber::TCP, [10, 0, 0, 1], [1, 2, 3, 4]).unwrap();
+        ip.identification = 0x1234;
+        ip.header_checksum = ip.calc_header_checksum();
+        let mut tcp = TcpHeader::new(12345, 443, 1001, 65535);
+        tcp.acknowledgment_number = 5001;
+        tcp.ack = true;
+        tcp.checksum = tcp.calc_checksum_ipv4(&ip, &[]).unwrap();
+
+        let mut buf = Vec::new();
+        ip.write(&mut buf).unwrap();
+        tcp.write(&mut buf).unwrap();
+        buf
+    }
+
+    fn data_packet(payload: &[u8]) -> Vec<u8> {
+        data_packet_with_options(payload, &[])
+    }
+
+    fn data_packet_with_options(payload: &[u8], options: &[u8]) -> Vec<u8> {
+        use etherparse::{IpNumber, Ipv4Header, TcpHeader};
+
+        let mut tcp = TcpHeader::new(12345, 443, 1001, 65535);
+        tcp.acknowledgment_number = 5001;
+        tcp.ack = true;
+        tcp.psh = true;
+        tcp.set_options_raw(options).unwrap();
+        let mut ip = Ipv4Header::new(
+            (tcp.header_len() + payload.len()).try_into().unwrap(),
+            64,
+            IpNumber::TCP,
+            [10, 0, 0, 1],
+            [1, 2, 3, 4],
+        )
+        .unwrap();
+        ip.header_checksum = ip.calc_header_checksum();
+        tcp.checksum = tcp.calc_checksum_ipv4(&ip, payload).unwrap();
+
+        let mut buf = Vec::new();
+        ip.write(&mut buf).unwrap();
+        tcp.write(&mut buf).unwrap();
+        buf.extend_from_slice(payload);
+        buf
+    }
+
+    #[test]
+    fn parse_view_borrows_payload_bytes() {
+        let payload = [0x16, 0x03, 0x03, 0x00, 0x01, 0xAA];
+        let buf = data_packet(&payload);
+        let (view, layout) = parse_view(Direction::Outbound, &buf).unwrap();
+
+        assert_eq!(view.payload_len, payload.len());
+        assert_eq!(view.payload, payload.as_slice());
+        assert_eq!(layout.payload_off, 40);
+    }
+
+    fn timestamp_option(tsval: u32, tsecr: u32) -> Vec<u8> {
+        let mut option = vec![8, 10];
+        option.extend_from_slice(&tsval.to_be_bytes());
+        option.extend_from_slice(&tsecr.to_be_bytes());
+        option
+    }
+
+    #[test]
+    fn parse_view_borrows_tcp_option_bytes() {
+        let options = timestamp_option(100, 77);
+        let buf = data_packet_with_options(&[], &options);
+        let (view, layout) = parse_view(Direction::Outbound, &buf).unwrap();
+
+        assert_eq!(layout.tcp_hdr_len, 32);
+        assert_eq!(layout.payload_off, 52);
+        assert_eq!(&view.tcp_options[..options.len()], options.as_slice());
+        assert_eq!(&view.tcp_options[options.len()..], &[0, 0]);
+    }
+
+    #[test]
+    fn round_trip_modified_packet_parses_back() {
+        let buf = bare_ack_packet();
+        let layout = PacketLayout {
+            ip_hdr_len: 20,
+            tcp_hdr_len: 20,
+            payload_off: 40,
+            total_len: 40,
+        };
+        let mut view = make_view();
+        view.corrupt_tcp_checksum_delta = None;
+        let modified = build_modified(&buf, &layout, &view).unwrap();
+
+        let ip2 = Ipv4HeaderSlice::from_slice(&modified).unwrap();
+        let tcp2 = TcpHeaderSlice::from_slice(&modified[ip2.slice().len()..]).unwrap();
+        assert_eq!(ip2.identification(), 0x1235);
+        assert_eq!(ip2.total_len() as usize, 20 + 20 + 517);
+        assert_eq!(tcp2.sequence_number(), 1001);
+        assert!(tcp2.psh());
+        assert!(tcp2.ack());
+        let calculated = tcp2
+            .to_header()
+            .calc_checksum_ipv4(&ip2.to_header(), &modified[40..])
+            .unwrap();
+        assert_eq!(tcp2.checksum(), calculated);
+    }
+
+    #[test]
+    fn urgent_flag_and_pointer_survive_rebuild() {
+        let payload = [0x16, 0x03, 0x03, 0x00, 0x01, 0xAA];
+        let buf = data_packet(&payload);
+        let (mut view, layout) = parse_view(Direction::Outbound, &buf).unwrap();
+        view.new_flags = Some(TcpFlags {
+            ack: true,
+            psh: true,
+            urg: true,
+            ..Default::default()
+        });
+        view.new_urgent_pointer = Some(40);
+        let modified = build_modified(&buf, &layout, &view).unwrap();
+
+        let ip2 = Ipv4HeaderSlice::from_slice(&modified).unwrap();
+        let tcp2 = TcpHeaderSlice::from_slice(&modified[ip2.slice().len()..]).unwrap();
+        assert!(tcp2.urg());
+        assert_eq!(tcp2.urgent_pointer(), 40);
+        let calculated = tcp2
+            .to_header()
+            .calc_checksum_ipv4(&ip2.to_header(), &modified[40..])
+            .unwrap();
+        assert_eq!(tcp2.checksum(), calculated);
+    }
+
+    #[test]
+    fn parse_view_reads_urg_flag() {
+        use etherparse::TcpHeader;
+        let buf = data_packet(&[]);
+        let mut tcp = TcpHeader::from_slice(&buf[20..40]).unwrap().0;
+        tcp.urg = true;
+        let mut out = Vec::with_capacity(buf.len());
+        out.extend_from_slice(&buf[..20]);
+        tcp.write(&mut out).unwrap();
+        let (view, _) = parse_view(Direction::Outbound, &out).unwrap();
+        assert!(view.flags.urg);
+    }
+
+    #[test]
+    fn corrupt_tcp_checksum_adds_delta_to_valid_checksum() {
+        let buf = bare_ack_packet();
+        let layout = PacketLayout {
+            ip_hdr_len: 20,
+            tcp_hdr_len: 20,
+            payload_off: 40,
+            total_len: 40,
+        };
+        let view = make_view();
+        let mut modified = build_modified(&buf, &layout, &view).unwrap();
+
+        let ip2 = Ipv4HeaderSlice::from_slice(&modified).unwrap();
+        let tcp2 = TcpHeaderSlice::from_slice(&modified[ip2.slice().len()..]).unwrap();
+        let valid_checksum = tcp2
+            .to_header()
+            .calc_checksum_ipv4(&ip2.to_header(), &modified[40..])
+            .unwrap();
+        assert_eq!(tcp2.checksum(), valid_checksum);
+
+        corrupt_tcp_checksum(
+            &mut modified,
+            &layout,
+            view.corrupt_tcp_checksum_delta.unwrap(),
+        )
+        .unwrap();
+        let ip3 = Ipv4HeaderSlice::from_slice(&modified).unwrap();
+        let tcp3 = TcpHeaderSlice::from_slice(&modified[ip3.slice().len()..]).unwrap();
+        assert_eq!(tcp3.checksum(), valid_checksum.wrapping_add(11));
+    }
+
+    #[test]
+    fn ttl_can_be_overridden_after_rebuild() {
+        let buf = bare_ack_packet();
+        let layout = PacketLayout {
+            ip_hdr_len: 20,
+            tcp_hdr_len: 20,
+            payload_off: 40,
+            total_len: 40,
+        };
+        let mut view = make_view();
+        view.corrupt_tcp_checksum_delta = None;
+        view.new_ipv4_ttl = Some(5);
+        let modified = build_modified(&buf, &layout, &view).unwrap();
+
+        let ip2 = Ipv4HeaderSlice::from_slice(&modified).unwrap();
+        let tcp2 = TcpHeaderSlice::from_slice(&modified[ip2.slice().len()..]).unwrap();
+        assert_eq!(ip2.ttl(), 5);
+        let calculated = tcp2
+            .to_header()
+            .calc_checksum_ipv4(&ip2.to_header(), &modified[40..])
+            .unwrap();
+        assert_eq!(tcp2.checksum(), calculated);
+        assert_eq!(
+            ip2.header_checksum(),
+            ip2.to_header().calc_header_checksum()
+        );
+    }
+
+    #[test]
+    fn tcp_ack_number_can_be_rewritten_after_rebuild() {
+        let buf = bare_ack_packet();
+        let layout = PacketLayout {
+            ip_hdr_len: 20,
+            tcp_hdr_len: 20,
+            payload_off: 40,
+            total_len: 40,
+        };
+        let mut view = make_view();
+        view.new_seq = None;
+        view.new_ack = Some(4999);
+        view.corrupt_tcp_checksum_delta = None;
+        let modified = build_modified(&buf, &layout, &view).unwrap();
+
+        let ip2 = Ipv4HeaderSlice::from_slice(&modified).unwrap();
+        let tcp2 = TcpHeaderSlice::from_slice(&modified[ip2.slice().len()..]).unwrap();
+        assert_eq!(tcp2.sequence_number(), 1001);
+        assert_eq!(tcp2.acknowledgment_number(), 4999);
+        let calculated = tcp2
+            .to_header()
+            .calc_checksum_ipv4(&ip2.to_header(), &modified[40..])
+            .unwrap();
+        assert_eq!(tcp2.checksum(), calculated);
+    }
+
+    #[test]
+    fn tcp_options_can_be_appended_after_rebuild() {
+        use zerodpi_core::methods::wrong_md5::tcp_md5_signature_option;
+
+        let buf = bare_ack_packet();
+        let layout = PacketLayout {
+            ip_hdr_len: 20,
+            tcp_hdr_len: 20,
+            payload_off: 40,
+            total_len: 40,
+        };
+        let mut view = make_view();
+        view.corrupt_tcp_checksum_delta = None;
+        let md5_option = tcp_md5_signature_option();
+        view.append_tcp_options = md5_option.clone();
+        let modified = build_modified(&buf, &layout, &view).unwrap();
+
+        let ip2 = Ipv4HeaderSlice::from_slice(&modified).unwrap();
+        let tcp2 = TcpHeaderSlice::from_slice(&modified[ip2.slice().len()..]).unwrap();
+        assert_eq!(tcp2.slice().len(), 40);
+        assert_eq!(ip2.total_len() as usize, 20 + 40 + 517);
+
+        let options = tcp2.options();
+        assert_eq!(&options[..md5_option.len()], md5_option.as_slice());
+        assert_eq!(&options[md5_option.len()..], &[0, 0]);
+
+        let payload_off = ip2.slice().len() + tcp2.slice().len();
+        let calculated = tcp2
+            .to_header()
+            .calc_checksum_ipv4(&ip2.to_header(), &modified[payload_off..])
+            .unwrap();
+        assert_eq!(tcp2.checksum(), calculated);
+    }
+
+    #[test]
+    fn tcp_options_can_be_replaced_after_rebuild() {
+        let original_options = timestamp_option(100, 77);
+        let replacement_options = timestamp_option(99, 77);
+        let buf = data_packet_with_options(&[], &original_options);
+        let (mut view, layout) = parse_view(Direction::Outbound, &buf).unwrap();
+        view.new_payload = Some(vec![0xAB; 10]);
+        view.replace_tcp_options = Some(replacement_options.clone());
+        view.corrupt_tcp_checksum_delta = None;
+
+        let modified = build_modified(&buf, &layout, &view).unwrap();
+
+        let ip2 = Ipv4HeaderSlice::from_slice(&modified).unwrap();
+        let tcp2 = TcpHeaderSlice::from_slice(&modified[ip2.slice().len()..]).unwrap();
+        assert_eq!(tcp2.slice().len(), 32);
+        assert_eq!(ip2.total_len() as usize, 20 + 32 + 10);
+
+        let options = tcp2.options();
+        assert_eq!(
+            &options[..replacement_options.len()],
+            replacement_options.as_slice()
+        );
+        assert_eq!(&options[replacement_options.len()..], &[0, 0]);
+
+        let payload_off = ip2.slice().len() + tcp2.slice().len();
+        let calculated = tcp2
+            .to_header()
+            .calc_checksum_ipv4(&ip2.to_header(), &modified[payload_off..])
+            .unwrap();
+        assert_eq!(tcp2.checksum(), calculated);
+    }
+
+    #[test]
+    fn tcp_option_append_rejects_oversized_header() {
+        use etherparse::TcpHeader;
+        use zerodpi_core::methods::wrong_md5::tcp_md5_signature_option;
+
+        let mut tcp = TcpHeader::new(12345, 443, 1001, 65535);
+        tcp.set_options_raw(&[1; 24]).unwrap();
+        let err = append_tcp_options(&mut tcp, &tcp_md5_signature_option()).unwrap_err();
+        assert!(err.to_string().contains("TCP options would exceed"));
+    }
+
+    #[test]
+    fn build_modified_splits_into_ip_fragments() {
+        use etherparse::{IpNumber, Ipv4Header, TcpHeader};
+        use zerodpi_core::ip_fragment::fragment_ipv4_packet;
+
+        let mut ip = Ipv4Header::new(20, 64, IpNumber::TCP, [10, 0, 0, 1], [1, 2, 3, 4]).unwrap();
+        ip.identification = 0x1234;
+        ip.header_checksum = ip.calc_header_checksum();
+        let mut tcp = TcpHeader::new(12345, 443, 1001, 65535);
+        tcp.acknowledgment_number = 5001;
+        tcp.ack = true;
+        tcp.checksum = tcp.calc_checksum_ipv4(&ip, &[0xAB; 517]).unwrap();
+        let mut buf = Vec::new();
+        ip.write(&mut buf).unwrap();
+        tcp.write(&mut buf).unwrap();
+        buf.extend_from_slice(&[0xAB; 517]);
+
+        let layout = PacketLayout {
+            ip_hdr_len: ip.header_len(),
+            tcp_hdr_len: tcp.header_len(),
+            payload_off: ip.header_len() + tcp.header_len(),
+            total_len: buf.len(),
+        };
+        let mut view = make_view();
+        view.ip_frag_payload_size = Some(24);
+
+        let out = build_modified(&buf, &layout, &view).unwrap();
+        let fragments = fragment_ipv4_packet(&out, 24);
+        assert!(fragments.len() > 1);
+
+        let mut reassembled = Vec::new();
+        for frag in &fragments {
+            let ihl = usize::from(frag[0] & 0x0F) * 4;
+            reassembled.extend_from_slice(&frag[ihl..]);
+        }
+        assert_eq!(reassembled, out[20..]);
+
+        for frag in &fragments {
+            let parsed = etherparse::Ipv4HeaderSlice::from_slice(frag).unwrap();
+            assert_eq!(
+                parsed.header_checksum(),
+                parsed.to_header().calc_header_checksum()
+            );
+        }
+    }
+
+    #[test]
+    fn build_modified_splits_into_disorder_segments() {
+        use etherparse::{IpNumber, Ipv4Header, TcpHeader, TcpHeaderSlice};
+        use zerodpi_core::interceptor::DisorderSpec;
+        use zerodpi_core::tcp_segment::split_tcp_payload;
+
+        let mut ip = Ipv4Header::new(20, 64, IpNumber::TCP, [10, 0, 0, 1], [1, 2, 3, 4]).unwrap();
+        ip.identification = 0x1234;
+        ip.header_checksum = ip.calc_header_checksum();
+        let mut tcp = TcpHeader::new(12345, 443, 1001, 65535);
+        tcp.acknowledgment_number = 5001;
+        tcp.ack = true;
+        tcp.psh = true;
+        tcp.checksum = tcp.calc_checksum_ipv4(&ip, &[0xAB; 517]).unwrap();
+        let mut buf = Vec::new();
+        ip.write(&mut buf).unwrap();
+        tcp.write(&mut buf).unwrap();
+        buf.extend_from_slice(&[0xAB; 517]);
+
+        let layout = PacketLayout {
+            ip_hdr_len: ip.header_len(),
+            tcp_hdr_len: tcp.header_len(),
+            payload_off: ip.header_len() + tcp.header_len(),
+            total_len: buf.len(),
+        };
+        let mut view = make_view();
+        view.disorder_spec = Some(DisorderSpec {
+            segments: 2,
+            reverse: true,
+            delay_ms: 0,
+        });
+
+        let out = build_modified(&buf, &layout, &view).unwrap();
+        let segments = split_tcp_payload(&out, 2, true);
+        assert_eq!(segments.len(), 2);
+
+        // Reverse emission: the tail chunk (258 bytes) goes out first with
+        // seq 1001 + 259 and PSH (it ends the in-sequence payload); the
+        // head chunk (259 bytes) follows with seq 1001 and PSH cleared.
+        let first = TcpHeaderSlice::from_slice(&segments[0][20..]).unwrap();
+        assert_eq!(first.sequence_number(), 1001 + 259);
+        assert_eq!(segments[0].len(), 40 + 258);
+        assert!(first.psh());
+
+        let second = TcpHeaderSlice::from_slice(&segments[1][20..]).unwrap();
+        assert_eq!(second.sequence_number(), 1001);
+        assert_eq!(segments[1].len(), 40 + 259);
+        assert!(!second.psh());
+
+        // Concatenated in original order (head then tail), the payloads
+        // match the rebuilt packet's payload byte-for-byte.
+        let mut reassembled = segments[1][40..].to_vec();
+        reassembled.extend_from_slice(&segments[0][40..]);
+        assert_eq!(reassembled, &out[40..]);
+
+        // IP and TCP checksums are valid on every segment.
+        for seg in &segments {
+            let parsed_ip = etherparse::Ipv4HeaderSlice::from_slice(seg).unwrap();
+            assert_eq!(
+                parsed_ip.header_checksum(),
+                parsed_ip.to_header().calc_header_checksum()
+            );
+            let parsed_tcp = etherparse::TcpHeaderSlice::from_slice(&seg[20..]).unwrap();
+            assert_eq!(
+                parsed_tcp.checksum(),
+                parsed_tcp
+                    .to_header()
+                    .calc_checksum_ipv4(&parsed_ip.to_header(), &seg[40..])
+                    .unwrap()
+            );
+        }
+    }
+}
