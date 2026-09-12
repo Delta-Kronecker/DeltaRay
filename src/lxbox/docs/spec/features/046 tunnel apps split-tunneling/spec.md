@@ -25,8 +25,9 @@
 │ Layer 1: Sing-box config (наш JSON)                          │
 │   inbound[type=tun]:                                         │
 │     "include_package": ["pkg1", ...]   ← если mode=allow     │
-│     "exclude_package": ["pkg1", ...]   ← если mode=deny      │
-│     (ничего)                            ← если mode=off      │
+│     "exclude_package": ["pkg1", ..., "com.leadaxe.lxbox"]    │
+│                                        ← если mode=deny      │
+│     "exclude_package": ["com.leadaxe.lxbox"] ← mode=off      │
 └─────────────────────────────────────────────────────────────┘
               ↓ libbox читает config, exposes через PlatformInterface
 ┌─────────────────────────────────────────────────────────────┐
@@ -55,15 +56,28 @@
 }
 ```
 
-**Семантика:**
+**Семантика** (обновлено: self-исключение, см. ниже «Инвариант: self вне tun»):
 
 | `mode` | sing-box config | Эффект |
 |---|---|---|
-| `"off"` | (ничего не пишем) | Все приложения через tun (Android-default) |
-| `"allow"` | `tun.include_package = packages` | **Только** перечисленные через tun. Остальные — direct (cellular/wifi) |
-| `"deny"` | `tun.exclude_package = packages` | Все КРОМЕ перечисленных через tun. Перечисленные — direct |
+| `"off"` | `tun.exclude_package = ["com.leadaxe.lxbox"]` | Все приложения через tun, **КРОМЕ** самого L×Box/ZeroDPI |
+| `"allow"` | `tun.include_package = packages` (self НЕ дописывается) | **Только** перечисленные через tun. Остальные — direct (cellular/wifi), включая наш UID (нет в whitelist = вне tun) |
+| `"deny"` | `tun.exclude_package = packages + self` | Все КРОМЕ перечисленных через tun. Перечисленные + self — direct |
 
-**Default для existing юзеров:** `{mode: "off", packages: []}` — backward-compat, ничего не меняется.
+**Default для existing юзеров:** `{mode: "off", packages: []}` — backward-compat по UI, но в config `off` теперь пишет `exclude_package=[self]` (см. инвариант ниже).
+
+### Инвариант: собственный UID ВСЕГДА вне tun (§046 rev. 2026-09-12)
+
+Merged-сборка несёт ZeroDPI-relay (встроенный, `src/zerodpi`) как **второй native-процесс с тем же UID отцом-апа** (`com.leadaxe.lxbox`). При proxy-режиме без tun это неважно, но в VPN-режиме чинителем loop'а:
+
+- egress ZeroDPI (socket к реальному хосту) **не** защищён `VpnService.protect()` (это отдельный процесс — parent не может reach его fd'ы);
+- если такой socket попадёт в tun, он вернётся в sing-box → outbound → снова `127.0.0.1:44444` (ZeroDPI) → новый egress → снова tun → **бесконечный loop**: VPN-режим не туннелирует НИ ОДНОГО приложения (proxy-режим работает — tun'а нет).
+
+⇒ **Инвариант §046: self всегда исключён из tun** (kernel/netd-уровень), независимо от mode:
+- `allow` — self осознанно отсутствует в `include_package`. Нет в whitelist = netd выводит наш UID из tun;
+- `off`/`deny` — self принудительно в `exclude_package`.
+
+`include` + `exclude` в одном tun запрещены (Android `Builder.addAllowedApplication`+`addDisallowedApplication` → `UnsupportedOperationException`), поэтому self живёт ровно в одном из полей. **`§124` override (native `buildOverrideOptions` дописывал self в `includePackage` в allow-режиме) УДАЛЁН** — он ломал allow (loop) и зеркалился в `config_staleness.dart`.
 
 **Migration:** unconditional одноразовый default-fill на первом `_load()` после upgrade. Не нужен `presets_migrated`-style guard — пустая структура валидна сама по себе.
 
@@ -74,9 +88,9 @@
 Новая функция в `post_steps.dart`:
 
 ```dart
+/// §046 (self-исключение, rev. 2026-09-12): self (com.leadaxe.lxbox) ВНЕ tun
+/// всегда — иначе egress встроенного ZeroDPI-relay зацикливается через tun.
 void applyTunPackages(Map<String, dynamic> config, TunAppsConfig tunApps) {
-  if (tunApps.mode == 'off' || tunApps.packages.isEmpty) return;
-  
   final inbounds = config['inbounds'] as List?;
   if (inbounds == null) return;
   
@@ -85,9 +99,26 @@ void applyTunPackages(Map<String, dynamic> config, TunAppsConfig tunApps) {
     orElse: () => null,
   );
   if (tun == null) return;
-  
-  final field = tunApps.mode == 'allow' ? 'include_package' : 'exclude_package';
-  (tun as Map)[field] = tunApps.packages;
+
+  final self = PlatformChannels.packageName;
+
+  if (tunApps.mode == 'allow') {
+    if (tunApps.packages.isEmpty) return;
+    // self НЕ добавляем: нет в whitelist = netd выводит наш UID из tun.
+    (tun as Map)['include_package'] = List<String>.from(tunApps.packages);
+    return;
+  }
+  if (tunApps.mode == 'off') {
+    // Всё через tun КРОМЕ нас. Stale `packages` от прежнего режима игнорируем.
+    (tun as Map)['exclude_package'] = [self];
+    return;
+  }
+  // deny: список юзера + self (без дубликата).
+  final packages = [
+    ...tunApps.packages,
+    if (!tunApps.packages.contains(self)) self,
+  ];
+  (tun as Map)['exclude_package'] = packages;
 }
 ```
 
@@ -164,9 +195,9 @@ PUT validates:
 | Сценарий | Поведение |
 |---|---|
 | Юзер удалил app из системы — package в `tun_apps.packages` | Native `NameNotFoundException` skip (уже работает). UI greyed-icon + label `(uninstalled)`. Не auto-удаляем (юзер может переустановить) |
-| Юзер добавляет `com.leadaxe.lxbox` в Deny-list | Не блокируем добавление (никакого effect — наш process сам не зависит от tun). Snackbar warning при выборе в picker'е: `L×Box itself doesn't need VPN — adding here has no effect` |
+| Юзер добавляет `com.leadaxe.lxbox` в Deny-list | Не блокируем добавление (эффект нет — self и так **всегда** исключён из tun, §046 инвариант). Snackbar warning при выборе в picker'е: `L×Box itself doesn't need VPN — adding here has no effect` |
 | Юзер переключил mode `allow → deny` или наоборот | `packages` сохраняется (тот же list, разная семантика) |
-| Юзер переключил mode на `off` | `packages` сохраняется (на случай возврата). В config'е ничего не пишем, sing-box default = всё через tun |
+| Юзер переключил mode на `off` | `packages` сохраняется (на случай возврата). В config'е пишем `exclude_package=[self]`: всё через tun КРОМЕ нас (без tun снова образуется loop ZeroDPI) |
 | VPN не запущен на момент save | Banner не показываем. Изменения применятся при следующем старте |
 | Light reload (`startOrReloadService`) после save | НЕ перетворяет tun fd — настройки apps **не применяются**. Нужен full teardown. UI явно показывает `Restart VPN`, не `Reload core` |
 | `find_process: false` в config'е (`§044 edge case`) | Tun-уровневый split работает независимо от process detection sing-box'а. Нет связи. |
@@ -183,9 +214,9 @@ OS-level split-tunneling: какие apps идут через VPN-tun, каки�
 
 { "mode": "off" | "allow" | "deny", "packages": [...] }
 
-mode=off:    sing-box config БЕЗ include_package/exclude_package — все apps через tun (default)
-mode=allow:  tun.include_package = packages → ТОЛЬКО эти через tun
-mode=deny:   tun.exclude_package = packages → все КРОМЕ этих через tun
+mode=off:    sing-box config: tun.exclude_package = [com.leadaxe.lxbox] — все apps через tun, КРОМЕ L×Box/ZeroDPI (§046 self-исключение)
+mode=allow:  tun.include_package = packages → ТОЛЬКО эти через tun (self НЕ дописывается)
+mode=deny:   tun.exclude_package = packages + self → все КРОМЕ этих и L×Box через tun
 
 Native слой (BoxVpnService.kt:557-560) iterates options и зовёт
 VpnService.Builder.addAllowedApplication / addDisallowedApplication.
@@ -199,11 +230,12 @@ Default для existing юзеров: {mode: "off", packages: []}.
 
 `app/test/services/builder/post_steps_test.dart` (новый или extend existing):
 
-1. `applyTunPackages mode=off → no changes to tun-inbound`
-2. `applyTunPackages mode=off + packages non-empty → no changes (mode wins)`
+1. `applyTunPackages mode=off → tun.exclude_package = [self]`
+2. `applyTunPackages mode=off + packages non-empty → exclude_package = [self], stale packages ignored (mode wins)`
 3. `applyTunPackages mode=allow + empty packages → no changes`
-4. `applyTunPackages mode=allow + 2 pkgs → tun.include_package = [pkg1, pkg2]`
-5. `applyTunPackages mode=deny + 1 pkg → tun.exclude_package = [pkg1]`
+4. `applyTunPackages mode=allow + 2 pkgs → tun.include_package = [pkg1, pkg2]`, **без self** (инвариант)
+5. `applyTunPackages mode=deny + 1 pkg → tun.exclude_package = [pkg1, self]`
+5a. `applyTunPackages mode=deny, self уже в списке → без дубликата, порядок сохранён`
 6. `applyTunPackages no tun-inbound в config → silent no-op`
 
 Storage:
@@ -231,7 +263,7 @@ Debug API:
 
 - [ ] Spec written и approved (этот файл).
 - [ ] Storage CRUD работает; default fill на первом load; round-trip тесты.
-- [ ] Builder `applyTunPackages` правильно эмитит `include_package`/`exclude_package` в config.tun-inbound; 6 case-тестов зелёные.
+- [ ] Builder `applyTunPackages` правильно эмитит `include_package`/`exclude_package` в config.tun-inbound; **self всегда вне tun** (allow — не в include; off/deny — в exclude); 7 case-тестов зелёные.
 - [ ] Routing tab 4 = `Tunnel apps`. SegmentedButton mode + inline list + AppPicker integration + Show-system-apps overflow menu + Clear-all + Help.
 - [ ] Restart banner появляется на modified state + tunnel up; `Restart VPN now` button делает full stop+start.
 - [ ] `(uninstalled)` label для apps удалённых из системы.

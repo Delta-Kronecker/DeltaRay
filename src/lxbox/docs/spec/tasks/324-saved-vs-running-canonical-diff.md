@@ -131,11 +131,11 @@ for _, inbound := range options.Inbounds {
 | Поле | Что кладём |
 |---|---|
 | `autoRedirect` | `BootReceiver.isAutoRedirect` (persistent-флаг, default false, UI-тоггла нет) |
-| `includePackage` | **только** свой пакет, **только** в allow-режиме (определяется наличием `include_package` у первого tun-inbound) |
+| `includePackage` | **не используем никогда** (с 2026-09-12: прежний «только свой пакет, только в allow» УДАЛЁН — §046 инвариант, self всегда вне tun; per-app списки живут в конфиге через post-step `tun_packages.dart`) |
 | `excludePackage` | **не используем никогда** |
 
-Поэтому зеркало на Dart-стороне узкое: в allow-режиме дописать свой пакет в
-конец `include_package` первого tun-inbound; выставить `auto_redirect` по флагу.
+Поэтому зеркало на Dart-стороне узкое: выставить `auto_redirect` по флагу; по
+`include_package`/`exclude_package` — НЕ трогать (native их не заполняет).
 
 **Инвариант (по образцу §221).** Список override-полей живёт в ДВУХ местах:
 `buildOverrideOptions` (Kotlin) и зеркало (Dart). Добавили четвёртую докрутку в

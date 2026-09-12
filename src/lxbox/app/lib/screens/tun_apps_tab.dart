@@ -363,7 +363,7 @@ class _TunAppsTabState extends State<TunAppsTab>
       case 'deny':
         return 'Selected apps bypass VPN. Others go through.';
       default:
-        return 'All apps go through VPN (default).';
+        return 'All apps go through VPN, except this app itself (always excluded).';
     }
   }
 }

@@ -790,11 +790,13 @@ OS-level split tunneling: which applications go through the VPN tun and which go
 
 | `mode` | What lands in `inbound[type=tun]` of the final config | Effect |
 |---|---|---|
-| `"off"` | (nothing is written) | Every app goes through the tun (the Android default) |
-| `"allow"` | `"include_package": [...packages]` | Only the listed apps use the tun. The rest go direct |
-| `"deny"`  | `"exclude_package": [...packages]` | Everything EXCEPT the listed apps uses the tun |
+| `"off"` | `"exclude_package": ["com.leadaxe.lxbox"]` | Every app goes through the tun EXCEPT L×Box/ZeroDPI itself (§046 invariant) |
+| `"allow"` | `"include_package": [...packages]` | Only the listed apps use the tun. The rest go direct — and `com.leadaxe.lxbox` is never in the list, so our own UID always bypasses the tun |
+| `"deny"`  | `"exclude_package": [...packages, "com.leadaxe.lxbox"]` | Everything EXCEPT the listed apps uses the tun. Our own UID is always excluded too |
 
 **The native layer** (`BoxVpnService.kt`) reads `options.includePackage` / `excludePackage` from libbox and calls `VpnService.Builder.addAllowedApplication` / `addDisallowedApplication`.
+
+**Self-exclusion (§046 invariant, rev. 2026-09-12):** the merged build ships ZeroDPI as a second native process sharing the app's UID. Its egress sockets can't be `VpnService.protect()`-ed (separate process), so if they ever entered the tun they would loop back through sing-box → outbound → ZeroDPI → tun. Hence the app's own UID is **always** kept out of the tun (not in `include_package` in allow mode; force-added to `exclude_package` otherwise). The old §124 native override that re-added self to `include_package` in allow mode was removed with this change.
 
 **The default for existing users** is `{mode: "off", packages: []}`, for backward compatibility. The migration runs unconditionally on the first `_load()` after an upgrade.
 

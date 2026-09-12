@@ -10,6 +10,7 @@ import '../../models/source_chain.dart' show kChainOutboundType;
 import '../json_clone.dart';
 import '../parser/uri_utils.dart' show isValidRealityPublicKey;
 import '../parser/utls_fingerprint.dart';
+import '../platform_channels.dart';
 import '../settings_storage.dart' show SettingsStorage, TunAppsConfig;
 import 'preset_expand.dart';
 import 'rule_set_registry.dart';
