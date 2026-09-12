@@ -15,6 +15,7 @@ import '../vpn/box_vpn_client.dart';
 import 'app_log.dart';
 import 'config_dirty_check.dart';
 import 'l10n/app_language_reconcile.dart';
+import 'parser/uri_utils.dart' show newUuidV4;
 import 'template_loader.dart';
 import 'warp/masque_account.dart';
 import 'warp/warp_account.dart';
@@ -452,6 +453,12 @@ class SettingsStorage {
   static Future<bool> hasDefaultsSeeded() => _hasDefaultsSeeded();
 
   static Future<void> markDefaultsSeeded() => _markDefaultsSeeded();
+
+  /// Сид дефолтной подписки на чистой установке. No-op после первой записи
+  /// `server_lists` (только fresh install; удаление ВСЕХ подписок НЕ воскрешает
+  /// сид).
+  static Future<void> seedDefaultSubscriptionIfNeeded() =>
+      _seedDefaultSubscriptionIfNeeded();
 
   // ---------------------------------------------------------------------------
   // Route final outbound

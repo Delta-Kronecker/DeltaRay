@@ -774,8 +774,8 @@
           "type": "enum",
           "wizard_ui": "edit",
           "title": "Stack",
-          "tooltip": "system (default), gvisor (userspace), mixed",
-          "default_value": "system",
+          "tooltip": "system, gvisor (default, userspace), mixed",
+          "default_value": "gvisor",
           "options": [
             "system",
             "gvisor",

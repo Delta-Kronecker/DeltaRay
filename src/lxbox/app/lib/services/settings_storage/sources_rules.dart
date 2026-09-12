@@ -43,6 +43,35 @@ Future<void> _saveServerLists(List<ServerList> lists, {bool flush = true}) async
   if (flush) await _save();
 }
 
+// ---------------------------------------------------------------------------
+// Default subscription (first-run seed)
+// ---------------------------------------------------------------------------
+
+/// Стартовая подписка, которая сеется на чистой установке.
+const kDefaultSubscriptionUrl =
+    'https://github.com/Delta-Kronecker/V2ray-Config/raw/refs/heads/main/config/testedlocal.txt';
+
+/// Сид первой подписки на чистой установке: если `server_lists` ещё ни разу
+/// не сохранялся (fresh install), записываем стартовую подписку. Идемпотентна —
+/// после первой записи ключ присутствует → no-op. Удалил юзер ВСЕ подписки
+/// (ключ = `[]`) → повторно НЕ сидим: подписка добавляется явным желанием,
+/// а не воскресает сама. Зовётся из main() до runApp, из тестов — нет.
+Future<void> _seedDefaultSubscriptionIfNeeded() async {
+  final data = await _load();
+  if (data.containsKey('server_lists')) return;
+  final list = SubscriptionServers(
+    id: newUuidV4(),
+    name: 'Default',
+    enabled: true,
+    tagPrefix: '',
+    detourPolicy: DetourPolicy.defaults,
+    url: kDefaultSubscriptionUrl,
+  );
+  data['server_lists'] = [list.toJson()];
+  SettingsStorage._cache = data;
+  await _save();
+}
+
 // §159 — `enabled_rules` API удалён (legacy-миграция в `custom_rules` снята).
 
 // ---------------------------------------------------------------------------
