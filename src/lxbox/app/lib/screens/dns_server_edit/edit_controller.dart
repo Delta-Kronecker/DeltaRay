@@ -453,7 +453,7 @@ class DnsServerEditController extends ChangeNotifier {
   /// (`https://host/dns-query` → server=host, path=/dns-query); режим h3
   /// при вставке сохраняется (§411), остальные переводятся в https.
   /// Hostname-адрес автоматически получает `domain_resolver` (дефолт
-  /// google_udp — решение №4); IP-адрес — теряет его.
+  /// google_tls — решение №4); IP-адрес — теряет его.
   void onAddressChanged(String raw) {
     var addr = raw.trim();
     if (addr.startsWith('https://')) {
@@ -476,8 +476,8 @@ class DnsServerEditController extends ChangeNotifier {
     }
     if (isHostnameAddress) {
       if (domainResolver.isEmpty) {
-        final def = dnsServerTags.contains('google_udp')
-            ? 'google_udp'
+        final def = dnsServerTags.contains('google_tls')
+            ? 'google_tls'
             : (dnsServerTags.isNotEmpty ? dnsServerTags.first : '');
         if (def.isNotEmpty) _body['domain_resolver'] = def;
       }

@@ -1442,8 +1442,8 @@
   "Default Domain Resolver": {
     "value": "Резолвер доменов по умолчанию"
   },
-  "Default fallback DNS server. Used when an app makes a DNS query and no DNS rule above matches it. Every app DNS query that isn't routed by a rule ends up here.\n\n  • google_udp — fast plain UDP to 8.8.8.8 (Google DNS)": {
-    "value": "Резервный DNS-сервер по умолчанию. Используется, когда DNS-запрос приложения не совпал ни с одним DNS-правилом выше. Сюда попадает каждый запрос приложений, не направленный правилом.\n\n  • google_udp — быстрый обычный UDP к 8.8.8.8 (Google DNS)"
+  "Default fallback DNS server. Used when an app makes a DNS query and no DNS rule above matches it. Every app DNS query that isn't routed by a rule ends up here.\n\n  • google_tls — default; encrypted DNS-over-TLS to dns.google:853 (Google DNS)": {
+    "value": "Резервный DNS-сервер по умолчанию. Используется, когда DNS-запрос приложения не совпал ни с одним DNS-правилом выше. Сюда попадает каждый запрос приложений, не направленный правилом.\n\n  • google_tls — по умолчанию; шифрованный DNS-over-TLS на dns.google:853 (Google DNS)"
   },
   "Default traffic": {
     "value": "Трафик по умолчанию"
@@ -4403,8 +4403,8 @@
   "Use this node": {
     "value": "Использовать этот узел"
   },
-  "Used by routing engine to resolve hostnames internally (outbound endpoints, routing rules). Not the resolver apps use.\n\n  • google_udp — fast plain UDP to 8.8.8.8 (Google DNS)": {
-    "value": "Используется движком маршрутизации для внутреннего резолва имён (адреса исходящих серверов, правила маршрутизации). Это не резолвер приложений.\n\n  • google_udp — быстрый обычный UDP к 8.8.8.8 (Google DNS)"
+  "Used by routing engine to resolve hostnames internally (outbound endpoints, routing rules). Not the resolver apps use.\n\n  • google_tls — default; encrypted DNS-over-TLS to dns.google:853 (Google DNS)": {
+    "value": "Используется движком маршрутизации для внутреннего резолва имён (адреса исходящих серверов, правила маршрутизации). Это не резолвер приложений.\n\n  • google_tls — по умолчанию; шифрованный DNS-over-TLS на dns.google:853 (Google DNS)"
   },
   "User": {
     "value": "Свой"

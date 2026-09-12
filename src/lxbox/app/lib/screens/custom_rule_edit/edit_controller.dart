@@ -541,7 +541,7 @@ class CustomRuleEditController extends ChangeNotifier {
 
   /// §117: тоггл DNS-опции. Выбранный serverTag сохраняется при выключении
   /// (повторное включение не теряет выбор). Первое включение без выбора —
-  /// преселект `google_udp` (дефолтный резолвер) или первый доступный tag.
+  /// преселект `google_tls` (дефолтный резолвер) или первый доступный tag.
   void setDnsEnabled(bool v) {
     if (!v) {
       // §257: снятие галки «Send DNS to dedicated server» = удалить сервер
@@ -555,8 +555,8 @@ class CustomRuleEditController extends ChangeNotifier {
     }
     var tag = _dns?.serverTag ?? '';
     if (tag.isEmpty) {
-      tag = _dnsServerTags.contains('google_udp')
-          ? 'google_udp'
+      tag = _dnsServerTags.contains('google_tls')
+          ? 'google_tls'
           : (_dnsServerTags.isNotEmpty ? _dnsServerTags.first : '');
     }
     // §256: copyWith сохраняет forceIpv4 (ортогонален dedicated-серверу).

@@ -8,13 +8,7 @@
   "1492 recommended for mobile/WiFi": {
     "value": "Для мобильной сети и Wi-Fi рекомендуется 1492"
   },
-  "2001:4860:4860::8844 · Secondary v6": {
-    "value": "2001:4860:4860::8844 · Резервный v6"
-  },
-  "2001:4860:4860::8888 · Primary v6": {
-    "value": "2001:4860:4860::8888 · Основной v6"
-  },
-  "2a02:6b8:0:1::feed:bad · Safe v6 alt": {
+      "2a02:6b8:0:1::feed:bad · Safe v6 alt": {
     "value": "2a02:6b8:0:1::feed:bad · Безопасный v6 альт."
   },
   "2a02:6b8::feed:0ff · Base v6": {
@@ -44,13 +38,7 @@
   "77.88.8.88 · Safe": {
     "value": "77.88.8.88 · Безопасный"
   },
-  "8.8.4.4 · Secondary v4": {
-    "value": "8.8.4.4 · Резервный v4"
-  },
-  "8.8.8.8 · Primary v4": {
-    "value": "8.8.8.8 · Основной v4"
-  },
-  "Add an IPv6 address to the tunnel. Off by default — turn on only if your network has working IPv6. Turning on sets resolution to prefer IPv4, turning off forces IPv4-only — you can change the strategy in DNS Settings.": {
+      "Add an IPv6 address to the tunnel. Off by default — turn on only if your network has working IPv6. Turning on sets resolution to prefer IPv4, turning off forces IPv4-only — you can change the strategy in DNS Settings.": {
     "value": "Добавить туннелю IPv6-адрес. По умолчанию выключено — включайте, только если в вашей сети работает IPv6. Включение переводит резолв в режим «предпочитать IPv4», выключение — в «только IPv4»; стратегию можно поменять в настройках DNS."
   },
   "Apple": {
@@ -113,8 +101,8 @@
   "Default domain resolver": {
     "value": "Резолвер доменов по умолчанию"
   },
-  "Default fallback DNS server. Used when an app's DNS query doesn't match any DNS rule.\n\n  • google_udp — default; fast plain UDP to 8.8.8.8 (Google DNS)": {
-    "value": "Резервный DNS-сервер по умолчанию. Используется, когда DNS-запрос приложения не совпал ни с одним DNS-правилом.\n\n  • google_udp — по умолчанию; быстрый обычный UDP к 8.8.8.8 (Google DNS)"
+  "Default fallback DNS server. Used when an app's DNS query doesn't match any DNS rule.\n\n  • google_tls — default; encrypted DNS-over-TLS to dns.google:853 (Google DNS)": {
+    "value": "Резервный DNS-сервер по умолчанию. Используется, когда DNS-запрос приложения не совпал ни с одним DNS-правилом.\n\n  • google_tls — по умолчанию; шифрованный DNS-over-TLS на dns.google:853 (Google DNS)"
   },
   "Detect protocol and domain from packets for accurate routing.\n⚠️ WARNING: turning this off stops protocol matching (e.g. BitTorrent, TLS, QUIC), and domain matching too unless FakeIP is on.": {
     "value": "Определять протокол и домен из пакетов для точной маршрутизации.\n⚠️ ВНИМАНИЕ: выключение прекращает сопоставление по протоколу (например BitTorrent, TLS, QUIC), а без включённого FakeIP — и по домену."
@@ -161,10 +149,7 @@
   "Google DNS (via VPN)": {
     "value": "Google DNS (через VPN)"
   },
-  "Google Public DNS address. IPv4 — universal; IPv6 — if your network supports it.": {
-    "value": "Адрес Google Public DNS. IPv4 — универсально; IPv6 — если ваша сеть его поддерживает."
-  },
-  "HTTP only": {
+    "HTTP only": {
     "value": "Только HTTP"
   },
   "Hijack DNS": {
@@ -425,17 +410,14 @@
   "Traffic Processing": {
     "value": "Обработка трафика"
   },
-  "UDP server IP": {
-    "value": "IP-адрес UDP-сервера"
-  },
-  "URLTest tuning for the ✨auto group": {
+    "URLTest tuning for the ✨auto group": {
     "value": "Настройка URLTest для группы ✨Авто"
   },
   "Unknown traffic": {
     "value": "Неизвестный трафик"
   },
-  "Used by routing engine to resolve hostnames internally (outbound endpoints, routing rules). Not the resolver apps use.\n\n  • google_udp — default; fast plain UDP to 8.8.8.8 (Google DNS)": {
-    "value": "Используется движком маршрутизации для внутреннего резолва имён (адреса серверов, правила маршрутизации). Это не резолвер для приложений.\n\n  • google_udp — по умолчанию; быстрый обычный UDP к 8.8.8.8 (Google DNS)"
+  "Used by routing engine to resolve hostnames internally (outbound endpoints, routing rules). Not the resolver apps use.\n\n  • google_tls — default; encrypted DNS-over-TLS to dns.google:853 (Google DNS)": {
+    "value": "Используется движком маршрутизации для внутреннего резолва имён (адреса серверов, правила маршрутизации). Это не резолвер для приложений.\n\n  • google_tls — по умолчанию; шифрованный DNS-over-TLS на dns.google:853 (Google DNS)"
   },
   "Username for proxy auth (when auth is on).": {
     "value": "Имя пользователя для авторизации на прокси (когда она включена)."
