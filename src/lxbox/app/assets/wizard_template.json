@@ -8,13 +8,13 @@
   "dns_options": {
     "servers": [
       {
-        "description": "Google DNS (direct)",
+        "description": "Google DNS (via VPN)",
         "enabled": true,
         "vars": [
           {
             "name": "outbound",
             "type": "outbound",
-            "default_value": "direct-out",
+            "default_value": "vpn-1",
             "title": "Outbound",
             "tooltip": "Which direction carries DNS queries to this server"
           },

@@ -158,8 +158,8 @@
   "Google 204": {
     "value": "Google 204"
   },
-  "Google DNS (direct)": {
-    "value": "Google DNS (напрямую)"
+  "Google DNS (via VPN)": {
+    "value": "Google DNS (через VPN)"
   },
   "Google Public DNS address. IPv4 — universal; IPv6 — if your network supports it.": {
     "value": "Адрес Google Public DNS. IPv4 — универсально; IPv6 — если ваша сеть его поддерживает."
