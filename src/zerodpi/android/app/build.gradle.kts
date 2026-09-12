@@ -27,6 +27,10 @@ android {
     defaultConfig {
         minSdk = 23
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Only a fallback: AndroidDiagnosticsProvider prefers the real
+        // packageInfo.versionName from the merged APK. The library module has
+        // no versionName of its own.
+        buildConfigField("String", "VERSION_NAME", "\"0.0.0\"")
     }
 
     buildFeatures {
