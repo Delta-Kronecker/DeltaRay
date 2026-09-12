@@ -34,8 +34,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import io.nekohasekai.libbox.StringIterator
-import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicReference
 
 /// §049 F1 split — port из reference SagerNet
@@ -880,17 +878,21 @@ class BoxService(
     /// `parseConfig` → append), сам `singbox_config.json` не трогает.
     ///
     /// Что кладём:
-    /// - **self** (`com.leadaxe.lxbox`) → `includePackage`, **ТОЛЬКО в allow-режиме**.
-    ///   В allow наш UID иначе выпадает из tun по whitelist'у; добавляем себя,
-    ///   чтобы egress ядра (вместе с `protect(fd)`) гарантированно проходил.
-    ///   ⛔ В deny self НЕ добавляем: иначе include(self из override) +
-    ///   exclude(юзер из конфига) в одном tun → Android `Builder` получит и
-    ///   `addAllowedApplication`, и `addDisallowedApplication` →
-    ///   `UnsupportedOperationException`. Режим выводим из самого конфига:
-    ///   наличие `include_package` = allow (его пишет post-step `tun_packages.dart`).
     /// - **autoRedirect** — root-only tproxy-фича (`auto_redirect` в sing-tun,
     ///   работает лишь на рутированном Android). Провод из persistent-флага
     ///   `BootReceiver.isAutoRedirect` (default false); UI-тоггла пока нет.
+    ///
+    /// Self-пакет (`com.leadaxe.lxbox`) в override НЕ добавляем ОСОЗНАННО:
+    /// собственный UID обязан оставаться ВНЕ tun в любом режиме split — иначе
+    /// egress встроенного ZeroDPI-relay (отдельный native-процесс без
+    /// `protect(fd)`) снова попадает в tun → loop, и в VPN-режиме не
+    /// туннелируется ни одно приложение. Механизм целиком живёт в §046
+    /// post-step `tun_packages.dart`:
+    ///   - `allow` → self отсутствует в `include_package` (нет в whitelist =>
+    ///     netd выводит наш UID из tun);
+    ///   - `deny`/`off` → self дописывается в `exclude_package`.
+    /// Ставить self в include ВМЕСТЕ с deny-списком нельзя: include + exclude в
+    /// одном tun → Android `Builder` бросит `UnsupportedOperationException`.
     private fun buildOverrideOptions(config: String): OverrideOptions {
         val options = OverrideOptions()
 
@@ -899,40 +901,8 @@ class BoxService(
         // на не-root устройстве ядро вернёт ошибку, поэтому дефолт false безопасен.
         options.autoRedirect = BootReceiver.isAutoRedirect(service)
 
-        val isAllowMode = runCatching {
-            val inbounds = JSONObject(config).optJSONArray("inbounds") ?: return@runCatching false
-            for (i in 0 until inbounds.length()) {
-                val inb = inbounds.optJSONObject(i) ?: continue
-                if (inb.optString("type") == "tun") {
-                    return@runCatching inb.has("include_package")
-                }
-            }
-            false
-        }.getOrDefault(false)
-
-        if (isAllowMode) {
-            options.includePackage = singleStringIterator(service.packageName)
-            Log.d(TAG, "[vpn] override: +self (${service.packageName}) — allow-mode")
-        }
         return options
     }
-
-    /// Минимальный `StringIterator` на один элемент — для self-пакета в
-    /// `OverrideOptions.includePackage` (см. §124).
-    private fun singleStringIterator(value: String): StringIterator =
-        object : StringIterator {
-            private var consumed = false
-            override fun len(): Int = 1
-            override fun hasNext(): Boolean = !consumed
-            // §151 F1 — JNI no-throw: `StringIterator.Next()` — Go-метод БЕЗ
-            // `error`, throw = `Runtime::Abort`. За концом отдаём "", не бросаем
-            // (хотя текущая реализация и не бросала — фиксируем инвариант явно).
-            override fun next(): String {
-                if (consumed) return ""
-                consumed = true
-                return value
-            }
-        }
 
     /// §049 F17 — реальный state HTTP-proxy для Clash dashboard.
     /// Match reference: cast service → VPNService и читаем флаги (у нас

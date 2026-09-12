@@ -25,8 +25,6 @@
 
 import 'dart:convert';
 
-import 'platform_channels.dart';
-
 /// Что native кладёт в `OverrideOptions` перед `startOrReloadService`.
 /// Зеркало `BoxService.buildOverrideOptions` (Kotlin).
 ///
@@ -37,19 +35,14 @@ import 'platform_channels.dart';
 /// `config_staleness_test.dart` держит списки в соответствии.
 ///
 /// Того, что API `OverrideOptions` позволяет, но мы НЕ используем, здесь нет:
-/// `excludePackage` native не заполняет никогда.
+/// `includePackage`/`excludePackage` native не заполняет вовсе — per-app списки
+/// (включая self-исключение, §046 invariant — loop ZeroDPI) кладёт post-step
+/// `tun_packages.dart` сразу в сам конфиг, и обе стороны (override и снапшот)
+/// видят их одинаково из config'а.
 class OverrideSnapshot {
   const OverrideSnapshot({
-    this.includeSelfPackage = false,
     this.autoRedirect = false,
   });
-
-  /// §124 — свой пакет дописывается в `include_package`, **только** в
-  /// allow-режиме. В deny нельзя: include + exclude в одном tun → Android
-  /// бросает `UnsupportedOperationException`. Native выводит режим из самого
-  /// конфига (наличие `include_package` у первого tun-inbound), поэтому здесь
-  /// флаг не нужен — [applyOverrides] определяет режим так же.
-  final bool includeSelfPackage;
 
   /// §124/§189 — root-only tproxy из persistent-флага (`BootReceiver
   /// .isAutoRedirect`, default false). Присваивается, НЕ мержится.
@@ -59,7 +52,6 @@ class OverrideSnapshot {
   /// списком в `buildOverrideOptions`.
   static const mirroredFields = <String>{
     'auto_redirect',
-    'include_package',
   };
 }
 
@@ -74,14 +66,14 @@ class OverrideSnapshot {
 ///
 /// 1. **только ПЕРВЫЙ tun-inbound** (в цикле ядра стоит `break`), не все;
 /// 2. `auto_redirect` — **присваивание**, перетирает значение профиля;
-/// 3. `include_package` — **`append`**: пакеты профиля остаются, свой
-///    дописывается ПОСЛЕ них. Порядок значим для байтового сравнения — не
-///    сортировать и не дедуплицировать;
+/// 3. (закрыто §046/§124) `include_package` больше НЕ дописывается native —
+///    self-исключение ушло в post-step `tun_packages.dart`. Зеркало должно
+///    остаться бездействующим по `include_package`, иначе расходится с
+///    running-снапшотом;
 /// 4. **нет tun-inbound → не применять ничего.**
 ///
-/// Пятую — `Listable[string]` с одним элементом сериализуется голой строкой,
-/// а не массивом из одного — воспроизводить НЕ нужно: результат уходит в
-/// `formatConfig`, и правило применится само с обеих сторон.
+/// `Listable[string]` с одним элементом сериализуется голой строкой — но
+/// распаковывать тут нечего: мы собственные пакеты в списки больше не кладём.
 String applyOverrides(String configJson, OverrideSnapshot override) {
   final Map<String, dynamic> config;
   try {
@@ -112,21 +104,6 @@ String applyOverrides(String configJson, OverrideSnapshot override) {
   // канонической формы выпадет — но это забота formatConfig, не наша. Пишем
   // ровно то, что ядро положило в структуру.
   tun['auto_redirect'] = override.autoRedirect;
-
-  // §124 — allow-режим определяется наличием `include_package` у ЭТОГО tun'а
-  // (та же проверка, что в `buildOverrideOptions`). В deny native свой пакет не
-  // добавляет вовсе.
-  final isAllowMode = tun.containsKey('include_package');
-  if (override.includeSelfPackage && isAllowMode) {
-    // Грабля 3 — append в конец, без сортировки и дедупликации.
-    final existing = tun['include_package'];
-    final packages = <String>[
-      if (existing is List) ...existing.map((e) => '$e')
-      else if (existing is String) existing,
-      PlatformChannels.packageName,
-    ];
-    tun['include_package'] = packages;
-  }
 
   return jsonEncode(config);
 }

@@ -76,7 +76,8 @@ class BuildSettings {
   final String coreVersion;
 
   /// §046: OS-level split-tunneling apps list. `null` = pipeline возьмёт
-  /// дефолт (mode=off — все apps через tun, sing-box обычное поведение).
+  /// дефолт (mode=off — все apps через tun, КРОМЕ самого L×Box/ZeroDPI:
+  /// собственный UID всегда исключён из tun — invariant §046, loop ZeroDPI).
   final TunAppsConfig? tunApps;
 
   /// §119: VPN-mode (proxy/vpn/vpn_proxy). `null` = mode=vpn (текущее

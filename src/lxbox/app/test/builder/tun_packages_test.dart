@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:lxbox/services/builder/post_steps.dart';
+import 'package:lxbox/services/platform_channels.dart';
 import 'package:lxbox/services/settings_storage.dart' show TunAppsConfig;
 
 Map<String, dynamic> _configWithTun() => {
@@ -20,19 +21,23 @@ Map<String, dynamic> _configWithoutTun() => {
     };
 
 void main() {
+  const self = PlatformChannels.packageName;
+
   group('applyTunPackages (§046)', () {
-    test('mode=off → no changes to tun-inbound', () {
+    test('mode=off → tun.exclude_package = [self] (всё через tun, кроме нас)', () {
       final cfg = _configWithTun();
       applyTunPackages(
         cfg,
-        const TunAppsConfig(mode: 'off', packages: ['com.example']),
+        const TunAppsConfig(mode: 'off', packages: []),
       );
       final tun = (cfg['inbounds'] as List).first as Map<String, dynamic>;
+      expect(tun['exclude_package'], equals([self]));
       expect(tun.containsKey('include_package'), false);
-      expect(tun.containsKey('exclude_package'), false);
     });
 
-    test('mode=off + non-empty packages → no changes (mode wins)', () {
+    test('mode=off + non-empty packages → stale packages ignored (mode wins)', () {
+      // Переключение allow/deny → off сохраняет packages в storage; в off они
+      // не должны выводить приложения из tun.
       final cfg = _configWithTun();
       applyTunPackages(
         cfg,
@@ -42,8 +47,8 @@ void main() {
         ),
       );
       final tun = (cfg['inbounds'] as List).first as Map<String, dynamic>;
+      expect(tun['exclude_package'], equals([self]));
       expect(tun.containsKey('include_package'), false);
-      expect(tun.containsKey('exclude_package'), false);
     });
 
     test('mode=allow + empty packages → no changes', () {
@@ -57,7 +62,9 @@ void main() {
       expect(tun.containsKey('exclude_package'), false);
     });
 
-    test('mode=allow + 2 pkgs → tun.include_package = [pkg1, pkg2]', () {
+    test('mode=allow + 2 pkgs → tun.include_package = [pkg1, pkg2], без self', () {
+      // §046 invariant: self НЕ в whitelist'е (нет в include = netd выводит наш
+      // UID из tun) — иначе egress ZeroDPI образует loop.
       final cfg = _configWithTun();
       applyTunPackages(
         cfg,
@@ -69,10 +76,11 @@ void main() {
       final tun = (cfg['inbounds'] as List).first as Map<String, dynamic>;
       expect(tun['include_package'],
           equals(['org.telegram.messenger', 'com.android.chrome']));
+      expect(tun['include_package'], isNot(contains(self)));
       expect(tun.containsKey('exclude_package'), false);
     });
 
-    test('mode=deny + 1 pkg → tun.exclude_package = [pkg1]', () {
+    test('mode=deny + 1 pkg → tun.exclude_package = [pkg1, self]', () {
       final cfg = _configWithTun();
       applyTunPackages(
         cfg,
@@ -82,8 +90,21 @@ void main() {
         ),
       );
       final tun = (cfg['inbounds'] as List).first as Map<String, dynamic>;
-      expect(tun['exclude_package'], equals(['ru.tinkoff.investing']));
+      expect(tun['exclude_package'], equals(['ru.tinkoff.investing', self]));
       expect(tun.containsKey('include_package'), false);
+    });
+
+    test('mode=deny, self уже в списке → без дубликата, порядок сохранён', () {
+      final cfg = _configWithTun();
+      applyTunPackages(
+        cfg,
+        const TunAppsConfig(
+          mode: 'deny',
+          packages: [self, 'com.android.chrome'],
+        ),
+      );
+      final tun = (cfg['inbounds'] as List).first as Map<String, dynamic>;
+      expect(tun['exclude_package'], equals([self, 'com.android.chrome']));
     });
 
     test('no tun-inbound в config → silent no-op', () {
@@ -122,7 +143,8 @@ void main() {
         const TunAppsConfig(mode: 'deny', packages: ['com.example']),
       );
       final inbounds = cfg['inbounds'] as List;
-      expect((inbounds[0] as Map)['exclude_package'], equals(['com.example']));
+      expect((inbounds[0] as Map)['exclude_package'],
+          equals(['com.example', self]));
       expect((inbounds[1] as Map).containsKey('exclude_package'), false);
     });
 

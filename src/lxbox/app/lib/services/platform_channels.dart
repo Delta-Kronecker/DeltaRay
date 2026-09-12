@@ -12,10 +12,11 @@
 class PlatformChannels {
   const PlatformChannels._();
 
-  /// §324 — он же package name приложения: `OverrideOptions.includePackage`
-  /// native кладёт именно его (`service.packageName` в `buildOverrideOptions`),
-  /// и зеркало override сравнивает по этой строке. Публичный, чтобы литерал не
-  /// расползался третьей копией.
+  /// §324/§046 — он же package name приложения: ключ self-исключения из tun в
+  /// split-tunneling (`tun_packages.dart`). Раньше native клал его в
+  /// `OverrideOptions.includePackage` для allow-режима — закрыто §046 (loop
+  /// ZeroDPI); теперь native override его не трогает. Публичный, чтобы литерал
+  /// не расползался копией.
   static const packageName = 'com.leadaxe.lxbox';
 
   static const _ns = packageName;

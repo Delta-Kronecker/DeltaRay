@@ -175,10 +175,6 @@ mixin _ConfigIoMixin on ChangeNotifier {
     final withOverrides = applyOverrides(
       canonicalJson,
       OverrideSnapshot(
-        // Свой пакет native дописывает всегда, когда конфиг в allow-режиме;
-        // сам режим определяет `applyOverrides` по первому tun-inbound (та же
-        // проверка, что в `buildOverrideOptions`).
-        includeSelfPackage: true,
         autoRedirect: autoRedirect,
       ),
     );
