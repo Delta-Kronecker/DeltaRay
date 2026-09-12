@@ -209,12 +209,41 @@ jobs:
         run: |
           set -euo pipefail
           CODE=$(../scripts/version-code.sh "$CODE_VERSION" arm64-v8a)
+          mkdir -p "$GITHUB_WORKSPACE/build"
+          LOG="$GITHUB_WORKSPACE/build/flutter-build.log"
+          set +e
           flutter build apk --release \
             --target-platform android-arm64 \
-            --build-name "$VERSION_NAME" --build-number "$CODE"
+            --build-name "$VERSION_NAME" --build-number "$CODE" \
+            2>&1 | tee "$LOG" | tail -200
+          STATUS=${PIPESTATUS[0]}
+          set -e
+          echo "flutter build exit: $STATUS"
+          if [ "$STATUS" -ne 0 ]; then
+            exit "$STATUS"
+          fi
           OUT=build/app/outputs/flutter-apk
           mv "$OUT/app-release.apk" "$OUT/app-arm64-v8a-release.apk"
           ls -la "$OUT"
+
+      - name: Publish build diagnostics (on failure)
+        if: failure()
+        shell: bash
+        run: |
+          LOG="$GITHUB_WORKSPACE/build/flutter-build.log"
+          if [ ! -f "$LOG" ]; then
+            echo "::error::flutter-build.log was not produced"
+            exit 0
+          fi
+          echo "::group::tail"
+          tail -160 "$LOG" | sed 's/%/%25/g; s/\r$//'
+          echo "::endgroup::"
+          # Re-emit the tail as workflow annotations so failures are visible
+          # through the API even when job-log downloads are unavailable.
+          tail -140 "$LOG" | while IFS= read -r line; do
+            line="${line//%/ %25}"
+            echo "::warning title=flutter-build.log,file=build/flutter-build.log::$line"
+          done
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
