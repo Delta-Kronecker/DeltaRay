@@ -256,7 +256,7 @@ object ZeroDpiConfigSchema {
         field(
             name = "LISTEN_PORT",
             type = ConfigFieldType.UInt16,
-            defaultValue = "44444",
+            defaultValue = "40443",
             section = ConfigSection.ProxyListener,
             validationRule = "TCP port from 0 to 65535.",
             helpText = "Port your upstream VPN app should connect to.",
@@ -265,7 +265,7 @@ object ZeroDpiConfigSchema {
         field(
             name = "MODE",
             type = ConfigFieldType.Enum,
-            defaultValue = "sni_spoof",
+            defaultValue = "ip_bypass_plus",
             section = ConfigSection.OperatingMode,
             validationRule = "Must be one of the supported mode strings.",
             rootImpact = ConfigRootImpact.ControlsRootRequirement,
@@ -467,7 +467,7 @@ object ZeroDpiConfigSchema {
         field(
             name = "BYPASS_METHOD",
             type = ConfigFieldType.MultiSelect,
-            defaultValue = canonicalMethodArray(listOf("wrong_seq", "tls_frag")),
+            defaultValue = canonicalMethodArray(listOf("tls_frag")),
             section = ConfigSection.BypassEngine,
             validationRule = "One or more methods; see combo restrictions in config.toml.",
             rootImpact = ConfigRootImpact.ControlsRootRequirement,

@@ -14,22 +14,22 @@ LISTEN_HOST = "127.0.0.1"
 # TCP port the local proxy listens on.
 # Point your upstream VPN app (xray-core, sing-box, v2ray, etc.) here
 # instead of pointing it directly at your VPN server.
-LISTEN_PORT = 44444
+LISTEN_PORT = 40443
 
 # ---------------------------------------------------------------------------
 # Operating Mode
 # ---------------------------------------------------------------------------
 
-# Operating mode. Valid values: "sni_spoof" (default), "ip_bypass",
-# "ip_bypass_plus", "sni_scan", "ip_scan", "proxy_scan",
+# Operating mode. Valid values: "sni_spoof", "ip_bypass",
+# "ip_bypass_plus" (default), "sni_scan", "ip_scan", "proxy_scan",
 # "sni_method_scan", "ip_method_scan".
-# - "sni_spoof"     — DPI bypass via SNI spoofing (default).
+# - "sni_spoof"     — DPI bypass via SNI spoofing.
 # - "ip_bypass"     — plain TCP relay through a scanned IP; no packet interception.
 # - "ip_bypass_plus" — IPv4 relay through a scanned IP plus real-SNI-preserving
 #                      BYPASS_METHOD ("tls_record_frag", "tls_frag",
 #                      "tls_padding", "mixed_case_sni", "sni_boundary_frag",
 #                      "ccs_prefix",
-#                      "ip_frag", or "disorder").
+#                      "ip_frag", or "disorder"). (default)
 # - "sni_scan"      — scan sni_list.txt and display/save results, then exit.
 # - "ip_scan"       — scan ip_list.txt and display/save results, then exit.
 # - "proxy_scan"    — scan sni_list.txt (Phase 1), then test each working SNI
@@ -41,7 +41,7 @@ LISTEN_PORT = 44444
 # - "ip_method_scan"   — scan ip_list.txt, pick the top IPv4 candidate, then
 #                       test every METHOD_SCAN_METHODS bypass method against
 #                       it (TLS SNI = IP_SCAN_SNI) and report; then exit.
-MODE = "sni_spoof"
+MODE = "ip_bypass_plus"
 
 # When true, ZeroDPI automatically picks the highest-ranked candidate
 # after scanning instead of showing the manual selection table.
@@ -429,7 +429,7 @@ UPLOAD_SPEED_CAP_BPS = 2048000.0
 # "proxy_scan").  The "ip_bypass" and "ip_scan" modes do not use a bypass
 # method.
 #
-BYPASS_METHOD = ["wrong_seq", "tls_frag"]
+BYPASS_METHOD = ["tls_frag"]
 
 # Seconds the proxy waits for the intercept thread to confirm that the spoofed
 # packet was acknowledged and the bypass phase completed.

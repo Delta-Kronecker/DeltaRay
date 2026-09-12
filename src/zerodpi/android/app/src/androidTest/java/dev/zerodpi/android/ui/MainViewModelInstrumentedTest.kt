@@ -57,10 +57,10 @@ class MainViewModelInstrumentedTest {
 
         val state = viewModel.uiState.value
 
-        assertEquals(RootStatus.Needed, state.rootStatus)
-        assertEquals("sni_spoof", state.mode)
-        assertEquals("wrong_seq + tls_frag", state.bypassMethod)
-        assertEquals("127.0.0.1:44444", state.listener)
+        assertEquals(RootStatus.NotNeeded, state.rootStatus)
+        assertEquals("ip_bypass_plus", state.mode)
+        assertEquals("tls_frag", state.bypassMethod)
+        assertEquals("127.0.0.1:40443", state.listener)
     }
 
     @Test

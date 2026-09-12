@@ -7,7 +7,7 @@ defaults, logs, scan results, and support bundle export.
 
 The app does not implement an Android `VpnService`. Point the upstream VPN
 client at the local ZeroDPI listener from `config.toml`, usually
-`127.0.0.1:44444`.
+`127.0.0.1:40443`.
 
 ## Runtime Modes
 
