@@ -21,10 +21,15 @@ import kotlin.coroutines.coroutineContext
 /// Вачдог туннеля (ТЗ оператора): фоновая проверка реального интернет-выхода
 /// каждые [TunnelWatchdog.PROBE_INTERVAL_MS] через ЛОКАЛЬНЫЙ прокси
 /// (`127.0.0.1:2080`, vpn_proxy §119) с твёрдым таймаутом 10с. При отказе —
-/// ищем живые конфиги RPC'ом на ядро и переключаем `route.final` на конфиг
-/// с наименьшим пингом (минуя текущий). После переключения статистика
+/// ищем живые конфиги СВЕЖИМ замером RPC'ом на ядро и переключаем
+/// `route.final` на конфиг с наименьшим пингом, НЕ использованный в этой
+/// серии ([usedTags], минуя текущий). После переключения статистика
 /// сбрасывается (ТЗ оператора: обнуляются и «всего»-счётчики), состояние —
 /// starting.
+///
+/// Каждый СТАРТ цикла возвращает Направление в auto (`selectOutbound` на
+/// `<tag>-auto`): ручной/вачдоговый выбор переживает перезапуск лаунчера при
+/// живом ядре, а ТЗ требует стартовать всегда на auto.
 ///
 /// Живёт пока VPN запущен: receiver на BROADCAST_STATUS (Started → старт
 /// цикла, Stopped → stopSelf). Лаунчер стартует сервис обычным `startService`
@@ -38,6 +43,11 @@ class WatchdogService : Service() {
 
     @Volatile
     private var lastSwitchAttemptMs: Long = 0L
+
+    /// Конфиги, на которые КАТАЛОСЬ в текущем запуске цикла. ТЗ: переключаться
+    /// только на неиспользованные — иначе при клине тест-цели (все узлы «живы»,
+    /// но туннель лежит) кoolдаун-цикл дёргается current↔next вечно.
+    private val usedTags = mutableSetOf<String>()
 
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {
@@ -87,6 +97,10 @@ class WatchdogService : Service() {
 
     private suspend fun loop() {
         Log.d(TAG, "watchdog loop started")
+        // ТЗ: старт ВСЕГДА на auto. Каждый запуск цикла (Started) возвращает
+        // Направление в auto-двойник — выбор ручной/с прошлого запуска не живёт.
+        usedTags.clear()
+        TunnelWatchdog.selectAuto(TunnelWatchdog.directionOf(ConfigManager.load()))
         WatchdogStats.instance.setState(WatchdogStats.State.Starting)
         while (coroutineContext.isActive) {
             if (BoxVpnService.currentStatus != VpnStatus.Started) break
@@ -114,6 +128,9 @@ class WatchdogService : Service() {
 
     /// Переключение на здоровый конфиг при отказе. Cooldown между ПОПЫТКАМИ
     /// (туннель может лежать целиком — не молотим urlTest каждые 3с).
+    /// ТЗ: перед каждым переключением — СВЕЖИЙ замер (fallback на замеры теста
+    /// при коннекте только если свежий не дал живых) и цель = лучший пинг среди
+    /// НЕ использованных в этой серии (минуя текущий). Все испробованы → молчим.
     private suspend fun handleFailure(config: String) {
         val now = SystemClock.elapsedRealtime()
         if (now - lastSwitchAttemptMs < TunnelWatchdog.SWITCH_COOLDOWN_MS) return
@@ -131,13 +148,11 @@ class WatchdogService : Service() {
                 .filterKeys { it in direction.members }
         }
 
-        val target = live
-            .filterKeys { it != current }
-            .minByOrNull { it.value }
-            ?.key ?: return
+        val free = live.filterKeys { it != current && it !in usedTags }
+        val target = free.minByOrNull { it.value }?.key ?: return
 
-        if (target == current) return
         if (TunnelWatchdog.switchNode(direction.groupTag, target)) {
+            usedTags.add(target)
             Log.w(TAG, "switched ${direction.groupTag}: $current -> $target")
             WatchdogStats.instance.recordSwitch(current, target)
         }

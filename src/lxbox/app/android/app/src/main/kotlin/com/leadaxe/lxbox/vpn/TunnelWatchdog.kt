@@ -67,11 +67,16 @@ object TunnelWatchdog {
         val socksCapable: Boolean,
     )
 
-    /// Активная группа роутинга (`route.final`) + её ноды-члены.
+    /// Активная группа роутинга (`route.final`) + её ноды-члены + тег
+    /// auto-двойника (`<tag>-auto`, urltest). Двойник в members НЕ входит.
     data class DirectionInfo(
         val groupTag: String,
         val members: List<String>,
-    )
+        val autoTag: String,
+    ) {
+        constructor(groupTag: String, members: List<String>) :
+            this(groupTag, members, "$groupTag-auto")
+    }
 
     /// Найти локальный прокси: первый inbound типа mixed/socks/http с
     /// не-пустым портом (в режиме vpn_proxy их ровно один). Loopback/0.0.0.0
@@ -193,7 +198,9 @@ object TunnelWatchdog {
             if (rep != 0x00) {
                 return fail("socks5 connect rejected ($rep)", start)
             }
-            // BND.ADDR/BND.PORT пропускаем.
+            // RFC 1928: VER REP RSV ATYP — после REP обязательно RSV-байт (0x00)
+            // (без него первый байт адреса читается как ATYP). Затем ATYP+адрес.
+            readInt(input, socket, deadline) // RSV
             when (readInt(input, socket, deadline)) {
                 0x01 -> skip(input, socket, deadline, 4)
                 0x03 -> skip(input, socket, deadline, readInt(input, socket, deadline) + 1)
@@ -263,6 +270,20 @@ object TunnelWatchdog {
         } finally {
             runCatching { client.disconnect() }
         }
+    }
+
+    /// Вернуть Направление в режим auto: селектор выбирает свой urltest-двойник
+    /// `<tag>-auto` (§141 default). Best-effort: если двойника нет (auto off) или
+    /// RPC не ответил — просто лог, не фатал. Нужно на КАЖДОМ старте: ручной /
+    /// вачдоговый выбор переживает перезапуск (ядро живёт, selection в памяти).
+    fun selectAuto(direction: DirectionInfo?): Boolean {
+        if (direction == null) return false
+        if (!switchNode(direction.groupTag, direction.autoTag)) {
+            Log.w(TAG, "selectAuto(${direction.groupTag} → ${direction.autoTag}) failed")
+            return false
+        }
+        Log.d(TAG, "direction ${direction.groupTag} back to auto (${direction.autoTag})")
+        return true
     }
 
     /// Свежий замер нод (параллельно, один клиент — как монитор коннекта).

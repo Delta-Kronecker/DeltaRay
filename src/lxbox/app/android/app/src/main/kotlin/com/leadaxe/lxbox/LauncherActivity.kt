@@ -25,6 +25,7 @@ import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import com.leadaxe.lxbox.vpn.BoxVpnService
 import com.leadaxe.lxbox.vpn.ConfigManager
+import com.leadaxe.lxbox.vpn.TunnelWatchdog
 import com.leadaxe.lxbox.vpn.VpnStatus
 import com.leadaxe.lxbox.vpn.WatchdogService
 import com.leadaxe.lxbox.vpn.WatchdogStats
@@ -387,6 +388,7 @@ class LauncherActivity : Activity() {
                         // Уже подключено (перезапуск лаунчера): подхватываем
                         // вачдог + его тикер, как при свежем коннекте.
                         ensureWatchdogRunning()
+                        relightAutoAfterRestart()
                         WatchdogStats.init(applicationContext)
                         startStatsTicker()
                         showConnectedStatus()
@@ -485,6 +487,18 @@ class LauncherActivity : Activity() {
     /// Повторный старт безопасен — сервис держит один цикл.
     private fun ensureWatchdogRunning() {
         startService(Intent(this, WatchdogService::class.java))
+    }
+
+    /// ТЗ: старт ВСЕГДА на auto. Перезапуск лаунчера при живом ядре застаёт в
+    /// памяти selection от ручного/вачдогового переключения — JIT-возврат
+    /// Направления в auto-двойник (`<tag>-auto`). При СВЕЖЕМ коннекте это же
+    /// делает старт цикла вачдога. Best-effort (auto off / RPC молчит — тихо).
+    private fun relightAutoAfterRestart() {
+        scope.launch(Dispatchers.IO) {
+            TunnelWatchdog.selectAuto(
+                TunnelWatchdog.directionOf(ConfigManager.load()),
+            )
+        }
     }
 
     /// Тикер UI вачдога (те же 3с, что и период замера): читает снапшот
