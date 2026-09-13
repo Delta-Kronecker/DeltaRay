@@ -20,4 +20,16 @@
         <item name="android:windowBackground">#0E1220</item>
         <item name="android:fontFamily">sans</item>
     </style>
+    <!-- DeltaRay — полностью прозрачная тема невидимого quick-connect
+         (QuickConnectActivity): фонов ничего, ничего не рисуется до и во время
+         bootstrap'а Flutter-движка. Без normalTheme-атрибута — embedding
+         не переключает Window на NormalTheme после первого кадра. -->
+    <style name="QuickConnectTheme" parent="@android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
 </resources>
