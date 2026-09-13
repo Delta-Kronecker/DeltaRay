@@ -70,6 +70,7 @@ class LauncherActivity : Activity() {
     }
 
     private var zeroDpiBound = false
+    private var zeroDpiService: ZeroDpiService? = null
     private var connectAllRunning = false
     private var expectingConnectReturn = false
     private var zdpiRunningNotified = false
@@ -90,6 +91,7 @@ class LauncherActivity : Activity() {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             zeroDpiBound = true
             val service = (binder as ZeroDpiService.LocalBinder).service()
+            zeroDpiService = service
             if (connectAllRunning) {
                 service.startZeroDpi(profileId = zeroDpiProfileId())
                 startZeroDpiMonitor(service)
@@ -98,6 +100,7 @@ class LauncherActivity : Activity() {
 
         override fun onServiceDisconnected(name: ComponentName?) {
             zeroDpiBound = false
+            zeroDpiService = null
         }
     }
 
@@ -227,6 +230,19 @@ class LauncherActivity : Activity() {
         prefs.edit().putBoolean(KEY_CONNECT_VERIFIED, false).apply()
         findViewById<Button>(R.id.btn_connect_all).isEnabled = false
         setConnectingStatus(R.string.launcher_status_zdpi_starting)
+
+        // Уже связаны с прошлого флоу (bind живёт до onDestroy): повторный
+        // bindService с тем же ServiceConnection НЕ вызовет onServiceConnected,
+        // поэтому стартуем напрямую через удержанный ссылку на службу.
+        val service = zeroDpiService
+        if (service != null) {
+            zeroDpiMonitorJob?.cancel()
+            zeroDpiMonitorJob = null
+            service.startZeroDpi(profileId = zeroDpiProfileId())
+            startZeroDpiMonitor(service)
+            return
+        }
+        unbindZeroDpi()
 
         val serviceIntent = Intent(this, ZeroDpiService::class.java)
         ContextCompat.startForegroundService(this, serviceIntent)
@@ -484,6 +500,7 @@ class LauncherActivity : Activity() {
         if (zeroDpiBound) {
             runCatching { unbindService(zeroDpiConnection) }
             zeroDpiBound = false
+            zeroDpiService = null
         }
     }
 
