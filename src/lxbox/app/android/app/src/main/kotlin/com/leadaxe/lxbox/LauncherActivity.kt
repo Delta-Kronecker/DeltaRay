@@ -81,6 +81,10 @@ class LauncherActivity : Activity() {
     private var zeroDpiMonitorJob: Job? = null
     private var pingJob: Job? = null
     private var statsTickerJob: Job? = null
+    /// Максимум наблюдённого прогресса скана ZeroDPI за эту сессию: ИП
+    /// отвечают НЕ по порядку, `completed` может откатываться между батчами
+    /// (32 → 21 → 30), поэтому процент считаем от лучшего наблюдения.
+    private var zdpiScannedBest = 0
 
     private val openChooserRunnable = Runnable {
         aboutHoldFired = true
@@ -263,6 +267,10 @@ class LauncherActivity : Activity() {
     /// на Running — уходим на стадию 2.
     private fun startZeroDpiMonitor(service: ZeroDpiService) {
         zeroDpiMonitorJob?.cancel()
+        // ТЗ: прогресс — в процентах. Счётчик `completed` не монотонен
+        // (ИП приходят вразнобой), поэтому процент считаем от максимума
+        // наблюдённого за сессию, а не от текущего значения.
+        zdpiScannedBest = 0
         zeroDpiMonitorJob = scope.launch {
             service.state().collect { s ->
                 if (!connectAllRunning) return@collect
@@ -271,13 +279,15 @@ class LauncherActivity : Activity() {
                         val p = s.scanProgress
                         // Локальные копии: smart-cast на публичные API-свойства
                         // другого модуля (zerodpi) запрещён.
-                        val total = p?.total
-                        val completed = p?.completed
-                        if (total != null && completed != null && total > 0) {
+                        val total = p?.total ?: 0
+                        val completed = p?.completed ?: -1
+                        if (total > 0 && completed >= 0) {
+                            if (completed > zdpiScannedBest) zdpiScannedBest = completed
+                            val percent = (zdpiScannedBest.toLong() * 100 / total)
+                                .coerceIn(0L, 100L).toInt()
                             setConnectingStatus(
                                 R.string.launcher_status_zdpi_scanning,
-                                completed.coerceAtLeast(0),
-                                total,
+                                percent,
                             )
                         } else {
                             setConnectingStatus(R.string.launcher_status_zdpi_starting)
@@ -545,6 +555,7 @@ class LauncherActivity : Activity() {
                 else -> COLOR_MUTED
             },
         )
+        // ТЗ: смена конфигов в логе НЕ показывается — только счётчики.
         val base = getString(
             R.string.launcher_watchdog_stats,
             snap.tests,
@@ -552,12 +563,7 @@ class LauncherActivity : Activity() {
             snap.timeouts,
             snap.switches,
         )
-        val switched = snap.lastSwitchFrom?.let { from ->
-            snap.lastSwitchTo?.let { to ->
-                getString(R.string.launcher_watchdog_switched, from, to)
-            }
-        }
-        stats.text = if (switched != null) base + switched else base
+        stats.text = base
         status.visibility = View.VISIBLE
         stats.visibility = View.VISIBLE
     }

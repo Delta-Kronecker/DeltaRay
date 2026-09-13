@@ -101,7 +101,9 @@ class WatchdogService : Service() {
         // Направление в auto-двойник — выбор ручной/с прошлого запуска не живёт.
         usedTags.clear()
         TunnelWatchdog.selectAuto(TunnelWatchdog.directionOf(ConfigManager.load()))
-        WatchdogStats.instance.setState(WatchdogStats.State.Starting)
+        // ТЗ: статистика ресетится КАЖДУЮ сессию (новый запуск цикла = новая
+        // сессия), а не только на переключение.
+        WatchdogStats.instance.resetRun()
         while (coroutineContext.isActive) {
             if (BoxVpnService.currentStatus != VpnStatus.Started) break
             val stats = WatchdogStats.instance
