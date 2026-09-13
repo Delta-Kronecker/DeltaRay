@@ -162,6 +162,12 @@ class LauncherActivity : Activity() {
             }
             false
         }
+
+        // Проверка обновления runtime-ресурсов ZeroDPI (config/sni/ip по
+        // version.txt в репозитории) — фоном, UI и ошибки сети не трогаем.
+        scope.launch {
+            RemoteRuntimeUpdater.checkAndUpdate(applicationContext)
+        }
     }
 
     override fun onResume() {
