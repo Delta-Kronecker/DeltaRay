@@ -302,15 +302,18 @@ class LauncherActivity : Activity() {
         }
     }
 
-    /// Стадия 2 — L×Box: запуск через quick-action MainActivity (обновление
-    /// подписок без ручного открытия + consent + старт VPN). Activity сама
-    /// закрывается (finishAfterConsent) — мы возвращаемся в onResume.
+    /// Стадия 2 — L×Box: запуск через НЕВИДИМЫЙ QuickConnectActivity
+    /// (обновление подписок + consent + старт VPN в фоне, без видимого окна;
+    /// тема прозрачная, контент скрыт). Единственный возможный видимый элемент —
+    /// системный диалог согласия VPN при первом connect (OS-обязательство).
+    /// Активность сама закрывается по факту Started / таймауту; мы возвращаемся
+    /// в onResume (expectingConnectReturn) и переходим на стадию пинга.
     private fun launchLxBoxStage() {
         setConnectingStatus(R.string.launcher_status_zdpi_active)
         expectingConnectReturn = true
         startActivity(
-            Intent(this, MainActivity::class.java).apply {
-                putExtra(MainActivity.EXTRA_ACTION, MainActivity.ACTION_CONNECT_ALL_REFRESH)
+            Intent(this, QuickConnectActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
             },
         )
     }

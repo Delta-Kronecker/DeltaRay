@@ -98,6 +98,18 @@
 
         <!-- §DeltaRay — скрытый экран выбора приложений (Choose an app).
              Открывается только долгим удержанием (10 с) пункта «About». -->
+        <!-- §DeltaRay — невидимый quick-connect: «Connect all» с лаунчера
+             гоняет refresh + старт VPN здесь, а не в видимом MainActivity.
+             Тема прозрачная, контент скрыт в onCreate → окна пользователь
+             не видит вообще. noHistory/excludeFromRecents — никаких следов
+             в стеке и «недавних». -->
+        <activity
+            android:name=".QuickConnectActivity"
+            android:exported="false"
+            android:noHistory="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/QuickConnectTheme" />
+
         <activity
             android:name=".AppChooserActivity"
             android:exported="false"
