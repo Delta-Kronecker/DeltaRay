@@ -15,6 +15,12 @@
     <string name="launcher_desc_zerodpi" translatable="false">DPI bypass relay (Rust engine)</string>
     <string name="launcher_footer" translatable="false">Use back to return to this screen</string>
 
+    <!-- DeltaRay: main launcher page (hamburger drawer) -->
+    <string name="app_launcher_label" translatable="false">DeltaRay</string>
+    <string name="menu_toggle_desc" translatable="false">Open menu</string>
+    <string name="menu_about" translatable="false">About</string>
+    <string name="no_browser" translatable="false">No browser available</string>
+
     <!-- Quick Connect (tile / shortcuts consent flow) -->
     <string name="qc_first_open">Opening L×Box for VPN permission (one-time)</string>
     <string name="qc_consent_denied">VPN permission denied. Open L×Box to retry.</string>
