@@ -234,7 +234,7 @@ const _proxyAuth = VpnModeConfig(
 void main() {
   group('VPN-mode declarative #if (§119/§120)', () {
     test('mode=vpn → только tun-in, нет mixed', () {
-      final cfg = _build(const VpnModeConfig.defaults());
+      final cfg = _build(const VpnModeConfig.defaults().copyWith(mode: 'vpn'));
       final inb = _inbounds(cfg);
       expect(inb.length, 1);
       expect(inb.first['type'], 'tun');
@@ -388,9 +388,10 @@ void main() {
   group('VpnModeConfig model (§119)', () {
     test('predicates', () {
       const vpn = VpnModeConfig.defaults();
-      expect(vpn.isVpn, true);
+      expect(vpn.isVpn, false);
+      expect(vpn.isVpnProxy, true);
       expect(vpn.hasTun, true);
-      expect(vpn.hasMixed, false);
+      expect(vpn.hasMixed, true);
 
       final proxy = vpn.copyWith(mode: 'proxy');
       expect(proxy.isProxy, true);
@@ -496,11 +497,12 @@ void main() {
       expect(const VpnModeConfig.defaults().proxyProtocol, 'mixed');
     });
 
-    test('defaults = vpn mode (backward-compat)', () {
+    test('defaults = vpn_proxy mode + auth off (§DeltaRay)', () {
       const d = VpnModeConfig.defaults();
-      expect(d.mode, 'vpn');
+      expect(d.mode, 'vpn_proxy');
       expect(d.proxyPort, 2080);
       expect(d.proxyListen, '127.0.0.1');
+      expect(d.proxyAuthEnabled, false);
     });
   });
 
