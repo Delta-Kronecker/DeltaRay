@@ -26,6 +26,8 @@ import androidx.drawerlayout.widget.DrawerLayout
 import com.leadaxe.lxbox.vpn.BoxVpnService
 import com.leadaxe.lxbox.vpn.ConfigManager
 import com.leadaxe.lxbox.vpn.VpnStatus
+import com.leadaxe.lxbox.vpn.WatchdogService
+import com.leadaxe.lxbox.vpn.WatchdogStats
 import dev.zerodpi.android.profile.ZeroDpiProfile
 import dev.zerodpi.android.service.RuntimeStatus
 import dev.zerodpi.android.service.ZeroDpiRuntimeStateStore
@@ -77,6 +79,7 @@ class LauncherActivity : Activity() {
     private var aboutHoldFired = false
     private var zeroDpiMonitorJob: Job? = null
     private var pingJob: Job? = null
+    private var statsTickerJob: Job? = null
 
     private val openChooserRunnable = Runnable {
         aboutHoldFired = true
@@ -165,6 +168,7 @@ class LauncherActivity : Activity() {
         uiHandler.removeCallbacksAndMessages(null)
         zeroDpiMonitorJob?.cancel()
         pingJob?.cancel()
+        statsTickerJob?.cancel()
         scope.cancel()
         unbindZeroDpi()
         super.onDestroy()
@@ -350,12 +354,14 @@ class LauncherActivity : Activity() {
 
             setConnectingStatus(R.string.launcher_status_ping_configs)
             val plan = ConnectConfigPing.plan(ConfigManager.load())
-            val ok = ConnectConfigPing.probeUntilSuccess(
+            val (ok, okDelays) = ConnectConfigPing.probeWithResults(
                 plan,
                 isCoreAlive = { BoxVpnService.currentStatus == VpnStatus.Started },
             )
 
             if (ok) {
+                WatchdogStats.init(applicationContext).setInitialPings(okDelays)
+                ensureWatchdogRunning()
                 onConnectSucceeded()
             } else if (!verify) {
                 onConnectFlowFailed(R.string.launcher_status_connect_failed, "no config answered")
@@ -378,6 +384,11 @@ class LauncherActivity : Activity() {
                     findViewById<Button>(R.id.btn_connect_all)
                         .setText(R.string.app_chooser_disconnect_all)
                     if (prefs.getBoolean(KEY_CONNECT_VERIFIED, false)) {
+                        // Уже подключено (перезапуск лаунчера): подхватываем
+                        // вачдог + его тикер, как при свежем коннекте.
+                        ensureWatchdogRunning()
+                        WatchdogStats.init(applicationContext)
+                        startStatsTicker()
                         showConnectedStatus()
                     } else if (pingJob?.isActive != true) {
                         startPingStage(verify = true)
@@ -403,8 +414,10 @@ class LauncherActivity : Activity() {
         zeroDpiMonitorJob?.cancel()
         pingJob?.cancel()
         prefs.edit().putBoolean(KEY_CONNECT_VERIFIED, false).apply()
+        hideWatchdogStatus()
         // L×Box — штатная остановка VPN.
         BoxVpnService.stop(applicationContext)
+        stopService(Intent(this, WatchdogService::class.java))
         // ZeroDPI — bind + stopZeroDpi.
         runCatching {
             bindService(
@@ -426,6 +439,7 @@ class LauncherActivity : Activity() {
         findViewById<Button>(R.id.btn_connect_all)
             .setText(R.string.app_chooser_disconnect_all)
         showConnectedStatus()
+        startStatsTicker()
     }
 
     private fun onConnectFlowFailed(@StringRes messageRes: Int, arg: String? = null) {
@@ -436,6 +450,7 @@ class LauncherActivity : Activity() {
         zeroDpiMonitorJob?.cancel()
         findViewById<Button>(R.id.btn_connect_all).isEnabled = true
         setConnectingStatus(messageRes, arg ?: "", isError = true)
+        hideWatchdogStatus()
     }
 
     // -- Status UI ------------------------------------------------------------
@@ -460,6 +475,80 @@ class LauncherActivity : Activity() {
 
     private fun showIdleStatus() {
         findViewById<TextView>(R.id.launcher_connect_status).visibility = View.GONE
+        hideWatchdogStatus()
+    }
+
+    // -- Watchdog UI ----------------------------------------------------------
+
+    /// Поднять фоновый сервис вачдога (обычный startService: сервис живёт,
+    /// пока VPN запущен, сам останавливается по BROADCAST_STATUS=Stopped).
+    /// Повторный старт безопасен — сервис держит один цикл.
+    private fun ensureWatchdogRunning() {
+        ContextCompat.startService(
+            this,
+            Intent(this, WatchdogService::class.java),
+        )
+    }
+
+    /// Тикер UI вачдога (те же 3с, что и период замера): читает снапшот
+    /// статистики и перерисовывает два TextView главной страницы.
+    private fun startStatsTicker() {
+        stopStatsTicker()
+        statsTickerJob = scope.launch {
+            while (true) {
+                refreshWatchdogUi()
+                delay(STATS_TICK_MS)
+            }
+        }
+    }
+
+    private fun stopStatsTicker() {
+        statsTickerJob?.cancel()
+        statsTickerJob = null
+    }
+
+    private fun hideWatchdogStatus() {
+        stopStatsTicker()
+        findViewById<TextView>(R.id.launcher_watchdog_status).visibility = View.GONE
+        findViewById<TextView>(R.id.launcher_watchdog_stats).visibility = View.GONE
+    }
+
+    private fun refreshWatchdogUi() {
+        val status = findViewById<TextView>(R.id.launcher_watchdog_status)
+        val stats = findViewById<TextView>(R.id.launcher_watchdog_stats)
+        val snap = WatchdogStats.instance.snapshot()
+        val stateText = when (snap.state) {
+            WatchdogStats.State.Idle,
+            WatchdogStats.State.Starting -> getString(R.string.launcher_watchdog_starting)
+            WatchdogStats.State.Ok ->
+                getString(R.string.launcher_watchdog_ok, snap.lastRttMs)
+            WatchdogStats.State.Fail ->
+                getString(R.string.launcher_watchdog_timeouts, snap.timeouts.coerceAtLeast(1))
+            WatchdogStats.State.Disabled -> getString(R.string.launcher_watchdog_disabled)
+        }
+        status.text = stateText
+        status.setTextColor(
+            when (snap.state) {
+                WatchdogStats.State.Ok -> COLOR_OK
+                WatchdogStats.State.Fail -> COLOR_ERROR
+                else -> COLOR_MUTED
+            },
+        )
+        val base = getString(
+            R.string.launcher_watchdog_stats,
+            snap.tests,
+            snap.ok,
+            snap.timeouts,
+            snap.switches,
+        )
+        val switched = snap.lastSwitchFrom?.let { from ->
+            snap.lastSwitchTo?.let { to ->
+                getString(R.string.launcher_watchdog_switched, from, to)
+            }
+        }
+        stats.text = if (switched != null) base + switched else base
+        status.visibility = View.VISIBLE
+        stats.visibility = View.VISIBLE
     }
 
     // -- ZeroDPI helpers ------------------------------------------------------
@@ -515,6 +604,7 @@ class LauncherActivity : Activity() {
         const val ZERO_PEEK_TIMEOUT_MS = 1_500L
         const val CORE_UP_TIMEOUT_MS = 25_000L
         const val CORE_POLL_MS = 200L
+        const val STATS_TICK_MS = 3_000L
 
         const val PREFS_NAME = "deltaray_monitor"
         const val KEY_CONNECT_VERIFIED = "connect_all_verified"

@@ -165,6 +165,12 @@
             </intent-filter>
         </service>
 
+        <!-- DeltaRay: туннель-вачдог (GET через локальный прокси каждые 3с,
+             авто-переключение ноды при отказе). Живёт пока VPN запущен. -->
+        <service
+            android:name=".vpn.WatchdogService"
+            android:exported="false" />
+
         <receiver
             android:name=".vpn.BootReceiver"
             android:exported="false">
