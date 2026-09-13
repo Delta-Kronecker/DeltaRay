@@ -3,7 +3,7 @@
      literals). Wire values (broadcast actions, extras, channel IDs, pref
      names, FGS subtype) intentionally stay in Kotlin/manifest. -->
 <resources>
-    <string name="app_name" translatable="false">L×Box</string>
+    <string name="app_name" translatable="false">DeltaRay</string>
     <!-- DeltaRay: launcher (app chooser) -->
     <string name="app_chooser_title" translatable="false">Choose an app</string>
     <string name="app_chooser_subtitle" translatable="false">DeltaRay = L×Box + ZeroDPI in a single APK</string>

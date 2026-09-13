@@ -11,7 +11,7 @@ object ConfigManager {
     private const val TAG = "ConfigManager"
     private const val CONFIG_FILE = "singbox_config.json"
 
-    var notificationTitle: String = "L×Box"
+    var notificationTitle: String = "DeltaRay"
         private set
 
     // §123 — подтекст уведомления (тег активной ноды / route.final). Пустая
