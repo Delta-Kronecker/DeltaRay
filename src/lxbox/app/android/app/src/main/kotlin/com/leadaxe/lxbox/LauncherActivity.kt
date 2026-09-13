@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -18,6 +19,7 @@ import android.widget.Button
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
+import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
@@ -30,8 +32,11 @@ import dev.zerodpi.android.service.ZeroDpiService
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
@@ -42,19 +47,34 @@ import kotlinx.coroutines.withTimeoutOrNull
 /// открывает репозиторий проекта; долгое удержание (10 с) ведёт на скрытый
 /// экран AppChooserActivity («Choose an app»).
 ///
-/// Кнопка «Connect all» — команда-переключатель: когда ничего не активно —
-/// запускает связку (ZeroDPI + обновление подписок без ручного открытия
-/// L×Box + подключение VPN); когда активно — останавливает обе части
-/// (L×Box VPN + ZeroDPI).
+/// Кнопка «Connect all» — команда-переключатель с монитором коннекта:
+///   1. старт ZeroDPI, на экран выводится сканирование («Connecting…
+///      ZeroDPI scan 45/120», скан идёт из потока событий службы);
+///   2. когда скан завершён и ZeroDPI активен — стартует L×Box
+///      (quick-action: обновление подписок + consent + start, MainActivity
+///      сама закрывается — мы возвращаемся в onResume);
+///   3. «Connecting… testing configs» — ждём, пока хоть один конфиг ответит
+///      на штатный urlTest тем же RPC, что и приложение в UI;
+///   4. ответил — «Connected». Всё это время — «Connecting…».
+///
+/// Повторное открытие лаунчера при уже работающих сервисах («verified»-флаг
+/// в SharedPreferences) показывает Connected без перезапуска чего-либо.
 class LauncherActivity : Activity() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val uiHandler = Handler(Looper.getMainLooper())
 
+    private val prefs: SharedPreferences by lazy {
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+    }
+
     private var zeroDpiBound = false
     private var connectAllRunning = false
     private var expectingConnectReturn = false
+    private var zdpiRunningNotified = false
     private var aboutHoldFired = false
+    private var zeroDpiMonitorJob: Job? = null
+    private var pingJob: Job? = null
 
     private val openChooserRunnable = Runnable {
         aboutHoldFired = true
@@ -63,11 +83,16 @@ class LauncherActivity : Activity() {
         startActivity(Intent(this@LauncherActivity, AppChooserActivity::class.java))
     }
 
+    /// Bind для СТАРТА + мониторинга ZeroDPI: onServiceConnected вызывает
+    /// `startZeroDpi` (как кнопка Start) и поднимает коллектор `state()`.
     private val zeroDpiConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             zeroDpiBound = true
             val service = (binder as ZeroDpiService.LocalBinder).service()
-            service.startZeroDpi(profileId = zeroDpiProfileId())
+            if (connectAllRunning) {
+                service.startZeroDpi(profileId = zeroDpiProfileId())
+                startZeroDpiMonitor(service)
+            }
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -127,14 +152,15 @@ class LauncherActivity : Activity() {
         if (expectingConnectReturn) {
             // MainActivity (quick-action connect-all) закрылась — вернулись.
             expectingConnectReturn = false
-            connectAllRunning = false
-            findViewById<Button>(R.id.btn_connect_all).isEnabled = true
+            startPingStage()
         }
         refreshConnectState()
     }
 
     override fun onDestroy() {
         uiHandler.removeCallbacksAndMessages(null)
+        zeroDpiMonitorJob?.cancel()
+        pingJob?.cancel()
         scope.cancel()
         unbindZeroDpi()
         super.onDestroy()
@@ -190,22 +216,76 @@ class LauncherActivity : Activity() {
         }
     }
 
+    /// Стадия 1 — ZeroDPI: foreground service + bind → startZeroDpi. Дальше
+    /// мониторит коллектор state(): сканирование на экран, Running → стадия 2.
     private fun connectAll() {
         if (connectAllRunning) return
         connectAllRunning = true
+        expectingConnectReturn = false
+        zdpiRunningNotified = false
+        prefs.edit().putBoolean(KEY_CONNECT_VERIFIED, false).apply()
         findViewById<Button>(R.id.btn_connect_all).isEnabled = false
+        setConnectingStatus(R.string.launcher_status_zdpi_starting)
 
-        // 1) ZeroDPI — foreground service + bind → startZeroDpi (тот же путь, что Start).
         val serviceIntent = Intent(this, ZeroDpiService::class.java)
         ContextCompat.startForegroundService(this, serviceIntent)
         zeroDpiBound = bindService(serviceIntent, zeroDpiConnection, Context.BIND_AUTO_CREATE)
         if (!zeroDpiBound) {
             Log.e(TAG, "Failed to bind ZeroDpiService")
         }
+    }
 
-        // 2) L×Box — обновление подписок (без ручного открытия) + подключение.
-        //    MainActivity сама закроется после обработки (finishAfterConsent),
-        //    мы вернёмся в onResume.
+    /// Мониторинг скана ZeroDPI «из лога»: поток runner-событий службы уже
+    /// превращён в state() (scan_started/scan_progress/scan_completed →
+    /// RuntimeStatus.Scanning + ScanProgressInfo). Показываем прогресс скана,
+    /// на Running — уходим на стадию 2.
+    private fun startZeroDpiMonitor(service: ZeroDpiService) {
+        zeroDpiMonitorJob?.cancel()
+        zeroDpiMonitorJob = scope.launch {
+            service.state().collect { s ->
+                if (!connectAllRunning) return@collect
+                when (s.status) {
+                    RuntimeStatus.Scanning -> {
+                        val p = s.scanProgress
+                        if (p != null && p.total != null && p.total > 0 && p.completed != null) {
+                            setConnectingStatus(
+                                R.string.launcher_status_zdpi_scanning,
+                                p.completed.coerceAtLeast(0),
+                                p.total,
+                            )
+                        } else {
+                            setConnectingStatus(R.string.launcher_status_zdpi_starting)
+                        }
+                    }
+                    RuntimeStatus.Starting,
+                    RuntimeStatus.Choosing,
+                    RuntimeStatus.Restarting -> {
+                        setConnectingStatus(R.string.launcher_status_zdpi_starting)
+                    }
+                    RuntimeStatus.Running -> {
+                        if (!zdpiRunningNotified) {
+                            zdpiRunningNotified = true
+                            zeroDpiMonitorJob?.cancel()
+                            launchLxBoxStage()
+                        }
+                    }
+                    RuntimeStatus.Failed -> {
+                        onConnectFlowFailed(
+                            R.string.launcher_status_zdpi_failed,
+                            s.lastError ?: s.status.name,
+                        )
+                    }
+                    else -> Unit
+                }
+            }
+        }
+    }
+
+    /// Стадия 2 — L×Box: запуск через quick-action MainActivity (обновление
+    /// подписок без ручного открытия + consent + старт VPN). Activity сама
+    /// закрывается (finishAfterConsent) — мы возвращаемся в onResume.
+    private fun launchLxBoxStage() {
+        setConnectingStatus(R.string.launcher_status_zdpi_active)
         expectingConnectReturn = true
         startActivity(
             Intent(this, MainActivity::class.java).apply {
@@ -214,7 +294,91 @@ class LauncherActivity : Activity() {
         )
     }
 
+    /// Стадия 3 — «a config pings»: ждём поднятия ядра L×Box и гоним штатный
+    /// urlTest по конфигам, пока хоть один не ответит. До этого — Connecting.
+    /// [verify] = пассивная проверка при уже работающих сервисах (перезапуск
+    /// лаунчера): провал не роняет флоу, статус остаётся Connecting.
+    private fun startPingStage(verify: Boolean = false) {
+        if (pingJob?.isActive == true) return
+        pingJob = scope.launch {
+            setConnectingStatus(R.string.launcher_status_lxbox_starting)
+            val coreUp = withTimeoutOrNull(CORE_UP_TIMEOUT_MS) {
+                while (BoxVpnService.currentStatus != VpnStatus.Started) {
+                    delay(CORE_POLL_MS)
+                    if (BoxVpnService.currentStatus == VpnStatus.Stopped) break
+                }
+                BoxVpnService.currentStatus == VpnStatus.Started
+            } ?: false
+
+            if (!coreUp) {
+                if (!verify) {
+                    if (BoxVpnService.currentStatus == VpnStatus.Stopped) {
+                        onConnectFlowFailed(R.string.qc_consent_denied)
+                    } else {
+                        onConnectFlowFailed(
+                            R.string.launcher_status_connect_failed,
+                            BoxVpnService.currentStatus.name,
+                        )
+                    }
+                }
+                return@launch
+            }
+
+            setConnectingStatus(R.string.launcher_status_ping_configs)
+            val plan = ConnectConfigPing.plan(ConfigManager.load())
+            val ok = ConnectConfigPing.probeUntilSuccess(
+                plan,
+                isCoreAlive = { BoxVpnService.currentStatus == VpnStatus.Started },
+            )
+
+            if (ok) {
+                onConnectSucceeded()
+            } else if (!verify) {
+                onConnectFlowFailed(R.string.launcher_status_connect_failed, "no config answered")
+            } else {
+                setConnectingStatus(R.string.launcher_status_ping_no_reply)
+            }
+        }
+    }
+
+    /// Текущее состояние связки. L×Box — по нативному статусу сервиса;
+    /// ZeroDPI — короткий peek статуса через bind (маркер рантайма честно
+    /// отвечает на «сервис хоть запущен?», а реле ли = по StateFlow).
+    private fun refreshConnectState() {
+        val lxActive = BoxVpnService.currentStatus != VpnStatus.Stopped
+        scope.launch {
+            val zActive = zeroDpiCurrentlyActive()
+            when {
+                connectAllRunning -> Unit // статусы ведут стадии флоу
+                lxActive -> {
+                    findViewById<Button>(R.id.btn_connect_all)
+                        .setText(R.string.app_chooser_disconnect_all)
+                    if (prefs.getBoolean(KEY_CONNECT_VERIFIED, false)) {
+                        showConnectedStatus()
+                    } else if (pingJob?.isActive != true) {
+                        startPingStage(verify = true)
+                    }
+                }
+                zActive -> {
+                    findViewById<Button>(R.id.btn_connect_all)
+                        .setText(R.string.app_chooser_disconnect_all)
+                    setConnectingStatus(R.string.launcher_status_zdpi_active)
+                }
+                else -> {
+                    findViewById<Button>(R.id.btn_connect_all)
+                        .setText(R.string.app_chooser_connect_all)
+                    showIdleStatus()
+                }
+            }
+        }
+    }
+
     private fun stopAll() {
+        connectAllRunning = false
+        expectingConnectReturn = false
+        zeroDpiMonitorJob?.cancel()
+        pingJob?.cancel()
+        prefs.edit().putBoolean(KEY_CONNECT_VERIFIED, false).apply()
         // L×Box — штатная остановка VPN.
         BoxVpnService.stop(applicationContext)
         // ZeroDPI — bind + stopZeroDpi.
@@ -230,22 +394,55 @@ class LauncherActivity : Activity() {
         uiHandler.postDelayed({ refreshConnectState() }, STOP_SETTLE_DELAY_MS)
     }
 
-    /// Текущее состояние связки. L×Box — по нативному статусу сервиса;
-    /// ZeroDPI — короткий peek статуса через bind (маркер рантайма честно
-    /// отвечает на «сервис хоть запущен?», а реле ли = по StateFlow).
-    private fun refreshConnectState() {
-        val lxActive = BoxVpnService.currentStatus != VpnStatus.Stopped
-        scope.launch {
-            val zActive = zeroDpiCurrentlyActive()
-            applyConnectState(lxActive || zActive)
-        }
+    private fun onConnectSucceeded() {
+        prefs.edit().putBoolean(KEY_CONNECT_VERIFIED, true).apply()
+        connectAllRunning = false
+        zeroDpiMonitorJob?.cancel()
+        findViewById<Button>(R.id.btn_connect_all).isEnabled = true
+        findViewById<Button>(R.id.btn_connect_all)
+            .setText(R.string.app_chooser_disconnect_all)
+        showConnectedStatus()
     }
 
-    private fun applyConnectState(anyActive: Boolean) {
-        findViewById<Button>(R.id.btn_connect_all).setText(
-            if (anyActive) R.string.app_chooser_disconnect_all
-            else R.string.app_chooser_connect_all,
-        )
+    private fun onConnectFlowFailed(@StringRes messageRes: Int, arg: String? = null) {
+        Log.w(TAG, "connect flow failed: $messageRes $arg")
+        connectAllRunning = false
+        expectingConnectReturn = false
+        zdpiRunningNotified = false
+        zeroDpiMonitorJob?.cancel()
+        findViewById<Button>(R.id.btn_connect_all).isEnabled = true
+        setConnectingStatus(messageRes, arg ?: "", isError = true)
+    }
+
+    // -- Status UI ------------------------------------------------------------
+
+    private fun setConnectingStatus(
+        @StringRes resId: Int,
+        vararg args: Any,
+        isError: Boolean = false,
+    ) {
+        val status = findViewById<TextView>(R.id.launcher_connect_status)
+        status.visibility = View.VISIBLE
+        status.text = if (args.isEmpty()) getString(resId) else getString(resId, *args)
+        status.setTextColor(if (isError) COLOR_ERROR else COLOR_MUTED)
+    }
+
+    private fun showConnectedStatus() {
+        val status = findViewById<TextView>(R.id.launcher_connect_status)
+        status.visibility = View.VISIBLE
+        status.setTextColor(COLOR_OK)
+        status.text = getString(R.string.launcher_status_connected)
+    }
+
+    private fun showIdleStatus() {
+        findViewById<TextView>(R.id.launcher_connect_status).visibility = View.GONE
+    }
+
+    // -- ZeroDPI helpers ------------------------------------------------------
+
+    private fun zeroDpiProfileId(): String {
+        val marker = ZeroDpiRuntimeStateStore.runtimeMarker(applicationContext)
+        return marker.profileId?.takeIf { it.isNotBlank() } ?: ZeroDpiProfile.DEFAULT_PROFILE_ID
     }
 
     private suspend fun zeroDpiCurrentlyActive(): Boolean {
@@ -278,11 +475,6 @@ class LauncherActivity : Activity() {
         } ?: false
     }
 
-    private fun zeroDpiProfileId(): String {
-        val marker = ZeroDpiRuntimeStateStore.runtimeMarker(applicationContext)
-        return marker.profileId?.takeIf { it.isNotBlank() } ?: ZeroDpiProfile.DEFAULT_PROFILE_ID
-    }
-
     private fun unbindZeroDpi() {
         if (zeroDpiBound) {
             runCatching { unbindService(zeroDpiConnection) }
@@ -296,6 +488,12 @@ class LauncherActivity : Activity() {
         const val ABOUT_HOLD_MS = 10_000L
         const val STOP_SETTLE_DELAY_MS = 700L
         const val ZERO_PEEK_TIMEOUT_MS = 1_500L
+        const val CORE_UP_TIMEOUT_MS = 25_000L
+        const val CORE_POLL_MS = 200L
+
+        const val PREFS_NAME = "deltaray_monitor"
+        const val KEY_CONNECT_VERIFIED = "connect_all_verified"
+
         val ACTIVE_ZERO_STATUSES = setOf(
             RuntimeStatus.Starting,
             RuntimeStatus.Scanning,
@@ -304,5 +502,9 @@ class LauncherActivity : Activity() {
             RuntimeStatus.Choosing,
             RuntimeStatus.Stopping,
         )
+
+        val COLOR_OK = 0xFF4CAF50.toInt()
+        val COLOR_ERROR = 0xFFE05C60.toInt()
+        val COLOR_MUTED = 0xFF8A93A6.toInt()
     }
 }
