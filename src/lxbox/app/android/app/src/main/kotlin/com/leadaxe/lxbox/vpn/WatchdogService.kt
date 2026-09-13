@@ -83,6 +83,8 @@ class WatchdogService : Service() {
 
     override fun onDestroy() {
         runCatching { unregisterReceiver(statusReceiver) }
+        // Трафик лаунчера живёт ровно с сервисом (туннель Started дольше не бывает).
+        LauncherTraffic.stop()
         scope?.cancel()
         scope = null
         loopJob = null
@@ -97,6 +99,8 @@ class WatchdogService : Service() {
 
     private suspend fun loop() {
         Log.d(TAG, "watchdog loop started")
+        // Объём трафика (↑/↓) на главной странице — подписка на status ядра.
+        LauncherTraffic.start()
         // ТЗ: старт ВСЕГДА на auto. Каждый запуск цикла (Started) возвращает
         // Направление в auto-двойник — выбор ручной/с прошлого запуска не живёт.
         usedTags.clear()

@@ -31,6 +31,9 @@ class WatchdogStats private constructor() {
         private const val K_LAST_SWITCH_FROM = "lastSwitchFrom"
         private const val K_LAST_SWITCH_TO = "lastSwitchTo"
         private const val K_INITIAL_PINGS = "initialPings" // JSON tag→delayMs
+        // Объём трафика из status-стрима ядра (uplinkTotal/downlinkTotal).
+        private const val K_UP_TOTAL = "upTotal"
+        private const val K_DOWN_TOTAL = "downTotal"
 
         // Разрешили приложение; подтягиваем Context отсюда (singleton-inject).
         private var ctx: Context? = null
@@ -67,6 +70,8 @@ class WatchdogStats private constructor() {
         val lastOkEpochMs: Long,
         val lastSwitchFrom: String?,
         val lastSwitchTo: String?,
+        val uplinkTotal: Long,
+        val downlinkTotal: Long,
     )
 
     fun snapshot(): Snapshot = Snapshot(
@@ -81,6 +86,8 @@ class WatchdogStats private constructor() {
         lastOkEpochMs = prefs.getLong(K_LAST_OK, 0L),
         lastSwitchFrom = prefs.getString(K_LAST_SWITCH_FROM, null),
         lastSwitchTo = prefs.getString(K_LAST_SWITCH_TO, null),
+        uplinkTotal = prefs.getLong(K_UP_TOTAL, 0L),
+        downlinkTotal = prefs.getLong(K_DOWN_TOTAL, 0L),
     )
 
     fun setState(state: State) {
@@ -143,6 +150,13 @@ class WatchdogStats private constructor() {
             .putString(K_LAST_SWITCH_FROM, from)
             .putString(K_LAST_SWITCH_TO, to)
             .putInt(K_STATE, State.Starting.value)
+            .apply()
+    }
+
+    fun setTraffic(uplinkTotal: Long, downlinkTotal: Long) {
+        prefs.edit()
+            .putLong(K_UP_TOTAL, uplinkTotal)
+            .putLong(K_DOWN_TOTAL, downlinkTotal)
             .apply()
     }
 
