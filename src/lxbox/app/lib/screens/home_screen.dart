@@ -240,6 +240,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ti
       // пришёл от native (connectedSince=null) → no-op; реальный показ
       // ловит _onControllerChange, когда придёт connected и сессия дорастёт.
       unawaited(_maybeShowSupport());
+      // §DeltaRay — POST_NOTIFICATIONS спрашиваем при ПЕРВОМ открытии
+      // приложения (persist-флаг `notif_perm_prompted_v1` → один раз), не
+      // только в момент ручного старта из UI. Duplicate с точками ручного
+      // старта безвреден: флаг/грант-проверка гасят повторный показ.
+      unawaited(maybeShowNotificationPermissionDialog(context));
     });
     // Update check (§036 + §390): снек показываем ТОЛЬКО из кеша, на старте.
     // Сетевой fetch (через 5 сек, throttled 24h) снек НЕ поднимает — его

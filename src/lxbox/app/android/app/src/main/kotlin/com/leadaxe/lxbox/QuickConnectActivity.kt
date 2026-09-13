@@ -9,6 +9,7 @@ import android.util.Log
 import android.widget.Toast
 import com.leadaxe.lxbox.vpn.BootReceiver
 import com.leadaxe.lxbox.vpn.BoxVpnService
+import com.leadaxe.lxbox.vpn.PermissionUtils
 import com.leadaxe.lxbox.vpn.VpnPlugin
 import com.leadaxe.lxbox.vpn.VpnStatus
 import io.flutter.embedding.android.FlutterActivity
@@ -46,10 +47,12 @@ class QuickConnectActivity : FlutterActivity() {
     companion object {
         private const val TAG = "QuickConnectActivity"
         private const val VPN_REQUEST_CODE_QUICK = 7032
+        private const val NOTIFICATION_PERMISSION_REQUEST = 7033
         private const val REFRESH_DELAY_MS = 1_500L
         private const val CONNECT_GRACE_MS = 1_000L
         private const val STARTED_WAIT_MS = 8_000L
         private const val TIMEOUT_MS = 30_000L
+        private const val NOTIF_ASKED_KEY = "notif_perm_native_prompted_v1"
     }
 
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -71,6 +74,30 @@ class QuickConnectActivity : FlutterActivity() {
         mainHandler.postDelayed({ startVpnQuiet() }, REFRESH_DELAY_MS + CONNECT_GRACE_MS)
         // Страховка от зависания: закрываемся при любом сценарии.
         mainHandler.postDelayed(finishRunnable, TIMEOUT_MS)
+        // §DeltaRay — первый connect-all без явного открытия приложения не
+        // показывал этого разрешения: POST_NOTIFICATIONS нужен для видимой
+        // форграунд-нотификации VPN, спрашиваем при первом же подключении
+        // (API 33+; pre-33 permission не существовал — implicit grant).
+        maybeAskNotificationPermission()
+    }
+
+    /// Запрос POST_NOTIFICATIONS при первом connect-all (однократно по флагу
+    /// SharedPreferences). Системный диалог виден даже при прозрачном окне.
+    private fun maybeAskNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (PermissionUtils.has(
+                this, "android.permission.POST_NOTIFICATIONS", minSdk = 33,
+            )
+        ) {
+            return
+        }
+        val prefs = getSharedPreferences("lxbox_quick", MODE_PRIVATE)
+        if (prefs.getBoolean(NOTIF_ASKED_KEY, false)) return
+        prefs.edit().putBoolean(NOTIF_ASKED_KEY, true).apply()
+        requestPermissions(
+            arrayOf("android.permission.POST_NOTIFICATIONS"),
+            NOTIFICATION_PERMISSION_REQUEST,
+        )
     }
 
     override fun getRenderMode(): RenderMode = RenderMode.texture
