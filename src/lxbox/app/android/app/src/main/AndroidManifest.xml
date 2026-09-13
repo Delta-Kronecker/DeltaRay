@@ -83,10 +83,10 @@
         <activity
             android:name=".LauncherActivity"
             android:exported="true"
-            android:label="@string/app_chooser_title"
+            android:label="@string/app_launcher_label"
             android:theme="@style/LauncherTheme">
-            <!-- §DeltaRay — экран выбора между L×Box и ZeroDPI. Единственная
-                 entry point из home-launcher'а (MAIN + LAUNCHER). -->
+            <!-- §DeltaRay — главная страница лаунчера (гамбургер-меню + About).
+                 Единственная entry point из home-launcher'а (MAIN + LAUNCHER). -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -95,6 +95,14 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!-- §DeltaRay — скрытый экран выбора приложений (Choose an app).
+             Открывается только долгим удержанием (10 с) пункта «About». -->
+        <activity
+            android:name=".AppChooserActivity"
+            android:exported="false"
+            android:label="@string/app_chooser_title"
+            android:theme="@style/LauncherTheme" />
 
         <activity
             android:name=".MainActivity"
