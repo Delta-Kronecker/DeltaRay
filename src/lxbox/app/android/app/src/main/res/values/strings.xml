@@ -7,6 +7,8 @@
     <!-- DeltaRay: launcher (app chooser) -->
     <string name="app_chooser_title" translatable="false">Choose an app</string>
     <string name="app_chooser_subtitle" translatable="false">DeltaRay = L×Box + ZeroDPI in a single APK</string>
+    <string name="app_chooser_connect_all" translatable="false">Connect all</string>
+    <string name="app_chooser_connect_hint" translatable="false">Start ZeroDPI, then L×Box</string>
     <string name="launcher_open_lxbox" translatable="false">L×Box</string>
     <string name="launcher_desc_lxbox" translatable="false">VPN client (sing-box / libbox)</string>
     <string name="launcher_open_zerodpi" translatable="false">ZeroDPI</string>
