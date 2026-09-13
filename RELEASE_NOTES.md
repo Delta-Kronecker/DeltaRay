@@ -1,31 +1,31 @@
-# DeltaRay Release Notes
+# DeltaRay v0.2.0
 
-## v0.1.0
+## What's new
 
-First combined build: **L×Box** (sing-box / libbox VPN client, Flutter UI) and
-**ZeroDPI** (cross-platform DPI bypass relay, Rust engine) shipped in a single APK.
+- **Runtime resources update over the air.** On launch the launcher reads
+  `version.txt` from the DeltaRay repository; when it differs from the version
+  bundled into the APK (or the last applied one), the runtime files
+  (`config.toml`, `sni_list.txt`, `ip_list.txt`) are downloaded and applied to
+  the ZeroDPI profile — no reinstall needed to ship updated target lists or
+  config.
 
-### What's inside
+## Launcher
 
-- One APK, package `com.leadaxe.lxbox`, with a chooser entry screen: pick
-  **L×Box** or **ZeroDPI**; Back returns to the chooser.
-- ZeroDPI runtime: `full` variant (`arm64-v8a`).
-  - Packet-intercept methods (SoCKS/transparent) require root.
-  - Socket-level methods (port-forward) work without root.
-- L×Box: full feature set — subscriptions, proxies, rules, tun2socks, service
-  notifications, backup/restore.
+- Launcher home now shows live upload/download volume from the kernel status
+  stream (`↑ … · ↓ …`).
+- Watchdog stats reset on every session (tests / ok / timeouts / switches).
+  Config switches are no longer shown in the watchdog log line.
+- Launcher home is fully centered; ZeroDPI scan progress is shown in per-cent,
+  tracked live for the current scan stage.
+- Startup always picks a direction from the auto twin.
 
-### Installation
+## ZeroDPI
 
-```
-adb install -r DeltaRay-v0.1.0-arm64-v8a.apk
-```
+- SOCKS5 CONNECT reply is parsed per RFC 1928 (RSV byte consumed) — no more
+  spurious "socks5 bind addr" timeouts on the first probe.
+- Flip-flop between configs is suppressed until every candidate has been tested
+  within the current session.
 
-### Notes
+## Download
 
-- Built for `arm64-v8a` only in this release.
-- ZeroDPI is self-contained inside the app: config, SNI list, and relay server
-  assets are staged at build time from the repo's `config.toml` /
-  `sni_list.txt` / `ip_list.txt`.
-- No re-signing conflicts: app, its libbox core, and the embedded ZeroDPI
-  module all share the same APK signature.
+Attached: `DeltaRay-v0.2.0-arm64-v8a.apk`
