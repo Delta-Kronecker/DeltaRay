@@ -33,6 +33,7 @@ import dev.zerodpi.android.profile.ZeroDpiProfile
 import dev.zerodpi.android.service.RuntimeStatus
 import dev.zerodpi.android.service.ZeroDpiRuntimeStateStore
 import dev.zerodpi.android.service.ZeroDpiService
+import java.util.Locale
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -532,6 +533,7 @@ class LauncherActivity : Activity() {
         stopStatsTicker()
         findViewById<TextView>(R.id.launcher_watchdog_status).visibility = View.GONE
         findViewById<TextView>(R.id.launcher_watchdog_stats).visibility = View.GONE
+        findViewById<TextView>(R.id.launcher_traffic_stats).visibility = View.GONE
     }
 
     private fun refreshWatchdogUi() {
@@ -566,6 +568,26 @@ class LauncherActivity : Activity() {
         stats.text = base
         status.visibility = View.VISIBLE
         stats.visibility = View.VISIBLE
+        // Объём ↑/↓ из status-стрима ядра (Stats-экран приложения).
+        val traffic = findViewById<TextView>(R.id.launcher_traffic_stats)
+        traffic.text = getString(
+            R.string.launcher_traffic_stats,
+            formatBytes(snap.uplinkTotal),
+            formatBytes(snap.downlinkTotal),
+        )
+        traffic.visibility = View.VISIBLE
+    }
+
+    /// Размер файла как в приложении (format_utils.formatBytes, spaced=true):
+    /// `0 B`, `<1024` → B, KB/MB с 1 знаком, GB с 2.
+    private fun formatBytes(bytes: Long): String {
+        val b = bytes.coerceAtLeast(0L)
+        if (b < 1024L) return "$b B"
+        if (b < 1024L * 1024L) return String.format(Locale.US, "%.1f KB", b / 1024.0)
+        if (b < 1024L * 1024L * 1024L) {
+            return String.format(Locale.US, "%.1f MB", b / (1024.0 * 1024.0))
+        }
+        return String.format(Locale.US, "%.2f GB", b / (1024.0 * 1024.0 * 1024.0))
     }
 
     // -- ZeroDPI helpers ------------------------------------------------------
