@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- DeltaRay adaptive icon background: light, совпадает с фоном
+         artwork'а (icon.png) — под маской не видно границ. -->
+    <color name="ic_launcher_background">#F7F8F4</color>
     <!-- §032 launcher shortcuts (Connect / Disconnect). Material 500-tone.
          Используются как background adaptive-icon'а — solid color заливка.
          Светлый foreground glyph (white) на этих цветах даёт читаемый
