@@ -79,6 +79,25 @@
                 android:textColor="#8A93A6"
                 android:textSize="15sp"
                 android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/launcher_watchdog_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:textColor="#8A93A6"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/launcher_watchdog_stats"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="#8A93A6"
+                android:textSize="12sp"
+                android:visibility="gone" />
         </LinearLayout>
     </LinearLayout>
 

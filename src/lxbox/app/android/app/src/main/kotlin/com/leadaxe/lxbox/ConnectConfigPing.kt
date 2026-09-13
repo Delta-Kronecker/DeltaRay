@@ -44,6 +44,14 @@ object ConnectConfigPing {
         val url: String,
     )
 
+    /// Одна попытка замера ноды: тег + результат по §4.6-инварианту
+    /// (`error` — единственный признак провала) + задержка в мс.
+    data class PingDelay(
+        val tag: String,
+        val ok: Boolean,
+        val delayMs: Int,
+    )
+
     /// Префиксы/теги, которые НЕ являются VPN-конфигами (замер через них
     /// может «ответить» реальной сетью, минуя туннель — ложный Connected).
     private fun looksIndirect(tag: String): Boolean {
@@ -131,23 +139,43 @@ object ConnectConfigPing {
         maxRounds: Int = MAX_ROUNDS,
         roundIntervalMs: Long = ROUND_INTERVAL_MS,
         isCoreAlive: () -> Boolean,
-    ): Boolean {
-        if (plan.tags.isEmpty()) return false
-        val client = newClient() ?: return false
+    ): Boolean = probeWithResults(
+        plan,
+        attemptTimeoutMs,
+        maxRounds,
+        roundIntervalMs,
+        isCoreAlive,
+    ).first
+
+    /// То же, что [probeUntilSuccess], но возвращает `(успех, замеры успешного
+    /// раунда tag→delayMs)`. Замеры сохраняет лаунчер как «конфиги, ответившие
+    /// в тесте при коннекте» — опорный список для вачдога (fallback, если
+    /// свежий замер в момент отказа недоступен).
+    suspend fun probeWithResults(
+        plan: PingPlan,
+        attemptTimeoutMs: Int = DEFAULT_ATTEMPT_TIMEOUT_MS,
+        maxRounds: Int = MAX_ROUNDS,
+        roundIntervalMs: Long = ROUND_INTERVAL_MS,
+        isCoreAlive: () -> Boolean,
+    ): Pair<Boolean, Map<String, Int>> {
+        if (plan.tags.isEmpty()) return false to emptyMap()
+        val client = openClient() ?: return false to emptyMap()
         try {
             var round = 0
             while (round < maxRounds) {
                 round++
-                if (!isCoreAlive()) return false
+                if (!isCoreAlive()) return false to emptyMap()
                 val results = parallelPing(client, plan.tags, plan.url, attemptTimeoutMs)
-                if (results.any { it }) return true
+                val okDelays = results.filter { it.ok }
+                    .associate { it.tag to it.delayMs }
+                if (okDelays.isNotEmpty()) return true to okDelays
                 if (round >= maxRounds) break
                 delay(roundIntervalMs)
             }
         } finally {
             runCatching { client.disconnect() }
         }
-        return false
+        return false to emptyMap()
     }
 
     private suspend fun parallelPing(
@@ -155,7 +183,7 @@ object ConnectConfigPing {
         tags: List<String>,
         url: String,
         timeoutMs: Int,
-    ): List<Boolean> = coroutineScope {
+    ): List<PingDelay> = coroutineScope {
         tags.map { tag ->
             async(Dispatchers.IO) { pingOnce(client, tag, url, timeoutMs) }
         }.awaitAll()
@@ -163,13 +191,20 @@ object ConnectConfigPing {
 
     /// §4.6 инвариант: `error` — единственный признак провала; `error == ""`
     /// = успех (delay может быть 0мс).
-    private fun pingOnce(client: CommandClient, tag: String, url: String, timeoutMs: Int): Boolean =
-        runCatching {
-            val r = client.urlTestOutbound(tag, url, timeoutMs)
-            (r.getError() ?: "").isEmpty()
-        }.getOrDefault(false)
+    private fun pingOnce(
+        client: CommandClient,
+        tag: String,
+        url: String,
+        timeoutMs: Int,
+    ): PingDelay = runCatching {
+        val r = client.urlTestOutbound(tag, url, timeoutMs)
+        val error = r.getError() ?: ""
+        PingDelay(tag, error.isEmpty(), if (error.isEmpty()) r.getDelay() else 0)
+    }.getOrDefault(PingDelay(tag, ok = false, delayMs = 0))
 
-    private fun newClient(): CommandClient? = runCatching {
+    /// Открыть собственный unary-клиент (без подписок) — и для монитора
+    /// фазы коннекта, и для вачдога (getGroups/selectOutbound/urlTestOutbound).
+    fun openClient(): CommandClient? = runCatching {
         val client = CommandClient(PingClientHandler, CommandClientOptions())
         client.connect()
         client

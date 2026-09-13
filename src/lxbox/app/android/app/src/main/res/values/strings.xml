@@ -33,6 +33,14 @@
     <string name="launcher_status_connect_failed" translatable="false">Connecting failed: %1$s</string>
     <string name="launcher_status_ping_no_reply" translatable="false">Connecting… no config answered</string>
 
+    <!-- DeltaRay: tunnel watchdog (probe through local proxy, 3s) -->
+    <string name="launcher_watchdog_starting" translatable="false">Watchdog starting…</string>
+    <string name="launcher_watchdog_disabled" translatable="false">Watchdog off (proxy mode)</string>
+    <string name="launcher_watchdog_ok" translatable="false">Watchdog · OK · %1$d ms</string>
+    <string name="launcher_watchdog_timeouts" translatable="false">Watchdog · timeout ×%1$d</string>
+    <string name="launcher_watchdog_stats" translatable="false">tests %1$d · ok %2$d · timeouts %3$d · switches %4$d</string>
+    <string name="launcher_watchdog_switched" translatable="false"> · switched %1$s → %2$s</string>
+
     <!-- Quick Connect (tile / shortcuts consent flow) -->
     <string name="qc_first_open">Opening L×Box for VPN permission (one-time)</string>
     <string name="qc_consent_denied">VPN permission denied. Open L×Box to retry.</string>
