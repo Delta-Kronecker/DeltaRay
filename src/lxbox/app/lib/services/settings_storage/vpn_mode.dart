@@ -1,9 +1,9 @@
 part of '../settings_storage.dart';
 
 // VPN mode (§119) — выбор как ядро ловит трафик (inbound-трактовка):
-//   • vpn       — только tun-inbound (текущее поведение, default).
+//   • vpn_proxy — tun + mixed одновременно (default с §DeltaRay).
+//   • vpn       — только tun-inbound.
 //   • proxy     — только локальный mixed-inbound, без tun (нет establish).
-//   • vpn_proxy — tun + mixed одновременно.
 //
 // Вынесено `part`'ом — та же библиотека, тот же доступ к `_load`/`_save`/
 // `_cache`. Storage key: `vpn_mode`.
@@ -75,13 +75,15 @@ class VpnModeConfig {
     required this.proxyPassword,
   });
 
-  /// Default = текущее поведение (mode=vpn). Для existing юзеров без ключа.
+  /// Default: vpn_proxy (VPN + local mixed-proxy) + auth off. Поменено в §DeltaRay:
+  /// раньше было vpn-only с auth on, но локальный proxy на loopback'е без пароля
+  /// безопасен (127.x не доступен извне), а режим vpn+proxy — само назначение.
   const VpnModeConfig.defaults()
-      : mode = 'vpn',
+      : mode = 'vpn_proxy',
         proxyProtocol = protoMixed,
         proxyPort = defaultPort,
         proxyListen = listenLocal,
-        proxyAuthEnabled = true,
+        proxyAuthEnabled = false,
         proxyUsername = defaultUsername,
         proxyPassword = '';
 
