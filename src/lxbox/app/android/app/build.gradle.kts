@@ -145,6 +145,7 @@ dependencies {
     // вызывается из build-local-apk.sh и CI (ci.yml → "Fetch sing-box-lx core").
     implementation(files("libs/libbox.aar"))
     implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.drawerlayout:drawerlayout:1.2.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     // ZeroDPI (Android library) — код + Compose UI + jniLibs/assets runtime.

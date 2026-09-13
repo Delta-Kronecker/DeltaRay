@@ -8,6 +8,8 @@ import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.provider.MediaStore
 import android.telephony.TelephonyManager
 import android.util.Log
@@ -41,12 +43,20 @@ class MainActivity : FlutterActivity() {
         const val ACTION_CONNECT = "connect"
         const val ACTION_DISCONNECT = "disconnect"
         const val ACTION_TOGGLE = "toggle"
+        /// §DeltaRay — «Connect all» из лаунчера: обновить подписки (без ручного
+        /// открытия) и подключить VPN, затем закрыться обратно в лаунчер.
+        const val ACTION_CONNECT_ALL_REFRESH = "connect_all_refresh"
+
+        private const val REFRESH_DELAY_MS = 1_500L
+        private const val CONNECT_GRACE_MS = 1_000L
     }
 
     /// Если activity была открыта именно из tile/shortcut (через extras),
     /// после успешного consent'а закрываемся, чтобы юзер вернулся на хоум —
     /// он не просил открывать app, он просил подключить VPN.
     private var finishAfterConsent = false
+
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     /// §383 — `MethodChannel.Result` незавершённого GET_CONTENT-пика.
     /// Ответ приходит асинхронно, в `onActivityResult`. Ненулевое значение =
@@ -279,6 +289,7 @@ class MainActivity : FlutterActivity() {
 
         when (action) {
             ACTION_CONNECT -> startVpnWithConsent()
+            ACTION_CONNECT_ALL_REFRESH -> refreshThenConnect()
             ACTION_DISCONNECT -> {
                 BoxVpnService.stop(applicationContext)
                 if (finishAfterConsent) finish()
@@ -328,6 +339,30 @@ class MainActivity : FlutterActivity() {
             Log.e(TAG, "VPN consent prepare failed: ${e.message}", e)
             if (finishAfterConsent) finish()
         }
+    }
+
+    /// §DeltaRay — «Connect all» из лаунчера через quick-action.
+    ///
+    /// Единственный честный способ обновить подписки без ручного открытия app:
+    /// доставить команду в Dart через automation-мост (тот же путь, что Tasker),
+    /// когда Flutter-engine гарантированно живой (этот activity). После refresh
+    /// запускаем VPN с consent'ом; activity закрывается (finishAfterConsent),
+    /// юзер возвращается в лаунчер.
+    ///
+    /// Обновление происходит автоматически: если auto-updater ещё не готов
+    /// (первый старт), automation-мост просто логирует «ошибку» и подключение
+    /// всё равно идёт по сохранённому конфигу.
+    private fun refreshThenConnect() {
+        mainHandler.postDelayed(
+            {
+                VpnPlugin.handleAutomationAction("refresh-subs", mapOf("force" to false))
+            },
+            REFRESH_DELAY_MS,
+        )
+        mainHandler.postDelayed(
+            { startVpnWithConsent() },
+            REFRESH_DELAY_MS + CONNECT_GRACE_MS,
+        )
     }
 
     /// §050 — open Settings directly на App permissions screen.
