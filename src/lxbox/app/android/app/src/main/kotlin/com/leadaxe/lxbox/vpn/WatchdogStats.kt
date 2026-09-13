@@ -111,6 +111,25 @@ class WatchdogStats private constructor() {
         prefs.edit().putInt(K_STATE, State.Disabled.value).apply()
     }
 
+    /// Полный сброс статистики НА КАЖДЫЙ запуск цикла (новая сессия): все
+    /// счётчики, streak, маркеры последнего переключения, состояние → starting.
+    /// Замеры теста при коннекте ([initialPings]) остаются — они нужны как
+    /// fallback той же сессии. Переключения внутри сессии сбрасывают счёт уже
+    /// через [recordSwitch].
+    fun resetRun() {
+        prefs.edit()
+            .putInt(K_TESTS, 0)
+            .putInt(K_OK, 0)
+            .putInt(K_TIMEOUTS, 0)
+            .putInt(K_SWITCHES, 0)
+            .putInt(K_STREAK, 0)
+            .putLong(K_LAST_RTT, 0L)
+            .putString(K_LAST_SWITCH_FROM, null)
+            .putString(K_LAST_SWITCH_TO, null)
+            .putInt(K_STATE, State.Starting.value)
+            .apply()
+    }
+
     /// Переключение ноды: всё (включая счётчики «всего») сбрасывается в ноль,
     /// state=Starting; маркеры переключения и замеры коннекта остаются.
     fun recordSwitch(from: String?, to: String) {

@@ -24,7 +24,7 @@
 
     <!-- DeltaRay: connect-all monitor statuses -->
     <string name="launcher_status_zdpi_starting" translatable="false">Connecting… starting ZeroDPI</string>
-    <string name="launcher_status_zdpi_scanning" translatable="false">Connecting… ZeroDPI scan %1$d/%2$d</string>
+    <string name="launcher_status_zdpi_scanning" translatable="false">Connecting… ZeroDPI scan %1$d%%</string>
     <string name="launcher_status_zdpi_active" translatable="false">Connecting… ZeroDPI ready</string>
     <string name="launcher_status_lxbox_starting" translatable="false">Connecting… starting L×Box</string>
     <string name="launcher_status_ping_configs" translatable="false">Connecting… testing configs</string>
@@ -39,7 +39,6 @@
     <string name="launcher_watchdog_ok" translatable="false">Watchdog · OK · %1$d ms</string>
     <string name="launcher_watchdog_timeouts" translatable="false">Watchdog · timeout ×%1$d</string>
     <string name="launcher_watchdog_stats" translatable="false">tests %1$d · ok %2$d · timeouts %3$d · switches %4$d</string>
-    <string name="launcher_watchdog_switched" translatable="false"> · switched %1$s → %2$s</string>
 
     <!-- Quick Connect (tile / shortcuts consent flow) -->
     <string name="qc_first_open">Opening L×Box for VPN permission (one-time)</string>

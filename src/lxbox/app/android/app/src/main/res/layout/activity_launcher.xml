@@ -42,9 +42,10 @@
 
             <TextView
                 android:id="@+id/launcher_brand"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="48dp"
+                android:gravity="center"
                 android:text="@string/app_launcher_label"
                 android:textColor="#FFFFFF"
                 android:textSize="34sp"
@@ -65,26 +66,29 @@
 
             <TextView
                 android:id="@+id/launcher_desc_connect"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="8dp"
+                android:gravity="center"
                 android:text="@string/app_chooser_connect_hint"
                 android:textColor="#8A93A6"
                 android:textSize="14sp" />
 
             <TextView
                 android:id="@+id/launcher_connect_status"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center"
                 android:textColor="#8A93A6"
                 android:textSize="15sp"
                 android:visibility="gone" />
 
             <TextView
                 android:id="@+id/launcher_watchdog_status"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
+                android:gravity="center"
                 android:textColor="#8A93A6"
                 android:textSize="15sp"
                 android:textStyle="bold"
@@ -92,9 +96,10 @@
 
             <TextView
                 android:id="@+id/launcher_watchdog_stats"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
+                android:gravity="center"
                 android:textColor="#8A93A6"
                 android:textSize="12sp"
                 android:visibility="gone" />
