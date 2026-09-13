@@ -87,6 +87,10 @@ class LauncherActivity : Activity() {
     /// (32 → 21 → 30), поэтому процент считаем от лучшего наблюдения.
     private var zdpiScannedBest = 0
 
+    /// Метка текущего скана (`sni`/`ip`/`proxy`) для per-scan максимума
+    /// `zdpiScannedBest` — см. ТЗ в startZeroDpiMonitor.
+    private var zdpiScanKey: String? = null
+
     private val openChooserRunnable = Runnable {
         aboutHoldFired = true
         uiHandler.removeCallbacksAndMessages(null)
@@ -263,33 +267,47 @@ class LauncherActivity : Activity() {
     }
 
     /// Мониторинг скана ZeroDPI «из лога»: поток runner-событий службы уже
-    /// превращён в state() (scan_started/scan_progress/scan_completed →
-    /// RuntimeStatus.Scanning + ScanProgressInfo). Показываем прогресс скана,
-    /// на Running — уходим на стадию 2.
+    /// превращён в state() (scan_started/scan_progress/scan_completed).
+    /// ТЗ: прогресс — в процентах, живой, по текущему скану. Сканы идут
+    /// подряд (sni → ip → proxy), у каждого свой total; счётчик `completed`
+    /// внутри одного скана не монотонен (ИП приходят вразнобой), поэтому
+    /// максимум берём ТОЛЬКО по текущему скану. Носить `best` со скана на
+    /// скан нельзя: новый скан в первый же момент показывал бы процент
+    /// завершившегося (наблюдение: старт ip-скана на 23/100 показывал 98%).
     private fun startZeroDpiMonitor(service: ZeroDpiService) {
         zeroDpiMonitorJob?.cancel()
-        // ТЗ: прогресс — в процентах. Счётчик `completed` не монотонен
-        // (ИП приходят вразнобой), поэтому процент считаем от максимума
-        // наблюдённого за сессию, а не от текущего значения.
         zdpiScannedBest = 0
+        zdpiScanKey = null
         zeroDpiMonitorJob = scope.launch {
             service.state().collect { s ->
                 if (!connectAllRunning) return@collect
                 when (s.status) {
                     RuntimeStatus.Scanning -> {
                         val p = s.scanProgress
-                        // Локальные копии: smart-cast на публичные API-свойства
-                        // другого модуля (zerodpi) запрещён.
-                        val total = p?.total ?: 0
-                        val completed = p?.completed ?: -1
-                        if (total > 0 && completed >= 0) {
-                            if (completed > zdpiScannedBest) zdpiScannedBest = completed
-                            val percent = (zdpiScannedBest.toLong() * 100 / total)
-                                .coerceIn(0L, 100L).toInt()
-                            setConnectingStatus(
-                                R.string.launcher_status_zdpi_scanning,
-                                percent,
-                            )
+                        if (p != null) {
+                            // Локальные копии: smart-cast на публичные
+                            // API-свойства другого модуля (zerodpi) запрещён.
+                            val total = p.total ?: 0
+                            val completed = p.completed ?: -1
+                            if (total > 0 && completed >= 0) {
+                                val key = p.scan.ifBlank { "scan" }
+                                if (key != zdpiScanKey) {
+                                    zdpiScanKey = key
+                                    zdpiScannedBest = 0
+                                }
+                                if (completed > zdpiScannedBest) {
+                                    zdpiScannedBest = completed
+                                }
+                                val percent =
+                                    (zdpiScannedBest.toLong() * 100 / total)
+                                        .coerceIn(0L, 100L).toInt()
+                                setConnectingStatus(
+                                    R.string.launcher_status_zdpi_scanning,
+                                    percent,
+                                )
+                            } else {
+                                setConnectingStatus(R.string.launcher_status_zdpi_starting)
+                            }
                         } else {
                             setConnectingStatus(R.string.launcher_status_zdpi_starting)
                         }
