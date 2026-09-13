@@ -641,7 +641,7 @@ class HomeController extends ChangeNotifier
   }
 
   /// §123 — собрать и отправить строки foreground-уведомления.
-  ///   title = `L×Box [final = <route.final>]` (сырое route.final)
+  ///   title = `DeltaRay [final = <route.final>]` (сырое route.final)
   ///   text  = `<селектор>: <выбранная нода>`, напр. `vpn-1: L: 🇫🇮⚡Финляндия-2`.
   ///           Селектор = selectedGroup, нода = его `now` (= activeInGroup,
   ///           которое applyGroup заполняет из entry['now'] группы).
@@ -653,8 +653,8 @@ class HomeController extends ChangeNotifier
     // (activeConfigRaw; фоллбэк на файл, если снапшот ещё не подтянут).
     final routeFinal = RouteConfig.finalTag(_state.activeConfigRaw);
     final title = (routeFinal == null || routeFinal.isEmpty)
-        ? 'L×Box'
-        : 'L×Box [final = $routeFinal]';
+        ? 'DeltaRay'
+        : 'DeltaRay [final = $routeFinal]';
 
     // selectedGroup = активный селектор (vpn-1), activeInGroup = его выбранная
     // нода (`now`). Формат подтекста: «<селектор>: <нода>».
