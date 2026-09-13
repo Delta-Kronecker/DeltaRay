@@ -71,7 +71,7 @@ object LauncherTraffic {
         client = null
     }
 
-    private inner class StatusHandler(private val gen: Int) : CommandClientHandler {
+    private class StatusHandler(private val gen: Int) : CommandClientHandler {
         override fun connected() {
             runCatching { Log.d(TAG, "connected gen=$gen") }
         }
