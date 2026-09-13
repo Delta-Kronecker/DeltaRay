@@ -67,9 +67,18 @@
                 android:id="@+id/launcher_desc_connect"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
                 android:text="@string/app_chooser_connect_hint"
                 android:textColor="#8A93A6"
                 android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/launcher_connect_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#8A93A6"
+                android:textSize="15sp"
+                android:visibility="gone" />
         </LinearLayout>
     </LinearLayout>
 
