@@ -35,16 +35,16 @@ class WatchdogStats private constructor() {
         // Разрешили приложение; подтягиваем Context отсюда (singleton-inject).
         private var ctx: Context? = null
         @Volatile
-        private var instance: WatchdogStats? = null
+        private var _instance: WatchdogStats? = null
 
         @Synchronized
         fun init(context: Context): WatchdogStats {
             ctx = context.applicationContext
-            if (instance == null) instance = WatchdogStats()
-            return instance!!
+            if (_instance == null) _instance = WatchdogStats()
+            return _instance!!
         }
 
-        val instance: WatchdogStats get() = checkNotNull(instance) { "WatchdogStats not init" }
+        val instance: WatchdogStats get() = checkNotNull(_instance) { "WatchdogStats not init" }
     }
 
     enum class State(val value: Int) {
