@@ -11,7 +11,6 @@ import com.leadaxe.lxbox.vpn.BootReceiver
 import com.leadaxe.lxbox.vpn.BoxVpnService
 import com.leadaxe.lxbox.vpn.VpnPlugin
 import com.leadaxe.lxbox.vpn.VpnStatus
-import io.flutter.embedding.android.BackgroundMode
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.android.RenderMode
 import io.flutter.embedding.engine.FlutterEngine
@@ -32,8 +31,7 @@ import io.flutter.plugin.common.MethodChannel
 /// .surface — это SurfaceView, чей слой компонуется ОС ОТДЕЛЬНО от окна и
 /// игнорирует alpha/прозрачность дерева view (пользователь видел полноценную
 /// страницу L×Box поверх прозрачного окна). TextureView — обычный view:
-/// alpha=0 его скрывает полностью. BackgroundMode.transparent дополнительно
-/// запрещает Flutter заливать окно непрозрачным материалом.
+/// alpha=0 его скрывает полностью.
 ///
 /// Dart-сторона — тот же main(), что и у UI: поднявшись, HomeScreen
 /// инициализирует контроллеры и AutoUpdater, automation-мост
@@ -76,7 +74,6 @@ class QuickConnectActivity : FlutterActivity() {
     }
 
     override fun getRenderMode(): RenderMode = RenderMode.texture
-    override fun getBackgroundMode(): BackgroundMode = BackgroundMode.transparent
 
     override fun getFlutterShellArgs(): FlutterShellArgs {
         val args = super.getFlutterShellArgs()
