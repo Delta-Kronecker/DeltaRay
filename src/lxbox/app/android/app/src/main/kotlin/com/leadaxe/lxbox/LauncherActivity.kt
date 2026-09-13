@@ -24,6 +24,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import com.leadaxe.lxbox.vpn.BoxVpnService
+import com.leadaxe.lxbox.vpn.ConfigManager
 import com.leadaxe.lxbox.vpn.VpnStatus
 import dev.zerodpi.android.profile.ZeroDpiProfile
 import dev.zerodpi.android.service.RuntimeStatus
@@ -247,11 +248,15 @@ class LauncherActivity : Activity() {
                 when (s.status) {
                     RuntimeStatus.Scanning -> {
                         val p = s.scanProgress
-                        if (p != null && p.total != null && p.total > 0 && p.completed != null) {
+                        // Локальные копии: smart-cast на публичные API-свойства
+                        // другого модуля (zerodpi) запрещён.
+                        val total = p?.total
+                        val completed = p?.completed
+                        if (total != null && completed != null && total > 0) {
                             setConnectingStatus(
                                 R.string.launcher_status_zdpi_scanning,
-                                p.completed.coerceAtLeast(0),
-                                p.total,
+                                completed.coerceAtLeast(0),
+                                total,
                             )
                         } else {
                             setConnectingStatus(R.string.launcher_status_zdpi_starting)
