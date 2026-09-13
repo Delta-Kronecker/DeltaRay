@@ -16,6 +16,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.coroutines.coroutineContext
 
 /// Вачдог туннеля (ТЗ оператора): фоновая проверка реального интернет-выхода
 /// каждые [TunnelWatchdog.PROBE_INTERVAL_MS] через ЛОКАЛЬНЫЙ прокси
@@ -87,7 +88,7 @@ class WatchdogService : Service() {
     private suspend fun loop() {
         Log.d(TAG, "watchdog loop started")
         WatchdogStats.instance.setState(WatchdogStats.State.Starting)
-        while (isActive) {
+        while (coroutineContext.isActive) {
             if (BoxVpnService.currentStatus != VpnStatus.Started) break
             val stats = WatchdogStats.instance
             val config = ConfigManager.load()
@@ -106,7 +107,6 @@ class WatchdogService : Service() {
                 stats.recordTimeout()
                 handleFailure(config)
             }
-            if (loopJob?.isActive != true) break
             delay(TunnelWatchdog.PROBE_INTERVAL_MS)
         }
         Log.d(TAG, "watchdog loop finished")

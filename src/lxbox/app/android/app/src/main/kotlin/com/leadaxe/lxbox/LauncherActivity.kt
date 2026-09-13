@@ -484,10 +484,7 @@ class LauncherActivity : Activity() {
     /// пока VPN запущен, сам останавливается по BROADCAST_STATUS=Stopped).
     /// Повторный старт безопасен — сервис держит один цикл.
     private fun ensureWatchdogRunning() {
-        ContextCompat.startService(
-            this,
-            Intent(this, WatchdogService::class.java),
-        )
+        startService(Intent(this, WatchdogService::class.java))
     }
 
     /// Тикер UI вачдога (те же 3с, что и период замера): читает снапшот
