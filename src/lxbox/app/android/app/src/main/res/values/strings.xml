@@ -40,6 +40,11 @@
     <string name="launcher_watchdog_timeouts" translatable="false">Watchdog · timeout ×%1$d</string>
     <string name="launcher_watchdog_stats" translatable="false">tests %1$d · ok %2$d · timeouts %3$d · switches %4$d</string>
     <string name="launcher_traffic_stats" translatable="false">↑ %1$s · ↓ %2$s</string>
+    <string name="launcher_update_title" translatable="false">Update available</string>
+    <string name="launcher_update_message" translatable="false">DeltaRay %1$s is available. Where would you like to get it?</string>
+    <string name="launcher_update_github" translatable="false">Download from GitHub</string>
+    <string name="launcher_update_telegram" translatable="false">Download from Telegram</string>
+    <string name="launcher_update_dismiss" translatable="false">Not now</string>
 
     <!-- Quick Connect (tile / shortcuts consent flow) -->
     <string name="qc_first_open">Opening L×Box for VPN permission (one-time)</string>
