@@ -15,9 +15,12 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
-    <!-- DeltaRay — тёмная тема экрана выбора приложений (L×Box / ZeroDPI). -->
+    <!-- DeltaRay — тёмная тема экрана выбора приложений (L×Box / ZeroDPI).
+         Окно лаунчера в цветах иконки — глубокий зелёно-графит. -->
     <style name="LauncherTheme" parent="@android:style/Theme.Material.NoActionBar">
-        <item name="android:windowBackground">#0E1220</item>
+        <item name="android:windowBackground">@color/launcher_bg_top</item>
+        <item name="android:statusBarColor">@color/launcher_bg_top</item>
+        <item name="android:navigationBarColor">@color/launcher_bg_bottom</item>
         <item name="android:fontFamily">sans</item>
     </style>
     <!-- DeltaRay — полностью прозрачная тема невидимого quick-connect

@@ -9,4 +9,20 @@
          контраст на любой launcher-теме. -->
     <color name="qc_connect_bg">#22C55E</color>
     <color name="qc_disconnect_bg">#EF4444</color>
+    <!-- DeltaRay launcher palette — взята из иконки (icon.png): тёмный
+         зелёно-графитовый фон (#0A1314..) + золотой/янтарный акцент
+         (#E8B868/#C89848) + кремовый свет (#F8F8E8). -->
+    <color name="launcher_bg_top">#0B1614</color>
+    <color name="launcher_bg_bottom">#050B0A</color>
+    <color name="launcher_surface">#0E1C19</color>
+    <color name="launcher_surface_hi">#182A25</color>
+    <color name="launcher_line">#1F352F</color>
+    <color name="launcher_gold">#E8B868</color>
+    <color name="launcher_gold_hi">#F3C984</color>
+    <color name="launcher_gold_deep">#C89848</color>
+    <color name="launcher_gold_dim">#8A6A3A</color>
+    <color name="launcher_cream">#F8F8E8</color>
+    <color name="launcher_muted">#93A59E</color>
+    <color name="launcher_ok">#62C07E</color>
+    <color name="launcher_err">#D96A6A</color>
 </resources>

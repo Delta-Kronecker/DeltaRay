@@ -16,7 +16,6 @@ import android.os.Looper
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
-import android.widget.Button
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
@@ -71,6 +70,10 @@ class LauncherActivity : Activity() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val uiHandler = Handler(Looper.getMainLooper())
+
+    /// Круглая кнопка подключения с золотым кольцевым прогрессом скана.
+    private val connectButton: ConnectRingButton
+        get() = findViewById(R.id.btn_connect_all)
 
     private val prefs: SharedPreferences by lazy {
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
@@ -141,7 +144,7 @@ class LauncherActivity : Activity() {
         findViewById<View>(R.id.launcher_main).setOnClickListener {
             if (isDrawerOpen()) closeDrawer()
         }
-        findViewById<Button>(R.id.btn_connect_all).setOnClickListener {
+        connectButton.setOnClickListener {
             onConnectButtonPressed()
         }
 
@@ -258,13 +261,13 @@ class LauncherActivity : Activity() {
     private fun onConnectButtonPressed() {
         if (connectAllRunning) return
         // Короткая проверка активности (с suspension): клик не блокирует UI.
-        findViewById<Button>(R.id.btn_connect_all).isEnabled = false
+        connectButton.isEnabled = false
         scope.launch {
             val anyActive =
                 BoxVpnService.currentStatus != VpnStatus.Stopped || zeroDpiCurrentlyActive()
             if (anyActive) {
                 stopAll()
-                findViewById<Button>(R.id.btn_connect_all).isEnabled = true
+                connectButton.isEnabled = true
             } else {
                 connectAll()
             }
@@ -279,7 +282,8 @@ class LauncherActivity : Activity() {
         expectingConnectReturn = false
         zdpiRunningNotified = false
         prefs.edit().putBoolean(KEY_CONNECT_VERIFIED, false).apply()
-        findViewById<Button>(R.id.btn_connect_all).isEnabled = false
+        connectButton.isEnabled = false
+        connectButton.setIdle()
         setConnectingStatus(R.string.launcher_status_zdpi_starting)
 
         // Уже связаны с прошлого флоу (bind живёт до onDestroy): повторный
@@ -345,6 +349,7 @@ class LauncherActivity : Activity() {
                                     val percent =
                                         (zdpiScannedBest.toLong() * 100 / total)
                                             .coerceIn(0L, 100L).toInt()
+                                    connectButton.setConnecting(percent)
                                     setConnectingStatus(
                                         R.string.launcher_status_zdpi_scanning,
                                         percent,
@@ -362,16 +367,19 @@ class LauncherActivity : Activity() {
                     RuntimeStatus.Starting,
                     RuntimeStatus.Choosing,
                     RuntimeStatus.Restarting -> {
+                        connectButton.setConnecting()
                         setConnectingStatus(R.string.launcher_status_zdpi_starting)
                     }
                     RuntimeStatus.Running -> {
                         if (!zdpiRunningNotified) {
                             zdpiRunningNotified = true
+                            connectButton.setDisconnect()
                             zeroDpiMonitorJob?.cancel()
                             launchLxBoxStage()
                         }
                     }
                     RuntimeStatus.Failed -> {
+                        connectButton.setIdle()
                         onConnectFlowFailed(
                             R.string.launcher_status_zdpi_failed,
                             s.lastError ?: s.status.name,
@@ -406,6 +414,7 @@ class LauncherActivity : Activity() {
     private fun startPingStage(verify: Boolean = false) {
         if (pingJob?.isActive == true) return
         pingJob = scope.launch {
+            connectButton.setConnecting()
             setConnectingStatus(R.string.launcher_status_lxbox_starting)
             val coreUp = withTimeoutOrNull(CORE_UP_TIMEOUT_MS) {
                 while (BoxVpnService.currentStatus != VpnStatus.Started) {
@@ -458,8 +467,7 @@ class LauncherActivity : Activity() {
             when {
                 connectAllRunning -> Unit // статусы ведут стадии флоу
                 lxActive -> {
-                    findViewById<Button>(R.id.btn_connect_all)
-                        .setText(R.string.app_chooser_disconnect_all)
+                    connectButton.setDisconnect()
                     if (prefs.getBoolean(KEY_CONNECT_VERIFIED, false)) {
                         // Уже подключено (перезапуск лаунчера): подхватываем
                         // вачдог + его тикер, как при свежем коннекте.
@@ -473,13 +481,11 @@ class LauncherActivity : Activity() {
                     }
                 }
                 zActive -> {
-                    findViewById<Button>(R.id.btn_connect_all)
-                        .setText(R.string.app_chooser_disconnect_all)
+                    connectButton.setDisconnect()
                     setConnectingStatus(R.string.launcher_status_zdpi_active)
                 }
                 else -> {
-                    findViewById<Button>(R.id.btn_connect_all)
-                        .setText(R.string.app_chooser_connect_all)
+                    connectButton.setIdle()
                     showIdleStatus()
                 }
             }
@@ -513,20 +519,19 @@ class LauncherActivity : Activity() {
         prefs.edit().putBoolean(KEY_CONNECT_VERIFIED, true).apply()
         connectAllRunning = false
         zeroDpiMonitorJob?.cancel()
-        findViewById<Button>(R.id.btn_connect_all).isEnabled = true
-        findViewById<Button>(R.id.btn_connect_all)
-            .setText(R.string.app_chooser_disconnect_all)
+        connectButton.isEnabled = true
         showConnectedStatus()
         startStatsTicker()
     }
 
-    private fun onConnectFlowFailed(@StringRes messageRes: Int, arg: String? = null) {
+    onConnectFlowFailed(@StringRes messageRes: Int, arg: String? = null) {
         Log.w(TAG, "connect flow failed: $messageRes $arg")
         connectAllRunning = false
         expectingConnectReturn = false
         zdpiRunningNotified = false
         zeroDpiMonitorJob?.cancel()
-        findViewById<Button>(R.id.btn_connect_all).isEnabled = true
+        connectButton.isEnabled = true
+        connectButton.setIdle()
         setConnectingStatus(messageRes, arg ?: "", isError = true)
         hideWatchdogStatus()
     }
@@ -549,6 +554,7 @@ class LauncherActivity : Activity() {
         status.visibility = View.VISIBLE
         status.setTextColor(COLOR_OK)
         status.text = getString(R.string.launcher_status_connected)
+        connectButton.setDisconnect()
     }
 
     private fun showIdleStatus() {
@@ -722,8 +728,8 @@ class LauncherActivity : Activity() {
             RuntimeStatus.Stopping,
         )
 
-        val COLOR_OK = 0xFF4CAF50.toInt()
-        val COLOR_ERROR = 0xFFE05C60.toInt()
-        val COLOR_MUTED = 0xFF8A93A6.toInt()
+        val COLOR_OK = 0xFF62C07E.toInt()
+        val COLOR_ERROR = 0xFFD96A6A.toInt()
+        val COLOR_MUTED = 0xFF93A59E.toInt()
     }
 }

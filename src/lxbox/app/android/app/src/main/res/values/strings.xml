@@ -18,6 +18,9 @@
 
     <!-- DeltaRay: main launcher page (hamburger drawer) -->
     <string name="app_launcher_label" translatable="false">DeltaRay</string>
+    <string name="launcher_btn_connect" translatable="false">Connect all</string>
+    <string name="launcher_btn_disconnect" translatable="false">Disconnect all</string>
+    <string name="launcher_btn_scanning" translatable="false">Scanning</string>
     <string name="menu_toggle_desc" translatable="false">Open menu</string>
     <string name="menu_about" translatable="false">About</string>
     <string name="no_browser" translatable="false">No browser available</string>
