@@ -1,6 +1,7 @@
 package com.leadaxe.lxbox
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Context
@@ -26,6 +27,7 @@ import androidx.drawerlayout.widget.DrawerLayout
 import com.leadaxe.lxbox.vpn.BoxVpnService
 import com.leadaxe.lxbox.vpn.ConfigManager
 import com.leadaxe.lxbox.vpn.RemoteRuntimeUpdater
+import com.leadaxe.lxbox.vpn.ReleaseNotifier
 import com.leadaxe.lxbox.vpn.TunnelWatchdog
 import com.leadaxe.lxbox.vpn.VpnStatus
 import com.leadaxe.lxbox.vpn.WatchdogService
@@ -169,6 +171,34 @@ class LauncherActivity : Activity() {
         scope.launch {
             RemoteRuntimeUpdater.checkAndUpdate(applicationContext)
         }
+        // Оповещение о новом релизе (диалог: GitHub или Telegram).
+        maybePromptUpdate()
+    }
+
+    /// Новый релиз в репозитории — диалог с выбором источника загрузки.
+    private fun maybePromptUpdate() {
+        scope.launch {
+            val release = ReleaseNotifier.check(applicationContext) ?: return@launch
+            // Пометить предложенной ДО показа: повторно для этой версии
+            // больше не спрашиваем, даже если диалог потеряется.
+            ReleaseNotifier.markNotified(applicationContext, release.version)
+            AlertDialog.Builder(this@LauncherActivity)
+                .setTitle(R.string.launcher_update_title)
+                .setMessage(getString(R.string.launcher_update_message, release.tag))
+                .setPositiveButton(R.string.launcher_update_github) { _, _ ->
+                    openUri(ReleaseNotifier.releasePageUrl(release.tag))
+                }
+                .setNegativeButton(R.string.launcher_update_telegram) { _, _ ->
+                    openUri(ReleaseNotifier.TELEGRAM_URL)
+                }
+                .setNeutralButton(R.string.launcher_update_dismiss, null)
+                .show()
+        }
+    }
+
+    private fun openUri(url: String) {
+        runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+            .onFailure { Log.w(TAG, "no activity for $url: ${it.message}") }
     }
 
     override fun onResume() {
