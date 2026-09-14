@@ -25,6 +25,7 @@ import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import com.leadaxe.lxbox.vpn.BoxVpnService
 import com.leadaxe.lxbox.vpn.ConfigManager
+import com.leadaxe.lxbox.vpn.RemoteRuntimeUpdater
 import com.leadaxe.lxbox.vpn.TunnelWatchdog
 import com.leadaxe.lxbox.vpn.VpnStatus
 import com.leadaxe.lxbox.vpn.WatchdogService
