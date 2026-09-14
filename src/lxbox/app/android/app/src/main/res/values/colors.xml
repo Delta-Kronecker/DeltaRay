@@ -25,4 +25,5 @@
     <color name="launcher_muted">#93A59E</color>
     <color name="launcher_ok">#62C07E</color>
     <color name="launcher_err">#D96A6A</color>
+    <color name="launcher_gold_ink">#1B1203</color>
 </resources>

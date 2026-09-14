@@ -1,13 +1,15 @@
 package com.leadaxe.lxbox
 
 import android.app.Activity
-import android.app.AlertDialog
+import android.app.Dialog
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.SharedPreferences
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -174,28 +176,28 @@ class LauncherActivity : Activity() {
         scope.launch {
             RemoteRuntimeUpdater.checkAndUpdate(applicationContext)
         }
-        // Оповещение о новом релизе (диалог: GitHub или Telegram).
+        // Оповещение о новом релизе (диалог с прямой ссылкой на APK).
         maybePromptUpdate()
     }
 
-    /// Новый релиз в репозитории — диалог с выбором источника загрузки.
+    /// Новый релиз в репозитории — тематический диалог с прямой ссылкой на
+    /// APK-файл (скачивание в браузере). Показывается при каждом запуске:
+    /// персистентной отметки «уже предлагалось» нет.
     private fun maybePromptUpdate() {
         scope.launch {
             val release = ReleaseNotifier.check(applicationContext) ?: return@launch
-            // Пометить предложенной ДО показа: повторно для этой версии
-            // больше не спрашиваем, даже если диалог потеряется.
-            ReleaseNotifier.markNotified(applicationContext, release.version)
-            AlertDialog.Builder(this@LauncherActivity)
-                .setTitle(R.string.launcher_update_title)
-                .setMessage(getString(R.string.launcher_update_message, release.tag))
-                .setPositiveButton(R.string.launcher_update_github) { _, _ ->
-                    openUri(ReleaseNotifier.releasePageUrl(release.tag))
-                }
-                .setNegativeButton(R.string.launcher_update_telegram) { _, _ ->
-                    openUri(ReleaseNotifier.TELEGRAM_URL)
-                }
-                .setNeutralButton(R.string.launcher_update_dismiss, null)
-                .show()
+            val dialog = Dialog(this@LauncherActivity)
+            dialog.setContentView(R.layout.dialog_update)
+            dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            dialog.findViewById<TextView>(R.id.dialog_update_message).text =
+                getString(R.string.launcher_update_message, release.tag)
+            dialog.findViewById<View>(R.id.dialog_update_download).setOnClickListener {
+                openUri(ReleaseNotifier.directDownloadUrl(release.tag))
+            }
+            dialog.findViewById<View>(R.id.dialog_update_notnow).setOnClickListener {
+                dialog.dismiss()
+            }
+            dialog.show()
         }
     }
 

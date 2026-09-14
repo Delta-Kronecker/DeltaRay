@@ -9,7 +9,6 @@
     <string name="app_chooser_subtitle" translatable="false">DeltaRay = L×Box + ZeroDPI in a single APK</string>
     <string name="app_chooser_connect_all" translatable="false">Connect all</string>
     <string name="app_chooser_disconnect_all" translatable="false">Disconnect all</string>
-    <string name="app_chooser_connect_hint" translatable="false">Start ZeroDPI, then L×Box</string>
     <string name="launcher_open_lxbox" translatable="false">L×Box</string>
     <string name="launcher_desc_lxbox" translatable="false">VPN client (sing-box / libbox)</string>
     <string name="launcher_open_zerodpi" translatable="false">ZeroDPI</string>
@@ -44,9 +43,8 @@
     <string name="launcher_watchdog_stats" translatable="false">tests %1$d · ok %2$d · timeouts %3$d · switches %4$d</string>
     <string name="launcher_traffic_stats" translatable="false">↑ %1$s · ↓ %2$s</string>
     <string name="launcher_update_title" translatable="false">Update available</string>
-    <string name="launcher_update_message" translatable="false">DeltaRay %1$s is available. Where would you like to get it?</string>
-    <string name="launcher_update_github" translatable="false">Download from GitHub</string>
-    <string name="launcher_update_telegram" translatable="false">Download from Telegram</string>
+    <string name="launcher_update_message" translatable="false">DeltaRay %1$s is available.</string>
+    <string name="launcher_update_download" translatable="false">Download from GitHub</string>
     <string name="launcher_update_dismiss" translatable="false">Not now</string>
 
     <!-- Quick Connect (tile / shortcuts consent flow) -->

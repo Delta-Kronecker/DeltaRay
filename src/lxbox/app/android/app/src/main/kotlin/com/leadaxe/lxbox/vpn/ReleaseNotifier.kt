@@ -11,13 +11,12 @@ import java.nio.charset.StandardCharsets
 
 /// Оповещение о новом релизе: при запуске лаунчера читаем latest-релиз из
 /// GitHub API (tag_name вида vX.Y.Z), сравниваем с версией установленного
-/// APK (versionName) и, если новее и ещё не предлагалось, лаунчер показывает
-/// диалог с источниками загрузки: страница релиза на GitHub или канал в
-/// Telegram.
+/// APK (versionName) и, если новее, лаунчер показывает диалог с прямой
+/// ссылкой на APK-файл релиза (скачивание через браузер).
 ///
 /// Оффлайн-безопасно: любая ошибка сети/парсинга — тихий пропуск (лог).
-/// Повтор не назойливый: после первого показа запоминаем предложенную версию
-/// и для неё больше не спрашиваем.
+/// Диалог показывается при каждом запуске, пока установлена версия старее
+/// последнего релиза — без персистентной отметки «уже предлагалось».
 object ReleaseNotifier {
 
     private const val TAG = "ReleaseNotifier"
@@ -25,16 +24,13 @@ object ReleaseNotifier {
     private const val LATEST_API_URL =
         "https://api.github.com/repos/Delta-Kronecker/DeltaRay/releases/latest"
 
-    private const val REPO_PAGE_PREFIX = "https://github.com/Delta-Kronecker/DeltaRay/releases/tag/"
+    private const val DOWNLOAD_PREFIX =
+        "https://github.com/Delta-Kronecker/DeltaRay/releases/download/"
 
-    /// Страница конкретного релиза: .../releases/tag/<tag>.
-    fun releasePageUrl(tag: String): String = "$REPO_PAGE_PREFIX$tag"
-
-    /// Канал релизов в Telegram.
-    const val TELEGRAM_URL = "https://t.me/DeltaRayReleases"
-
-    private const val PREFS_NAME = "release_notify"
-    private const val KEY_LAST_NOTIFIED = "lastNotifiedVersion"
+    /// Прямая ссылка на APK-файл релиза (не страница релиза):
+    /// .../download/<tag>/DeltaRay-<tag>-arm64-v8a.apk.
+    fun directDownloadUrl(tag: String): String =
+        "$DOWNLOAD_PREFIX$tag/DeltaRay-$tag-arm64-v8a.apk"
 
     private const val CONNECT_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 20_000
@@ -55,8 +51,8 @@ object ReleaseNotifier {
             app.packageManager.getPackageInfo(app.packageName, 0).versionName
         }.getOrNull()?.let { parseVersion(it) } ?: Version(0, 0, 0)
 
-    /// Последний доступный релиз, если он новее установленной версии и ещё
-    /// не предлагался пользователю; иначе — null.
+    /// Последний доступный релиз, если он новее установленной версии;
+    /// иначе — null. Не зависит от предыдущих показов диалога.
     suspend fun check(app: Context): LatestRelease? {
         val context = app.applicationContext
         return withContext(Dispatchers.IO) {
@@ -69,25 +65,8 @@ object ReleaseNotifier {
                 Log.d(TAG, "up to date (installed $local; latest ${remote.tag})")
                 return@withContext null
             }
-            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            val lastNotified = prefs.getString(KEY_LAST_NOTIFIED, null)
-                ?.let { parseVersion(it) }
-            if (lastNotified != null && remote.version <= lastNotified) {
-                Log.d(TAG, "latest ${remote.tag} was already suggested")
-                return@withContext null
-            }
             remote
         }
-    }
-
-    /// Пометить, что релиз предложен (вызывается после показа диалога), —
-    /// чтобы повторов для одной версии не было.
-    fun markNotified(app: Context, version: Version) {
-        app.applicationContext
-            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_LAST_NOTIFIED, version.toString())
-            .apply()
     }
 
     private fun parseVersion(text: String): Version? {
