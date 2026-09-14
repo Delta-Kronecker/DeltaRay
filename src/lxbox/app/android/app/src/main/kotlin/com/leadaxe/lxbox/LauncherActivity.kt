@@ -305,12 +305,12 @@ class LauncherActivity : Activity() {
 
     /// Мониторинг скана ZeroDPI «из лога»: поток runner-событий службы уже
     /// превращён в state() (scan_started/scan_progress/scan_completed).
-    /// ТЗ: прогресс — в процентах, живой, по текущему скану. Сканы идут
-    /// подряд (sni → ip → proxy), у каждого свой total; счётчик `completed`
-    /// внутри одного скана не монотонен (ИП приходят вразнобой), поэтому
-    /// максимум берём ТОЛЬКО по текущему скану. Носить `best` со скана на
-    /// скан нельзя: новый скан в первый же момент показывал бы процент
-    /// завершившегося (наблюдение: старт ip-скана на 23/100 показывал 98%).
+    /// ТЗ: прогресс — в процентах, живой, по текущей фазе скана. Сканы идут
+    /// подряд (sni → ip → proxy), у каждого свой total, и внутри IP-скана
+    /// фазы `tcp` и `probe` бегут параллельно. Максимум берём ТОЛЬКО внутри
+    /// одной фазы (ключ scan/phase), а фазу-предпрогон `tcp` в процент не
+    /// считаем вовсе: иначе старт ip-скана «выстреливал» на 98%, пока probe
+    /// по логу ещё на 23/100 (наблюдение оператора).
     private fun startZeroDpiMonitor(service: ZeroDpiService) {
         zeroDpiMonitorJob?.cancel()
         zdpiScannedBest = 0
@@ -322,26 +322,36 @@ class LauncherActivity : Activity() {
                     RuntimeStatus.Scanning -> {
                         val p = s.scanProgress
                         if (p != null) {
-                            // Локальные копии: smart-cast на публичные
-                            // API-свойства другого модуля (zerodpi) запрещён.
-                            val total = p.total ?: 0
-                            val completed = p.completed ?: -1
-                            if (total > 0 && completed >= 0) {
-                                val key = p.scan.ifBlank { "scan" }
-                                if (key != zdpiScanKey) {
-                                    zdpiScanKey = key
-                                    zdpiScannedBest = 0
+                            // Прогресс строим строго по событиям из лога
+                            // runner'а «в момент»: максимум не переносится
+                            // между фазами. В IP-скане фаза `tcp` — быстрый
+                            // предпрогон (до ~100% за первую секунду), а
+                            // результаты даёт фаза `probe` (23/100 → 32/100);
+                            // по `tcp` процент не показываем.
+                            if (p.phase != "tcp") {
+                                // Локальные копии: smart-cast на публичные
+                                // API-свойства другого модуля (zerodpi) запрещён.
+                                val total = p.total ?: 0
+                                val completed = p.completed ?: -1
+                                if (total > 0 && completed >= 0) {
+                                    val key = "${p.scan.ifBlank { "scan" }}/${p.phase ?: ""}"
+                                    if (key != zdpiScanKey) {
+                                        zdpiScanKey = key
+                                        zdpiScannedBest = 0
+                                    }
+                                    if (completed > zdpiScannedBest) {
+                                        zdpiScannedBest = completed
+                                    }
+                                    val percent =
+                                        (zdpiScannedBest.toLong() * 100 / total)
+                                            .coerceIn(0L, 100L).toInt()
+                                    setConnectingStatus(
+                                        R.string.launcher_status_zdpi_scanning,
+                                        percent,
+                                    )
+                                } else {
+                                    setConnectingStatus(R.string.launcher_status_zdpi_starting)
                                 }
-                                if (completed > zdpiScannedBest) {
-                                    zdpiScannedBest = completed
-                                }
-                                val percent =
-                                    (zdpiScannedBest.toLong() * 100 / total)
-                                        .coerceIn(0L, 100L).toInt()
-                                setConnectingStatus(
-                                    R.string.launcher_status_zdpi_scanning,
-                                    percent,
-                                )
                             } else {
                                 setConnectingStatus(R.string.launcher_status_zdpi_starting)
                             }
