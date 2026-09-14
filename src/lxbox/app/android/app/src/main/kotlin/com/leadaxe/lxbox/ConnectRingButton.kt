@@ -9,6 +9,7 @@ import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.SweepGradient
+import android.animation.TimeInterpolator
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
@@ -90,7 +91,7 @@ class ConnectRingButton @JvmOverloads constructor(
 
     /// easeOutBack: дуга слегка «перелётывает» цель и возвращается —
     /// визуально процент прыгает, дочитывается и оседает.
-    private val overshoot = object : android.view.animation.TimeInterpolator {
+    private val overshoot = object : TimeInterpolator {
         private val c1 = 1.70158f
         private val c3 = c1 + 1f
         override fun getInterpolation(input: Float): Float =

@@ -524,7 +524,7 @@ class LauncherActivity : Activity() {
         startStatsTicker()
     }
 
-    onConnectFlowFailed(@StringRes messageRes: Int, arg: String? = null) {
+    private fun onConnectFlowFailed(@StringRes messageRes: Int, arg: String? = null) {
         Log.w(TAG, "connect flow failed: $messageRes $arg")
         connectAllRunning = false
         expectingConnectReturn = false
