@@ -32,7 +32,7 @@ class ProfileAutoUpdateWorker(
                 recordAutomaticFailure(
                     repository = repository,
                     profile = profile,
-                    message = "Automatic update skipped because ZeroDPI is running.",
+                    message = "Automatic update skipped because Bypass Engine is running.",
                 )
             }
             return Result.success()
@@ -42,7 +42,7 @@ class ProfileAutoUpdateWorker(
             profileRepository = repository,
             beforeApply = {
                 check(!ZeroDpiRuntimeStateStore.isRuntimeActive(applicationContext)) {
-                    "Automatic update skipped because ZeroDPI started running."
+                    "Automatic update skipped because Bypass Engine started running."
                 }
             },
         )
@@ -51,7 +51,7 @@ class ProfileAutoUpdateWorker(
                 recordAutomaticFailure(
                     repository = repository,
                     profile = profile,
-                    message = "Automatic update skipped because ZeroDPI started running.",
+                    message = "Automatic update skipped because Bypass Engine started running.",
                 )
                 return Result.success()
             }

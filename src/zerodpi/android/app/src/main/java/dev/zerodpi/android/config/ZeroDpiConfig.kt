@@ -249,7 +249,7 @@ object ZeroDpiConfigSchema {
             type = ConfigFieldType.Text,
             defaultValue = "127.0.0.1",
             section = ConfigSection.ProxyListener,
-            validationRule = "A host or IP address accepted by ZeroDPI.",
+            validationRule = "A host or IP address accepted by Bypass Engine.",
             helpText = "Local address the proxy listens on.",
             required = true,
         ),
@@ -506,7 +506,7 @@ object ZeroDpiConfigSchema {
             section = ConfigSection.AndroidLinuxInterception,
             validationRule = "Must be iptables or nftables.",
             rootImpact = ConfigRootImpact.PacketInterceptionOnly,
-            helpText = "Firewall command ZeroDPI uses for NFQUEUE rules.",
+            helpText = "Firewall command Bypass Engine uses for NFQUEUE rules.",
             options = firewallBackendOptions,
         ),
         field(
@@ -1146,7 +1146,7 @@ object ZeroDpiConfigToml {
             .forEach { schema ->
                 issues += ConfigValidationIssue(
                     fieldName = schema.name,
-                    message = "${schema.name} is required by ZeroDPI config.toml.",
+                    message = "${schema.name} is required by Bypass Engine config.toml.",
                 )
             }
 

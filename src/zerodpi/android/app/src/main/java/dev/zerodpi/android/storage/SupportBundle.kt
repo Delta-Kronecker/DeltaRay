@@ -33,7 +33,7 @@ object SupportBundleSanitizer {
 
     fun noticeText(includePrivateLists: Boolean): String =
         buildString {
-            appendLine("ZeroDPI Android support bundle")
+            appendLine("Bypass Engine Android support bundle")
             appendLine()
             appendLine("config.redacted.toml redacts selected endpoints, list paths, scan paths, and proxy-test targets.")
             if (includePrivateLists) {

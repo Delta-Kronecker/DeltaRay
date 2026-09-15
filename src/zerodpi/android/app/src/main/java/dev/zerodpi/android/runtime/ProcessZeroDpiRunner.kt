@@ -97,7 +97,7 @@ class ProcessZeroDpiRunner internal constructor(
             // events a process that never started cannot emit.
             events.emit(
                 ZeroDpiRunnerEvent.Failed(
-                    "A ZeroDPI process from a previous run is still active.",
+                    "A Bypass Engine process from a previous run is still active.",
                 ),
             )
             return
@@ -196,7 +196,7 @@ class ProcessZeroDpiRunner internal constructor(
         }.getOrElse { error ->
             stopHelperProcess()
             cleanupBootstrap()
-            events.emit(ZeroDpiRunnerEvent.Failed(error.message ?: "Failed to start ZeroDPI data plane."))
+            events.emit(ZeroDpiRunnerEvent.Failed(error.message ?: "Failed to start Bypass Engine data plane."))
             return
         }
         dataPlaneProcess = launchedProcess

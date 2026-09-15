@@ -208,7 +208,7 @@ class ZeroDpiService : Service() {
         ensureForeground()
         scope.launch {
             if (state.value.status in activeStatuses) {
-                appendLog("ZeroDPI is already ${state.value.status.name.lowercase()}.")
+                appendLog("Bypass Engine is already ${state.value.status.name.lowercase()}.")
                 return@launch
             }
             val runSpec = ActiveRunSpec(profileId, modeOverride)
@@ -373,9 +373,9 @@ class ZeroDpiService : Service() {
         }
         appendLog(
             if (isAutomaticRestart) {
-                "Relaunching ZeroDPI with profile ${profileDescription(profileId, profileName)}."
+                "Relaunching Bypass Engine with profile ${profileDescription(profileId, profileName)}."
             } else {
-                "Starting ZeroDPI with profile ${profileDescription(profileId, profileName)}."
+                "Starting Bypass Engine with profile ${profileDescription(profileId, profileName)}."
             },
         )
         appendLog("Profile runtime directory: ${runConfig.files.runtimeDir.absolutePath}.")
@@ -416,7 +416,7 @@ class ZeroDpiService : Service() {
             if (error is CancellationException) {
                 throw error
             }
-            val message = error.message ?: "Failed to launch ZeroDPI."
+            val message = error.message ?: "Failed to launch Bypass Engine."
             appendLog(message)
             if (isSessionSupervised()) {
                 scheduleErrorRestart(message, exitCode = null)
@@ -645,7 +645,7 @@ class ZeroDpiService : Service() {
             }
             PickOrigin.Standalone -> {
                 if (startAfterPick) {
-                    appendLog("Target pinned — start ZeroDPI when ready.")
+                    appendLog("Target pinned — start Bypass Engine when ready.")
                 }
                 finishAfterExit(0)
             }
@@ -1008,7 +1008,7 @@ class ZeroDpiService : Service() {
                     // generation); it must never push the state back into
                     // Scanning, because only ListenerStarted restores Running
                     // and the UI would stay stuck on Scanning forever.
-                    appendLog("Ignoring a stale ${event.scan} scan start while ZeroDPI is running.")
+                    appendLog("Ignoring a stale ${event.scan} scan start while Bypass Engine is running.")
                 } else {
                     val total = event.total?.let { " ($it candidates)" }.orEmpty()
                     state.update {
@@ -1027,7 +1027,7 @@ class ZeroDpiService : Service() {
                     // Same staleness rule as ScanStarted: progress from a scan
                     // that is not the current run's startup scan must not
                     // regress a live relay into Scanning.
-                    appendLog("Ignoring stale ${event.scan} scan progress while ZeroDPI is running.")
+                    appendLog("Ignoring stale ${event.scan} scan progress while Bypass Engine is running.")
                 } else {
                     val progress = event.total?.let { "${event.completed}/$it" } ?: event.completed.toString()
                     state.update {
@@ -1048,7 +1048,7 @@ class ZeroDpiService : Service() {
             }
             is ZeroDpiRunnerEvent.ScanCompleted -> {
                 if (state.value.status == RuntimeStatus.Running) {
-                    appendLog("Ignoring a stale ${event.scan} scan completion while ZeroDPI is running.")
+                    appendLog("Ignoring a stale ${event.scan} scan completion while Bypass Engine is running.")
                 } else {
                     // The scan reported its last result; the run still has to
                     // bring its listener up (or exit), so the startup watchdog
@@ -1072,7 +1072,7 @@ class ZeroDpiService : Service() {
                     state.update { it.copy(rescanInProgress = true) }
                 } else {
                     appendLog(
-                        "Ignoring a stale ${event.scan} rescan start while ZeroDPI is inactive.",
+                        "Ignoring a stale ${event.scan} rescan start while Bypass Engine is inactive.",
                     )
                 }
             }
@@ -1081,7 +1081,7 @@ class ZeroDpiService : Service() {
                     state.update { it.copy(rescanInProgress = false) }
                 } else {
                     appendLog(
-                        "Ignoring a stale ${event.scan} rescan completion while ZeroDPI is inactive.",
+                        "Ignoring a stale ${event.scan} rescan completion while Bypass Engine is inactive.",
                     )
                 }
             }
@@ -1089,7 +1089,7 @@ class ZeroDpiService : Service() {
                 if (state.value.status == RuntimeStatus.Running) {
                     // Stale selection from an earlier run: the current run's
                     // active target must stay as reported by the live run.
-                    appendLog("Ignoring a stale ${event.target} target selection while ZeroDPI is running.")
+                    appendLog("Ignoring a stale ${event.target} target selection while Bypass Engine is running.")
                 } else {
                     state.update {
                         it.copy(
@@ -1232,7 +1232,7 @@ class ZeroDpiService : Service() {
                 finishForegroundRun()
             }
             is ZeroDpiRunnerEvent.Exited -> {
-                appendLog("ZeroDPI exited with code ${event.exitCode}.")
+                appendLog("Bypass Engine exited with code ${event.exitCode}.")
                 cancelStartupWatchdog()
                 activeConnections.clear()
                 activeRelayBytes.clear()
@@ -1246,7 +1246,7 @@ class ZeroDpiService : Service() {
                                 finishAfterExit(event.exitCode)
                             }
                         } else {
-                            appendLog("Could not stop the running ZeroDPI for a target pick.")
+                            appendLog("Could not stop the running Bypass Engine for a target pick.")
                             resolvePickSession(startAfterPick = false)
                         }
                         return
@@ -1297,7 +1297,7 @@ class ZeroDpiService : Service() {
                 }
                 if (isSessionSupervised()) {
                     scheduleErrorRestart(
-                        "ZeroDPI exited with code ${event.exitCode}.",
+                        "Bypass Engine exited with code ${event.exitCode}.",
                         event.exitCode,
                     )
                     return
@@ -1311,7 +1311,7 @@ class ZeroDpiService : Service() {
                 if (restartStopInProgress && !userStopRequested) {
                     if (!automaticForceStopRequested) {
                         automaticForceStopRequested = true
-                        appendLog("Graceful restart shutdown timed out; force-stopping ZeroDPI.")
+                        appendLog("Graceful restart shutdown timed out; force-stopping Bypass Engine.")
                     }
                     return
                 }
@@ -1399,7 +1399,7 @@ class ZeroDpiService : Service() {
                 connectionCount = 0,
                 lastExitCode = exitCode,
                 forceStopAvailable = false,
-                lastError = if (exitCode == 0) null else "ZeroDPI exited with code $exitCode.",
+                lastError = if (exitCode == 0) null else "Bypass Engine exited with code $exitCode.",
             )
         }
         finishForegroundRun()

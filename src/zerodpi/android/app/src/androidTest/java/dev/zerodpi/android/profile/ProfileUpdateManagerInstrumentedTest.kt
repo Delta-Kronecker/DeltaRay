@@ -149,7 +149,7 @@ class ProfileUpdateManagerInstrumentedTest {
             profileRepository = repository,
             remoteClient = fakeClient(remote = remote, files = remoteFiles),
             beforeApply = {
-                error("Automatic update skipped because ZeroDPI started running.")
+                error("Automatic update skipped because Bypass Engine started running.")
             },
         )
 
@@ -164,7 +164,7 @@ class ProfileUpdateManagerInstrumentedTest {
         assertEquals(oldFiles, profileFileTexts(paths))
         assertFalse(status.successful)
         assertEquals(ProfileUpdateMode.Automatic, status.mode)
-        assertTrue(status.message.contains("ZeroDPI started running"))
+        assertTrue(status.message.contains("Bypass Engine started running"))
     }
 
     @Test

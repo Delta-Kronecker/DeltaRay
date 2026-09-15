@@ -115,7 +115,7 @@ class ZeroDpiServiceInstrumentedTest {
             it.status == RuntimeStatus.Running &&
                 it.mode == "ip_bypass" &&
                 it.listener == "127.0.0.1:45555" &&
-                it.recentLogs.any { line -> line.contains("Relaunching ZeroDPI with profile \"Work\"") }
+                it.recentLogs.any { line -> line.contains("Relaunching Bypass Engine with profile \"Work\"") }
         }
         service.stopZeroDpi()
         service.waitForState { it.status == RuntimeStatus.Stopped && it.lastExitCode == 0 }
@@ -134,7 +134,7 @@ class ZeroDpiServiceInstrumentedTest {
         val stopped = service.waitForState {
             it.status == RuntimeStatus.Stopped && it.lastExitCode == 0
         }
-        assertTrue(stopped.recentLogs.none { it.startsWith("Relaunching ZeroDPI") })
+        assertTrue(stopped.recentLogs.none { it.startsWith("Relaunching Bypass Engine") })
     }
 
     @Test
@@ -260,7 +260,7 @@ class ZeroDpiServiceInstrumentedTest {
 
             val running = service.waitForState {
                 it.status == RuntimeStatus.Running &&
-                    it.recentLogs.any { line -> line.startsWith("Relaunching ZeroDPI") }
+                    it.recentLogs.any { line -> line.startsWith("Relaunching Bypass Engine") }
             }
             assertEquals("sni_spoof", running.mode)
             assertEquals("127.0.0.1:44444", running.listener)
@@ -284,7 +284,7 @@ class ZeroDpiServiceInstrumentedTest {
             service.waitForState { it.status == RuntimeStatus.Restarting }
             service.waitForState {
                 it.status == RuntimeStatus.Running &&
-                    it.recentLogs.any { line -> line.startsWith("Relaunching ZeroDPI") }
+                    it.recentLogs.any { line -> line.startsWith("Relaunching Bypass Engine") }
             }
 
             service.stopZeroDpi()
@@ -312,7 +312,7 @@ class ZeroDpiServiceInstrumentedTest {
 
             service.waitForState {
                 it.status == RuntimeStatus.Running &&
-                    it.recentLogs.any { line -> line.startsWith("Relaunching ZeroDPI") }
+                    it.recentLogs.any { line -> line.startsWith("Relaunching Bypass Engine") }
             }
 
             service.stopZeroDpi()
@@ -336,7 +336,7 @@ class ZeroDpiServiceInstrumentedTest {
             val stopped = service.waitForState {
                 it.status == RuntimeStatus.Stopped && it.lastExitCode == 0
             }
-            assertTrue(stopped.recentLogs.none { it.startsWith("Relaunching ZeroDPI") })
+            assertTrue(stopped.recentLogs.none { it.startsWith("Relaunching Bypass Engine") })
         }
     }
 

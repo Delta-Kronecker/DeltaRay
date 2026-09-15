@@ -34,7 +34,7 @@ internal object RuntimeEventLineParser {
 
         return when (stringValue(json, "event")) {
             "startup" -> ZeroDpiRunnerEvent.Log(
-                "ZeroDPI ${stringValue(json, "version").orEmpty()} started with pid ${longValue(json, "pid") ?: "unknown"} and uid ${longValue(json, "uid") ?: "unknown"}.",
+                "Bypass Engine ${stringValue(json, "version").orEmpty()} started with pid ${longValue(json, "pid") ?: "unknown"} and uid ${longValue(json, "uid") ?: "unknown"}.",
             )
             "helper_authenticated" -> ZeroDpiRunnerEvent.RootHelperAuthenticated(
                 pid = longValue(json, "pid") ?: 0,

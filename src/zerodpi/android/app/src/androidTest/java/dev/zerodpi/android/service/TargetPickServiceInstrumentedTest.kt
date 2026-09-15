@@ -106,7 +106,7 @@ class TargetPickServiceInstrumentedTest {
         service.applyTargetPick()
 
         val running = service.waitForState { it.status == RuntimeStatus.Running }
-        assertTrue(running.recentLogs.any { it.contains("Relaunching ZeroDPI") })
+        assertTrue(running.recentLogs.any { it.contains("Relaunching Bypass Engine") })
         assertNull(running.pickSession)
     }
 
@@ -167,9 +167,9 @@ class TargetPickServiceInstrumentedTest {
         service.requestAutomaticRestart()
         val restarted = service.waitForState {
             it.status == RuntimeStatus.Running &&
-                it.recentLogs.any { line -> line.contains("Relaunching ZeroDPI") }
+                it.recentLogs.any { line -> line.contains("Relaunching Bypass Engine") }
         }
-        val relaunchIndex = restarted.recentLogs.indexOfFirst { it.contains("Relaunching ZeroDPI") }
+        val relaunchIndex = restarted.recentLogs.indexOfFirst { it.contains("Relaunching Bypass Engine") }
         assertTrue(relaunchIndex >= 0)
         val relaunchLines = restarted.recentLogs.drop(relaunchIndex)
         // No scan, no pick session, and the same pinned target is selected.
@@ -210,7 +210,7 @@ class TargetPickServiceInstrumentedTest {
         }
         assertNull(stopped.pickSession)
         assertTrue(stopped.recentLogs.any { it.contains("stopping after the network change") })
-        assertTrue(stopped.recentLogs.none { it.contains("Relaunching ZeroDPI") })
+        assertTrue(stopped.recentLogs.none { it.contains("Relaunching Bypass Engine") })
         assertTrue(stopped.recentLogs.none { it.contains("Started sni scan") })
     }
 

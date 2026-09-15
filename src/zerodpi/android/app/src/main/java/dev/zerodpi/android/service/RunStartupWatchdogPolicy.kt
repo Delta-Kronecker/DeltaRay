@@ -65,7 +65,7 @@ internal object RunStartupWatchdogPolicy {
             val name = scan?.takeIf { it.isNotBlank() } ?: "target"
             "The $name scan"
         } else {
-            "The ZeroDPI startup"
+            "The Bypass Engine startup"
         }
         return "$phase made no progress for ${elapsedMs / 1_000}s."
     }

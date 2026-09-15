@@ -53,7 +53,7 @@ class DashboardScreenTest {
             )
         }
 
-        composeRule.onNodeWithText("Stop ZeroDPI").assertIsDisplayed()
+        composeRule.onNodeWithText("Stop Bypass Engine").assertIsDisplayed()
         composeRule.onNodeWithTag("runtime_primary_action").assertIsDisplayed()
     }
 
@@ -66,7 +66,7 @@ class DashboardScreenTest {
         }
 
         composeRule.onNodeWithText("Choosing target").assertIsDisplayed()
-        composeRule.onNodeWithText("Stop ZeroDPI").assertIsDisplayed()
+        composeRule.onNodeWithText("Stop Bypass Engine").assertIsDisplayed()
     }
 
     @Test

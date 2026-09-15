@@ -296,7 +296,7 @@ class MainViewModel(
 
     fun start() {
         viewModelScope.launch {
-            if (!ensureRemoteUpdateInactive("starting ZeroDPI")) {
+            if (!ensureRemoteUpdateInactive("starting Bypass Engine")) {
                 return@launch
             }
 
@@ -308,7 +308,7 @@ class MainViewModel(
                     it.copy(
                         configEditor = validation,
                         statusMessage = null,
-                        errorMessage = "Fix config validation errors before starting ZeroDPI.",
+                        errorMessage = "Fix config validation errors before starting Bypass Engine.",
                     )
                 }
                 return@launch
@@ -321,7 +321,7 @@ class MainViewModel(
                     it.copy(
                         configEditor = validation,
                         statusMessage = null,
-                        errorMessage = "Fix list validation errors before starting ZeroDPI.",
+                        errorMessage = "Fix list validation errors before starting Bypass Engine.",
                     )
                 }
                 return@launch
@@ -1269,7 +1269,7 @@ class MainViewModel(
         if (!isRuntimeActive()) {
             return true
         }
-        setProfileError("Stop ZeroDPI before $action.")
+        setProfileError("Stop Bypass Engine before $action.")
         return false
     }
 

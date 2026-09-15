@@ -36,7 +36,7 @@ class FakeZeroDpiRunner(
 
         job = scope.launch {
             events.emit(ZeroDpiRunnerEvent.Starting)
-            events.emit(ZeroDpiRunnerEvent.Log("Using fake ZeroDPI runner. No native binary is required."))
+            events.emit(ZeroDpiRunnerEvent.Log("Using fake Bypass Engine runner. No native binary is required."))
             delay(450)
             events.emit(ZeroDpiRunnerEvent.Log("Loaded config from ${request.configPath}."))
             events.emit(

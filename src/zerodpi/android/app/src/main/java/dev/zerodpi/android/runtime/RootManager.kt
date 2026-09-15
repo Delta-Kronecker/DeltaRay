@@ -138,7 +138,7 @@ class SuRootManager(
     override suspend fun launchRootHelper(request: RootHelperLaunchRequest): RootProcessLaunchResult =
         withContext(Dispatchers.IO) {
             require(request.executable.name == ROOT_HELPER_EXECUTABLE_NAME) {
-                "Refusing to launch an unexpected executable as the ZeroDPI root helper."
+                "Refusing to launch an unexpected executable as the Bypass Engine root helper."
             }
             require(request.expectedAppUid > 0) { "Expected app UID must not be root." }
             require(request.socketPath.parentFile == request.sessionFile.parentFile) {
@@ -221,7 +221,7 @@ class SuRootManager(
             rootAccess = rootAccess,
             checks = checks,
             skipped = listOf(
-                "ZeroDPI dry startup skipped; no Android validation command exists yet.",
+                "Bypass Engine dry startup skipped; no Android validation command exists yet.",
                 "Selected firewall backend command: $selectedBackend.",
             ),
         )

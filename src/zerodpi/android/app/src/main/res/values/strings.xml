@@ -1,7 +1,7 @@
 <resources>
-    <string name="app_name">ZeroDPI</string>
-    <string name="zerodpi_notification_channel">ZeroDPI runtime</string>
-    <string name="zerodpi_notification_title">ZeroDPI is running</string>
+    <string name="app_name">Bypass Engine</string>
+    <string name="zerodpi_notification_channel">Bypass Engine runtime</string>
+    <string name="zerodpi_notification_title">Bypass Engine is running</string>
     <string name="zerodpi_notification_stop">Stop</string>
 
     <string name="nav_home">Home</string>
@@ -11,8 +11,8 @@
     <string name="navigate_back">Go back</string>
     <string name="show_more_actions">More actions</string>
 
-    <string name="action_start">Start ZeroDPI</string>
-    <string name="action_stop">Stop ZeroDPI</string>
+    <string name="action_start">Start Bypass Engine</string>
+    <string name="action_stop">Stop Bypass Engine</string>
     <string name="action_force_stop">Force stop</string>
     <string name="action_stopping">Stopping…</string>
     <string name="action_create">Create</string>
@@ -47,7 +47,7 @@
     <string name="profiles_busy">Profile operation in progress…</string>
     <string name="profiles_active">Active</string>
     <string name="profiles_switching">Switching profile…</string>
-    <string name="profiles_stop_first">Stop ZeroDPI before switching or changing profiles.</string>
+    <string name="profiles_stop_first">Stop Bypass Engine before switching or changing profiles.</string>
     <string name="profiles_last_delete">The last profile cannot be deleted.</string>
     <string name="profiles_remote_update">Remote update</string>
     <string name="profiles_remote_description">Download and atomically replace all three files for the active profile.</string>
@@ -77,7 +77,7 @@
     <string name="configure_reset_message">Replace the active profile’s configuration with the packaged defaults?</string>
     <string name="configure_required">Required</string>
 
-    <string name="logs_empty">No runtime logs yet. Start ZeroDPI to see live output.</string>
+    <string name="logs_empty">No runtime logs yet. Start Bypass Engine to see live output.</string>
     <string name="logs_no_matches">No log entries match the current search and level filter.</string>
     <string name="logs_search">Search log text</string>
     <string name="logs_count">%1$d visible of %2$d entries</string>
@@ -85,7 +85,7 @@
     <string name="logs_resume">Resume auto-scroll</string>
     <string name="logs_clear_action">Clear logs</string>
     <string name="logs_clear_title">Delete all logs?</string>
-    <string name="logs_clear_message">This clears the current log stream and permanently deletes every stored log file. New entries will appear normally if ZeroDPI is running.</string>
+    <string name="logs_clear_message">This clears the current log stream and permanently deletes every stored log file. New entries will appear normally if Bypass Engine is running.</string>
     <string name="logs_clear_confirm">Delete logs</string>
     <string name="logs_filter_all">All</string>
     <string name="logs_filter_info">Info</string>
@@ -124,7 +124,7 @@
     <string name="label_relay_bytes">Relayed bytes</string>
     <string name="label_root">Root requirement</string>
     <string name="label_app_version">App version</string>
-    <string name="label_zerodpi_version">ZeroDPI version</string>
+    <string name="label_zerodpi_version">Bypass Engine version</string>
     <string name="label_abi">ABI</string>
     <string name="label_android">Android</string>
     <string name="label_firewall">Firewall backend</string>
@@ -145,7 +145,7 @@
     <string name="method_scan_column_http">HTTP</string>
     <string name="method_scan_value_na">—</string>
     <string name="target_pick_title">Target picker</string>
-    <string name="target_pick_idle_no_pin">No pinned target. AUTO_SELECT is off, so starting ZeroDPI will scan and ask you to choose.</string>
+    <string name="target_pick_idle_no_pin">No pinned target. AUTO_SELECT is off, so starting Bypass Engine will scan and ask you to choose.</string>
     <string name="target_pick_pinned_sni">Pinned target %1$s (%2$s)</string>
     <string name="target_pick_pinned_ip">Pinned target %1$s</string>
     <string name="target_pick_scanning">Scanning for reachable targets…</string>
