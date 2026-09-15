@@ -286,11 +286,20 @@ object TunnelWatchdog {
         return true
     }
 
-    /// Свежий замер нод (параллельно, один клиент — как монитор коннекта).
-    /// Возвращает tag→delayMs только для ответивших.
-    suspend fun testNodes(candidates: List<String>): Map<String, Int> =
+    /// Полная картина замеров: tag → (ответил?, задержка, ошибка).
+    data class NodeTest(
+        val tag: String,
+        val ok: Boolean,
+        val delayMs: Int,
+        val error: String,
+    )
+
+    /// Полный параллельный urlTest всех кандидатов с сохранением ИСХОДА
+    /// каждого (включая ошибки) — ТЗ вачдога: «при таймауте получить список
+    /// конфигов и результат пинга каждого». Один клиент, как у [testNodes].
+    suspend fun testNodesDetailed(candidates: List<String>): List<NodeTest> =
         withContext(Dispatchers.IO) {
-            val client = ConnectConfigPing.openClient() ?: return@withContext emptyMap()
+            val client = ConnectConfigPing.openClient() ?: return@withContext emptyList()
             try {
                 coroutineScope {
                     candidates.map { tag ->
@@ -302,18 +311,29 @@ object TunnelWatchdog {
                                     NODE_TEST_TIMEOUT_MS,
                                 )
                                 val err = r.getError() ?: ""
-                                if (err.isEmpty()) tag to r.getDelay() else null
-                            }.getOrNull()
+                                if (err.isEmpty()) {
+                                    NodeTest(tag, ok = true, delayMs = r.getDelay(), error = "")
+                                } else {
+                                    NodeTest(tag, ok = false, delayMs = 0, error = err)
+                                }
+                            }.getOrDefault(
+                                NodeTest(tag, ok = false, delayMs = 0, error = "rpc failed"),
+                            )
                         }
                     }.awaitAll()
-                }.filterNotNull().toMap()
+                }
             } catch (e: Exception) {
-                Log.w(TAG, "testNodes failed: ${e.message}")
-                emptyMap()
+                Log.w(TAG, "testNodesDetailed failed: ${e.message}")
+                emptyList()
             } finally {
                 runCatching { client.disconnect() }
             }
         }
+
+    /// Свежий замер нод (параллельно, один клиент — как монитор коннекта).
+    /// Возвращает tag→delayMs только для ответивших.
+    suspend fun testNodes(candidates: List<String>): Map<String, Int> =
+        testNodesDetailed(candidates).filter { it.ok }.associate { it.tag to it.delayMs }
 
     // ───────────────────────── helpers ─────────────────────────
 
