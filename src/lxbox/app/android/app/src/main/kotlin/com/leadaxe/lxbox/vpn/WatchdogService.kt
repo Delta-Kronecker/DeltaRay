@@ -20,12 +20,15 @@ import kotlin.coroutines.coroutineContext
 
 /// Вачдог туннеля (ТЗ оператора): фоновая проверка реального интернет-выхода
 /// каждые [TunnelWatchdog.PROBE_INTERVAL_MS] через ЛОКАЛЬНЫЙ прокси
-/// (`127.0.0.1:2080`, vpn_proxy §119) с твёрдым таймаутом 10с. При отказе —
-/// ищем живые конфиги СВЕЖИМ замером RPC'ом на ядро и переключаем
-/// `route.final` на конфиг с наименьшим пингом, НЕ использованный в этой
-/// серии ([usedTags], минуя текущий). После переключения статистика
-/// сбрасывается (ТЗ оператора: обнуляются и «всего»-счётчики), состояние —
-/// starting.
+/// (`127.0.0.1:2080`, vpn_proxy §119) с твёрдым таймаутом 10с.
+///
+/// ТЗ переключения: когда ТЕКУЩИЙ конфиг накопил [TIMEOUTS_BEFORE_SWITCH]
+/// таймаутов подряд — замеряются ВСЕ конфиги (полный список результатов в
+/// лог), и селектор `route.final` переключается на конфиг с наименьшим пингом
+/// (не текущий, не из чёрного списка). Умерший конфиг попадает в ПОСЕССИОННЫЙ
+/// чёрный список [defectiveTags] — на него больше не переключаемся. Список
+/// живёт в памяти сервиса: остановка VPN/приложения (stopSelf) или новый запуск
+/// цикла его сжигают.
 ///
 /// Каждый СТАРТ цикла возвращает Направление в auto (`selectOutbound` на
 /// `<tag>-auto`): ручной/вачдоговый выбор переживает перезапуск лаунчера при
@@ -44,10 +47,15 @@ class WatchdogService : Service() {
     @Volatile
     private var lastSwitchAttemptMs: Long = 0L
 
-    /// Конфиги, на которые КАТАЛОСЬ в текущем запуске цикла. ТЗ: переключаться
-    /// только на неиспользованные — иначе при клине тест-цели (все узлы «живы»,
-    /// но туннель лежит) кoolдаун-цикл дёргается current↔next вечно.
-    private val usedTags = mutableSetOf<String>()
+    /// Таймауты подряд по КАЖДОМУ узлу (ключ — активный узел, не селектор).
+    /// Успешная проба сбрасывает весь счётчик; узел, не определившийся при
+    /// пробах, копится под ключом [UNKNOWN_NODE].
+    private val timeoutStreak = mutableMapOf<String, Int>()
+
+    /// «Сломанные» конфиги этой сессии: два таймаута подряд на ноде → в чёрный
+    /// список, на неё больше не переключаемся. Чистится на старте цикла и
+    /// сгорает вместе с сервисом (остановка VPN/приложения) — ТЗ оператора.
+    private val defectiveTags = mutableSetOf<String>()
 
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {
@@ -103,7 +111,11 @@ class WatchdogService : Service() {
         LauncherTraffic.start()
         // ТЗ: старт ВСЕГДА на auto. Каждый запуск цикла (Started) возвращает
         // Направление в auto-двойник — выбор ручной/с прошлого запуска не живёт.
-        usedTags.clear()
+        // Новая сессия = новая жизнь: streak-и и чёрный список сгорают (ТЗ:
+        // «остановил приложение — список сломанных конфигів очищен»; список
+        // живёт в памяти сервиса, сервис при этом умирает вместе с туннелем).
+        timeoutStreak.clear()
+        defectiveTags.clear()
         TunnelWatchdog.selectAuto(TunnelWatchdog.directionOf(ConfigManager.load()))
         // ТЗ: статистика ресетится КАЖДУЮ сессию (новый запуск цикла = новая
         // сессия), а не только на переключение.
@@ -123,30 +135,78 @@ class WatchdogService : Service() {
             val result = TunnelWatchdog.probeViaProxy(proxy)
             if (result.ok) {
                 stats.recordOk(result.rttMs)
+                // Выход живой — серия неудач текущего конфига обнуляется.
+                timeoutStreak.clear()
             } else {
                 stats.recordTimeout()
-                handleFailure(config)
+                onProbeFailed(config)
             }
             delay(TunnelWatchdog.PROBE_INTERVAL_MS)
         }
         Log.d(TAG, "watchdog loop finished")
     }
 
-    /// Переключение на здоровый конфиг при отказе. Cooldown между ПОПЫТКАМИ
-    /// (туннель может лежать целиком — не молотим urlTest каждые 3с).
-    /// ТЗ: перед каждым переключением — СВЕЖИЙ замер (fallback на замеры теста
-    /// при коннекте только если свежий не дал живых) и цель = лучший пинг среди
-    /// НЕ использованных в этой серии (минуя текущий). Все испробованы → молчим.
-    private suspend fun handleFailure(config: String) {
+    /// ТЗ: переключение — когда ТЕКУЩИЙ конфиг накопил
+    /// [TIMEOUTS_BEFORE_SWITCH] таймаутов ПОДРЯД. Счётчик ведётся по активному
+    /// узлу (см. [activeConfigOf]): успешная проба обнуляет серию. До порога —
+    /// просто копим.
+    private suspend fun onProbeFailed(config: String) {
+        val direction = TunnelWatchdog.directionOf(config) ?: return
+        val current = activeConfigOf(direction)
+        val streak = (timeoutStreak[current] ?: 0) + 1
+        timeoutStreak[current] = streak
+        if (current in defectiveTags) {
+            // Порог пройден раньше, переключение не удалось (не было живых /
+            // cooldown / RPC молчал) — продолжаем пробовать; полный замер
+            // гейтит cooldown внутри attemptSwitch, не каждые 3с.
+            attemptSwitch(direction, current)
+            return
+        }
+        if (streak < TIMEOUTS_BEFORE_SWITCH) return
+        timeoutStreak.remove(current)
+        // Порог достигнут: конфиг — в чёрный список сессии СРАЗУ, независимо
+        // от того, состоится ли замер в этом же проходе и найдётся ли замена.
+        // «unknown» (узел не определился) не записываем.
+        if (current != UNKNOWN_NODE) {
+            defectiveTags.add(current)
+            Log.w(TAG, "$current: $streak timeouts in a row → defective (session list: $defectiveTags)")
+        }
+        attemptSwitch(direction, current)
+    }
+
+    /// Активный узел-КОНФИГ, несущий трафик: selected селектора route.final;
+    /// когда селектор стоит на auto-двойнике `<tag>-auto` (ТЗ: старт всегда
+    /// на auto) — фактический узел берётся из selected этого urltest-двойника.
+    /// Итог — конкретный член группы либо [UNKNOWN_NODE].
+    private fun activeConfigOf(direction: TunnelWatchdog.DirectionInfo): String {
+        val sel = TunnelWatchdog.currentSelectedNode(direction.groupTag)
+            ?.takeIf { it.isNotEmpty() } ?: return UNKNOWN_NODE
+        if (sel == direction.autoTag) {
+            return TunnelWatchdog.currentSelectedNode(direction.autoTag)
+                ?.takeIf { it in direction.members } ?: UNKNOWN_NODE
+        }
+        return sel.takeIf { it in direction.members } ?: UNKNOWN_NODE
+    }
+
+    /// Полный замер ВСЕХ конфигов (полный результат — в лог), выбор лучшего
+    /// пинга среди НЕ сломанных, переключение текущей серии неудач в чёрный
+    /// список. Cooldown между ПОЛНЫМИ замерами: туннель может лежать целиком —
+    /// не молотим urlTest каждые 3с.
+    private suspend fun attemptSwitch(direction: TunnelWatchdog.DirectionInfo, current: String) {
         val now = SystemClock.elapsedRealtime()
         if (now - lastSwitchAttemptMs < TunnelWatchdog.SWITCH_COOLDOWN_MS) return
         lastSwitchAttemptMs = now
 
-        val direction = TunnelWatchdog.directionOf(config) ?: return
-        val current = TunnelWatchdog.currentSelectedNode(direction.groupTag)
-            ?.takeIf { it in direction.members }
-
-        var live = TunnelWatchdog.testNodes(direction.members)
+        // ТЗ: «список конфигов и результат пинга каждого» —
+        // меряем ВСЕХ членов направления и логируем каждый исход.
+        val results = TunnelWatchdog.testNodesDetailed(direction.members)
+        for (r in results) {
+            Log.i(
+                TAG,
+                if (r.ok) "ping ${r.tag} = ${r.delayMs}ms" else "ping ${r.tag} FAILED: ${r.error}",
+            )
+        }
+        var live = results.filter { it.ok }.associate { it.tag to it.delayMs }
         if (live.isEmpty()) {
             // Свежий замер не дал живых — fallback на замеры теста при коннекте
             // (только по актуальным членам группы!).
@@ -154,13 +214,38 @@ class WatchdogService : Service() {
                 .filterKeys { it in direction.members }
         }
 
-        val free = live.filterKeys { it != current && it !in usedTags }
-        val target = free.minByOrNull { it.value }?.key ?: return
+        // current уже в defectiveTags (добавлен в onProbeFailed на пороге).
+        val free = live.filterKeys { it !in defectiveTags }
+        val target = free.minByOrNull { it.value }?.key
+            // Ни свежего замера, ни коннект-пинов (реле лёгло — urlTest у всех
+            // в ошибку) — ТЗ: всё равно уйти на СЛЕДУЮЩИЙ конфиг по порядку,
+            // пропуская сломанные. Текущий уже в defective, не вернёмся.
+            ?: direction.members.firstOrNull { it !in defectiveTags }
+        if (target == null) {
+            Log.w(
+                TAG,
+                "no switch target: all defective (current=$current defective=$defectiveTags)",
+            )
+            return
+        }
+        val delayInfo = live[target]?.let { "$it ms" } ?: "no ping data, next by order"
 
         if (TunnelWatchdog.switchNode(direction.groupTag, target)) {
-            usedTags.add(target)
-            Log.w(TAG, "switched ${direction.groupTag}: $current -> $target")
+            Log.w(
+                TAG,
+                "switched ${direction.groupTag}: $current -> $target " +
+                    "($delayInfo, defective=$defectiveTags)",
+            )
             WatchdogStats.instance.recordSwitch(current, target)
         }
+    }
+
+    private companion object {
+        /// Ключ для серий таймаутов, когда активный узел не определился
+        /// (getGroups молчит / selection вне списка).
+        const val UNKNOWN_NODE = "<unknown>"
+
+        /// ТЗ оператора: таймаутов подряд на одном конфиге до переключения.
+        const val TIMEOUTS_BEFORE_SWITCH = 2
     }
 }
