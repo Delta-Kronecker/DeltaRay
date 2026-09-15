@@ -253,7 +253,10 @@ object ConnectConfigPing {
         val client = CommandClient(PingClientHandler, CommandClientOptions())
         client.connect()
         client
-    }.onFailure { Log.w(TAG, "command client connect failed: ${it.message}") }.getOrNull()
+    }.onFailure {
+        Log.w(TAG, "command client connect failed: ${it.message}")
+        com.leadaxe.lxbox.vpn.WatchdogLog.add("command.sock: клиент не поднялся — ${it.message}")
+    }.getOrNull()
 
     /// Клиент без подписок — только unary RPC (аналог ProbeClientHandler).
     private object PingClientHandler : CommandClientHandler {

@@ -156,5 +156,17 @@
             android:text="@string/menu_about"
             android:textColor="@color/launcher_cream"
             android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/drawer_watchdog_log"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:text="@string/menu_watchdog_log"
+            android:textColor="@color/launcher_cream"
+            android:textSize="16sp" />
     </LinearLayout>
 </androidx.drawerlayout.widget.DrawerLayout>
