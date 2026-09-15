@@ -62,7 +62,7 @@ class RunStartupWatchdogPolicyTest {
             ),
         )
         assertEquals(
-            "The ZeroDPI startup made no progress for 240s.",
+            "The Bypass Engine startup made no progress for 240s.",
             RunStartupWatchdogPolicy.stallMessage(
                 nowMs = now,
                 lastEventMs = now - RunStartupWatchdogPolicy.silenceTimeoutMs(scanActive = false),

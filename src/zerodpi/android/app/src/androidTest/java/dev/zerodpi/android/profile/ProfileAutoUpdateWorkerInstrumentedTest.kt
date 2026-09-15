@@ -87,7 +87,7 @@ class ProfileAutoUpdateWorkerInstrumentedTest {
         assertEquals(ListenableWorker.Result.success(), result)
         assertFalse(status?.successful == true)
         assertEquals(ProfileUpdateMode.Automatic, status?.mode)
-        assertTrue(status?.message.orEmpty().contains("ZeroDPI is running"))
+        assertTrue(status?.message.orEmpty().contains("Bypass Engine is running"))
         assertEquals(
             oldFiles,
             RuntimeFileKind.entries.associateWith { kind ->

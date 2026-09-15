@@ -39,12 +39,13 @@
             android:paddingStart="28dp"
             android:paddingEnd="28dp">
 
-            <!-- Кнопка строго по центру; статус/бренд не двигают её. -->
+            <!-- Кнопка строго по центру, чуть выше визуальной середины; статус/бренд не двигают её. -->
             <com.leadaxe.lxbox.ConnectRingButton
                 android:id="@+id/btn_connect_all"
                 android:layout_width="184dp"
                 android:layout_height="184dp"
                 android:layout_centerInParent="true"
+                android:translationY="-32dp"
                 android:clickable="true"
                 android:contentDescription="@string/launcher_btn_connect"
                 android:focusable="true" />

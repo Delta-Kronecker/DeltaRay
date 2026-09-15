@@ -6,12 +6,12 @@
     <string name="app_name" translatable="false">DeltaRay</string>
     <!-- DeltaRay: launcher (app chooser) -->
     <string name="app_chooser_title" translatable="false">Choose an app</string>
-    <string name="app_chooser_subtitle" translatable="false">DeltaRay = L×Box + ZeroDPI in a single APK</string>
+    <string name="app_chooser_subtitle" translatable="false">DeltaRay = L×Box + Bypass Engine in a single APK</string>
     <string name="app_chooser_connect_all" translatable="false">Connect all</string>
     <string name="app_chooser_disconnect_all" translatable="false">Disconnect all</string>
     <string name="launcher_open_lxbox" translatable="false">L×Box</string>
     <string name="launcher_desc_lxbox" translatable="false">VPN client (sing-box / libbox)</string>
-    <string name="launcher_open_zerodpi" translatable="false">ZeroDPI</string>
+    <string name="launcher_open_zerodpi" translatable="false">Bypass Engine</string>
     <string name="launcher_desc_zerodpi" translatable="false">DPI bypass relay (Rust engine)</string>
     <string name="launcher_footer" translatable="false">Use back to return to this screen</string>
 
@@ -25,13 +25,13 @@
     <string name="no_browser" translatable="false">No browser available</string>
 
     <!-- DeltaRay: connect-all monitor statuses -->
-    <string name="launcher_status_zdpi_starting" translatable="false">Connecting… starting ZeroDPI</string>
-    <string name="launcher_status_zdpi_scanning" translatable="false">Connecting… ZeroDPI scan %1$d%%</string>
-    <string name="launcher_status_zdpi_active" translatable="false">Connecting… ZeroDPI ready</string>
+    <string name="launcher_status_zdpi_starting" translatable="false">Connecting… starting Bypass Engine</string>
+    <string name="launcher_status_zdpi_scanning" translatable="false">Connecting… Bypass Engine scan %1$d%%</string>
+    <string name="launcher_status_zdpi_active" translatable="false">Connecting… Bypass Engine ready</string>
     <string name="launcher_status_lxbox_starting" translatable="false">Connecting… starting L×Box</string>
     <string name="launcher_status_ping_configs" translatable="false">Connecting… testing configs</string>
     <string name="launcher_status_connected" translatable="false">Connected</string>
-    <string name="launcher_status_zdpi_failed" translatable="false">ZeroDPI failed: %1$s</string>
+    <string name="launcher_status_zdpi_failed" translatable="false">Bypass Engine failed: %1$s</string>
     <string name="launcher_status_connect_failed" translatable="false">Connecting failed: %1$s</string>
     <string name="launcher_status_ping_no_reply" translatable="false">Connecting… no config answered</string>
 

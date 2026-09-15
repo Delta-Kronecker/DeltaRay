@@ -71,7 +71,7 @@ class AndroidDiagnosticsProvider(context: Context) {
             if (!executable.isFile) {
                 return@withContext "Not packaged; fake runner will be used"
             }
-            runShortCommand(listOf(executable.absolutePath, "--version")).toDisplayString("ZeroDPI")
+            runShortCommand(listOf(executable.absolutePath, "--version")).toDisplayString("Bypass Engine")
         }
 
     private suspend fun commandAvailability(command: String): String =

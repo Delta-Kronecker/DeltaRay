@@ -17,7 +17,7 @@ data class DeviceDiagnostics(
     fun asText(): String =
         buildString {
             appendLine("App version: $appVersion")
-            appendLine("ZeroDPI version: $zeroDpiVersion")
+            appendLine("Bypass Engine version: $zeroDpiVersion")
             appendLine("ABI: $abi")
             appendLine("Android version: $androidVersion")
             appendLine("Root status: $rootStatus")
