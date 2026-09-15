@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.os.IBinder
 import android.os.SystemClock
 import android.util.Log
+import com.leadaxe.lxbox.ConnectConfigPing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -23,16 +24,19 @@ import kotlin.coroutines.coroutineContext
 /// (`127.0.0.1:2080`, vpn_proxy §119) с твёрдым таймаутом 10с.
 ///
 /// ТЗ переключения: когда ТЕКУЩИЙ конфиг накопил [TIMEOUTS_BEFORE_SWITCH]
-/// таймаутов подряд — замеряются ВСЕ конфиги (полный список результатов в
-/// лог), и селектор `route.final` переключается на конфиг с наименьшим пингом
-/// (не текущий, не из чёрного списка). Умерший конфиг попадает в ПОСЕССИОННЫЙ
-/// чёрный список [defectiveTags] — на него больше не переключаемся. Список
-/// живёт в памяти сервиса: остановка VPN/приложения (stopSelf) или новый запуск
-/// цикла его сжигают.
+/// таймаутов подряд — цель выбирается из УЖЕ ГОТОВЫХ замеров приложения
+/// (кеш задержек ядра, один getGroups — без повторного пинга 145 нод, он
+/// лишь забивает тест-цель 429-ми): селектор `route.final` переключается на
+/// конфиг с наименьшим пингом (не текущий, не из чёрного списка). Умерший
+/// конфиг попадает в ПОСЕССИОННЫЙ чёрный список [defectiveTags] — на него
+/// больше не переключаемся. Список живёт в памяти сервиса: остановка
+/// VPN/приложения (stopSelf) или новый запуск цикла его сжигают.
 ///
-/// Каждый СТАРТ цикла возвращает Направление в auto (`selectOutbound` на
-/// `<tag>-auto`): ручной/вачдоговый выбор переживает перезапуск лаунчера при
-/// живом ядре, а ТЗ требует стартовать всегда на auto.
+/// Каждый СТАРТ ЦИКЛА (новая сессия) возвращает Направление в auto
+/// (`selectOutbound` на `<tag>-auto`). ВАЖНО: релайт — только на старте
+/// цикла; onResume лаунчера больше не трогает выбор — иначе auto/urltest
+/// перебирает ноды между пробами, streak никогда не накапливается на одном
+/// конфиге и смена не наступает.
 ///
 /// Живёт пока VPN запущен: receiver на BROADCAST_STATUS (Started → старт
 /// цикла, Stopped → stopSelf). Лаунчер стартует сервис обычным `startService`
@@ -45,6 +49,10 @@ class WatchdogService : Service() {
     private var scope: CoroutineScope? = null
     private var loopJob: Job? = null
 
+    /// Пауза между ПОЛНЫМИ попытками смены (SELECT по кешу + log-блок на
+    /// каждую). Порог streak (~26с) сам по себе медленнее кулдауна; гейт
+    /// нужен, когда текущий узел уже defective и пробы валятся каждые 3с, —
+    /// иначе журнал захлёбывается от SELECT-блоков.
     @Volatile
     private var lastSwitchAttemptMs: Long = 0L
 
@@ -211,38 +219,33 @@ class WatchdogService : Service() {
         return sel.takeIf { it in direction.members } ?: UNKNOWN_NODE
     }
 
-    /// Полный замер ВСЕХ конфигов (полный результат — в лог), выбор лучшего
-    /// пинга среди НЕ сломанных, переключение текущей серии неудач в чёрный
-    /// список. Cooldown между ПОЛНЫМИ замерами: туннель может лежать целиком —
-    /// не молотим urlTest каждые 3с.
+    /// Выбор цели из УЖЕ ГОТОВЫХ замеров: кеш задержек ядра (пинги, которые
+    /// само приложение копит штатным mass ping — `getGroups`/urlTestDelay).
+    /// Никаких повторных urlTest на 145 нод — это и трафик лишнее, и 429 от
+    /// тест-цели. Мёртвые/незамеренные ноды в кеше имеют delay<=0 — не
+    /// кандидаты. SELECT гейтится [TunnelWatchdog.SWITCH_COOLDOWN_MS]: сам
+    /// порог streak медленнее кулдауна, но ветка «уже defective» дёргается
+    /// каждые ~3с и без гейта залила бы журнал SELECT-блоками.
     private suspend fun attemptSwitch(direction: TunnelWatchdog.DirectionInfo, current: String) {
         val now = SystemClock.elapsedRealtime()
-        if (now - lastSwitchAttemptMs < TunnelWatchdog.SWITCH_COOLDOWN_MS) {
-            val leftS = (TunnelWatchdog.SWITCH_COOLDOWN_MS - (now - lastSwitchAttemptMs)) / 1000
-            WatchdogLog.add("SWITCH: cooldown — retry in ${leftS}s")
-            return
-        }
+        if (now - lastSwitchAttemptMs < TunnelWatchdog.SWITCH_COOLDOWN_MS) return
         lastSwitchAttemptMs = now
 
-        // ТЗ: «список конфигов и результат пинга каждого» —
-        // меряем ВСЕХ членов направления и логируем каждый исход.
-        WatchdogLog.add("── SWEEP: pinging ${direction.members.size} configs of group ${direction.groupTag} ──")
-        val results = TunnelWatchdog.testNodesDetailed(direction.members)
-        if (results.isEmpty()) {
-            WatchdogLog.add("SWEEP: core returned nothing — falling back to connect pings")
+        // ТЗ: «результаты пинга каждого конфига» — берём из кеша ядра, одним
+        // дешёвым getGroups, и логируем каждый член группы.
+        val cached = ConnectConfigPing.appPings() ?: emptyMap()
+        WatchdogLog.add("── SELECT: app ping cache (getGroups) for ${direction.members.size} configs of ${direction.groupTag} ──")
+        for (tag in direction.members) {
+            val d = cached[tag]
+            WatchdogLog.add(if (d != null) "  ping $tag = ${d}ms (cached)" else "  ping $tag — no cached ping")
         }
-        for (r in results) {
-            val line = if (r.ok) "  ping ${r.tag} = ${r.delayMs}ms" else "  ping ${r.tag} ✗ ${r.error}"
-            Log.i(TAG, line.trim())
-            WatchdogLog.add(line)
-        }
-        var live = results.filter { it.ok }.associate { it.tag to it.delayMs }
+        var live = cached.filterKeys { it in direction.members }
         if (live.isEmpty()) {
-            // Свежий замер не дал живых — fallback на замеры теста при коннекте
-            // (только по актуальным членам группы!).
+            // Кеш пуст (ядро ещё не меряло / только после рестарта) — fallback
+            // на замеры теста при коннекте.
             live = WatchdogStats.instance.initialPings()
                 .filterKeys { it in direction.members }
-            if (live.isNotEmpty()) WatchdogLog.add("SWEEP: none alive → connect-ping fallback: $live")
+            if (live.isNotEmpty()) WatchdogLog.add("cache empty → connect-ping fallback: $live")
         }
 
         // current уже в defectiveTags (добавлен в onProbeFailed на пороге).
