@@ -223,6 +223,17 @@ object ConnectConfigPing {
         delays
     }.getOrDefault(emptyMap())
 
+    /// Однократное чтение кеша задержек ядра (пинги, которые само приложение
+    /// уже наколотил штатным mass ping). null = command-клиент не поднялся.
+    suspend fun appPings(): Map<String, Int>? {
+        val client = openClient() ?: return null
+        return try {
+            withContext(Dispatchers.IO) { readGroupDelays(client) }
+        } finally {
+            runCatching { client.disconnect() }
+        }
+    }
+
     private suspend fun parallelPing(
         client: CommandClient,
         tags: List<String>,
