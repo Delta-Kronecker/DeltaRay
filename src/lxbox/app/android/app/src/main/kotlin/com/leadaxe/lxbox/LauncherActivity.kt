@@ -441,13 +441,11 @@ class LauncherActivity : Activity() {
             }
 
             setConnectingStatus(R.string.launcher_status_ping_configs)
-            val plan = ConnectConfigPing.plan(ConfigManager.load())
-            val (ok, okDelays) = ConnectConfigPing.probeWithResults(
-                plan,
+            val okDelays = ConnectConfigPing.pollAppPings(
                 isCoreAlive = { BoxVpnService.currentStatus == VpnStatus.Started },
             )
 
-            if (ok) {
+            if (!okDelays.isNullOrEmpty()) {
                 WatchdogStats.init(applicationContext).setInitialPings(okDelays)
                 ensureWatchdogRunning()
                 onConnectSucceeded()

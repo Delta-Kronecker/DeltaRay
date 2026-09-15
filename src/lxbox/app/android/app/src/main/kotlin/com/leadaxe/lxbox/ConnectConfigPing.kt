@@ -18,6 +18,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /// DeltaRay: мониторинг фазы «конфиг пингуется» для лаунчера.
 ///
@@ -38,6 +39,9 @@ object ConnectConfigPing {
     const val DEFAULT_ATTEMPT_TIMEOUT_MS = 4_000
     const val MAX_ROUNDS = 8
     const val ROUND_INTERVAL_MS = 3_000L
+
+    /// Потолок ожидания первого ответа от конфигов (pollAppPings).
+    const val POLL_MAX_WAIT_MS = 30_000L
 
     data class PingPlan(
         val tags: List<String>,
@@ -177,6 +181,47 @@ object ConnectConfigPing {
         }
         return false to emptyMap()
     }
+
+    /// Читаем пинги, которые УЖЕ наколотил сам апп: unary `getGroups` раз в
+    /// [pollIntervalMs] — задержки узлов, что приложение замерило через свой
+    /// mass ping (urlTestOutbound обновляет кеш задержек ядра). Первый узел с
+    /// delay>0 = конфиг ответил. Читаем, а не пингуем повторно: у лаунчера
+    /// URL может не совпасть с ping_options приложения.
+    /// null = ядро отвалилось / клиент не поднялся; [] = за таймаут никто не ответил.
+    suspend fun pollAppPings(
+        pollIntervalMs: Long = 1_000,
+        maxWaitMs: Long = POLL_MAX_WAIT_MS,
+        isCoreAlive: () -> Boolean,
+    ): Map<String, Int>? {
+        if (!isCoreAlive()) return null
+        val client = openClient() ?: return null
+        try {
+            val deadline = System.currentTimeMillis() + maxWaitMs
+            while (isCoreAlive() && System.currentTimeMillis() < deadline) {
+                val delays = withContext(Dispatchers.IO) { readGroupDelays(client) }
+                if (delays.isNotEmpty()) return delays
+                delay(pollIntervalMs)
+            }
+        } finally {
+            runCatching { client.disconnect() }
+        }
+        return null
+    }
+
+    private fun readGroupDelays(client: CommandClient): Map<String, Int> = runCatching {
+        val delays = mutableMapOf<String, Int>()
+        val groups = client.getGroups()
+        while (groups.hasNext()) {
+            val items = groups.next().getItems()
+            while (items.hasNext()) {
+                val item = items.next()
+                val tag = item.tag
+                val d = item.urlTestDelay
+                if (d > 0 && !looksIndirect(tag)) delays[tag] = d
+            }
+        }
+        delays
+    }.getOrDefault(emptyMap())
 
     private suspend fun parallelPing(
         client: CommandClient,
