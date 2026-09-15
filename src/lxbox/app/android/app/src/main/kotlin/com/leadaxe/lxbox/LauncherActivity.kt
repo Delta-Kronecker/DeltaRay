@@ -294,7 +294,7 @@ class LauncherActivity : Activity() {
         connectButton.isEnabled = false
         connectButton.setIdle()
         setConnectingStatus(R.string.launcher_status_zdpi_starting)
-        WatchdogLog.add("── CONNECT ALL: стадия 1 — запуск Bypass Engine (ZeroDPI) ──")
+        WatchdogLog.add("── CONNECT ALL: stage 1 — starting Bypass Engine (ZeroDPI) ──")
 
         // Уже связаны с прошлого флоу (bind живёт до onDestroy): повторный
         // bindService с тем же ServiceConnection НЕ вызовет onServiceConnected,
@@ -303,7 +303,7 @@ class LauncherActivity : Activity() {
         if (service != null) {
             zeroDpiMonitorJob?.cancel()
             zeroDpiMonitorJob = null
-            WatchdogLog.add("ZeroDPI уже привязан — startZeroDpi напрямую")
+            WatchdogLog.add("ZeroDPI already bound — startZeroDpi directly")
             service.startZeroDpi(profileId = zeroDpiProfileId())
             startZeroDpiMonitor(service)
             return
@@ -315,7 +315,7 @@ class LauncherActivity : Activity() {
         zeroDpiBound = bindService(serviceIntent, zeroDpiConnection, Context.BIND_AUTO_CREATE)
         if (!zeroDpiBound) {
             Log.e(TAG, "Failed to bind ZeroDpiService")
-            WatchdogLog.add("✗ bind ZeroDpiService не удался")
+            WatchdogLog.add("✗ bind ZeroDpiService failed")
         }
     }
 
@@ -354,7 +354,7 @@ class LauncherActivity : Activity() {
                                     if (key != zdpiScanKey) {
                                         zdpiScanKey = key
                                         zdpiScannedBest = 0
-                                        WatchdogLog.add("ZeroDPI: скан «$key» (total=${p.total ?: "?"})")
+                                        WatchdogLog.add("ZeroDPI: scan “$key” started (total=${p.total ?: "?"})")
                                     }
                                     if (completed > zdpiScannedBest) {
                                         zdpiScannedBest = completed
@@ -386,7 +386,7 @@ class LauncherActivity : Activity() {
                     RuntimeStatus.Running -> {
                         if (!zdpiRunningNotified) {
                             zdpiRunningNotified = true
-                            WatchdogLog.add("ZeroDPI: Running (реле живо) → стадия 2")
+                            WatchdogLog.add("ZeroDPI: Running (relay up) → stage 2")
                             connectButton.setDisconnect()
                             zeroDpiMonitorJob?.cancel()
                             launchLxBoxStage()
@@ -414,7 +414,7 @@ class LauncherActivity : Activity() {
     /// в onResume (expectingConnectReturn) и переходим на стадию пинга.
     private fun launchLxBoxStage() {
         setConnectingStatus(R.string.launcher_status_zdpi_active)
-        WatchdogLog.add("── стадия 2: quick-connect L×Box (невидимый) ──")
+        WatchdogLog.add("── stage 2: quick-connect L×Box (invisible) ──")
         expectingConnectReturn = true
         startActivity(
             Intent(this, QuickConnectActivity::class.java).apply {
@@ -441,7 +441,7 @@ class LauncherActivity : Activity() {
             } ?: false
 
             if (!coreUp) {
-                WatchdogLog.add("✗ ядро L×Box не поднялось за ${CORE_UP_TIMEOUT_MS / 1000}с (status=${BoxVpnService.currentStatus})")
+                WatchdogLog.add("✗ L×Box core did not come up within ${CORE_UP_TIMEOUT_MS / 1000}s (status=${BoxVpnService.currentStatus})")
                 if (!verify) {
                     if (BoxVpnService.currentStatus == VpnStatus.Stopped) {
                         onConnectFlowFailed(R.string.qc_consent_denied)
@@ -456,22 +456,22 @@ class LauncherActivity : Activity() {
             }
 
             setConnectingStatus(R.string.launcher_status_ping_configs)
-            WatchdogLog.add("── стадия 3: ядро Started → ждём пины приложения (getGroups, до ${ConnectConfigPing.POLL_MAX_WAIT_MS / 1000}с) ──")
+            WatchdogLog.add("── stage 3: core Started → waiting for app pings (getGroups, up to ${ConnectConfigPing.POLL_MAX_WAIT_MS / 1000}s) ──")
             val okDelays = ConnectConfigPing.pollAppPings(
                 isCoreAlive = { BoxVpnService.currentStatus == VpnStatus.Started },
             )
 
             if (!okDelays.isNullOrEmpty()) {
-                WatchdogLog.add("⚡ ответили конфиги: ${okDelays.entries.joinToString { "${it.key}=${it.value}ms" }} → Connected")
+                WatchdogLog.add("⚡ configs answered: ${okDelays.entries.joinToString { "${it.key}=${it.value}ms" }} → Connected")
                 WatchdogStats.init(applicationContext).setInitialPings(okDelays)
                 ensureWatchdogRunning()
                 onConnectSucceeded()
             } else if (!verify) {
                 WatchdogLog.add(
                     if (okDelays == null) {
-                        "✗ пинг не удался: ядро упало или command-клиент не поднялся"
+                        "✗ ping failed: core went down or command client did not connect"
                     } else {
-                        "✗ за таймаут ни один конфиг не ответил"
+                        "✗ no config answered within the timeout"
                     },
                 )
                 onConnectFlowFailed(R.string.launcher_status_connect_failed, "no config answered")
@@ -517,7 +517,7 @@ class LauncherActivity : Activity() {
     }
 
     private fun stopAll() {
-        WatchdogLog.add("■ DISCONNECT ALL: остановка L×Box + ZeroDPI + вачдога (чёрный список сгорит)")
+        WatchdogLog.add("■ DISCONNECT ALL: stopping L×Box + ZeroDPI + watchdog (defective list dies with session)")
         connectAllRunning = false
         expectingConnectReturn = false
         zeroDpiMonitorJob?.cancel()
@@ -551,7 +551,7 @@ class LauncherActivity : Activity() {
 
     private fun onConnectFlowFailed(@StringRes messageRes: Int, arg: String? = null) {
         Log.w(TAG, "connect flow failed: $messageRes $arg")
-        WatchdogLog.add("✗✗ связка НЕ подключена: ${getString(messageRes, arg ?: "")}")
+        WatchdogLog.add("✗✗ connect flow failed: ${getString(messageRes, arg ?: "")}")
         connectAllRunning = false
         expectingConnectReturn = false
         zdpiRunningNotified = false
