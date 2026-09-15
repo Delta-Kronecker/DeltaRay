@@ -22,6 +22,11 @@
     <string name="launcher_btn_scanning" translatable="false">Scanning</string>
     <string name="menu_toggle_desc" translatable="false">Open menu</string>
     <string name="menu_about" translatable="false">About</string>
+    <string name="menu_watchdog_log" translatable="false">Watchdog log</string>
+    <string name="log_subtitle" translatable="false">Last 1000 lines · live ring buffer (session only)</string>
+    <string name="log_copy" translatable="false">Copy</string>
+    <string name="log_copied" translatable="false">Copied</string>
+    <string name="log_close" translatable="false">Close</string>
     <string name="no_browser" translatable="false">No browser available</string>
 
     <!-- DeltaRay: connect-all monitor statuses -->

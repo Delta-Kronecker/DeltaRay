@@ -116,6 +116,14 @@
             android:label="@string/app_chooser_title"
             android:theme="@style/LauncherTheme" />
 
+        <!-- §DeltaRay — журнал вачдога (пункт «Watchdog log» меню-гамбургера):
+             последние строки кольцевого буфера + копирование всего лога. -->
+        <activity
+            android:name=".WatchdogLogActivity"
+            android:exported="false"
+            android:label="@string/menu_watchdog_log"
+            android:theme="@style/LauncherTheme" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

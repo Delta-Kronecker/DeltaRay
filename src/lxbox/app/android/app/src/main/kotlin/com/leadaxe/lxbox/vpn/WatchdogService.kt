@@ -107,6 +107,7 @@ class WatchdogService : Service() {
 
     private suspend fun loop() {
         Log.d(TAG, "watchdog loop started")
+        WatchdogLog.add("═══ новая сессия вачдога: streak и чёрный список очищены")
         // Объём трафика (↑/↓) на главной странице — подписка на status ядра.
         LauncherTraffic.start()
         // ТЗ: старт ВСЕГДА на auto. Каждый запуск цикла (Started) возвращает
@@ -116,7 +117,8 @@ class WatchdogService : Service() {
         // живёт в памяти сервиса, сервис при этом умирает вместе с туннелем).
         timeoutStreak.clear()
         defectiveTags.clear()
-        TunnelWatchdog.selectAuto(TunnelWatchdog.directionOf(ConfigManager.load()))
+        val relit = TunnelWatchdog.selectAuto(TunnelWatchdog.directionOf(ConfigManager.load()))
+        WatchdogLog.add(if (relit) "старт: направление → auto" else "старт: авто-возврат не выполнен (auto выключен или RPC молчит)")
         // ТЗ: статистика ресетится КАЖДУЮ сессию (новый запуск цикла = новая
         // сессия), а не только на переключение.
         WatchdogStats.instance.resetRun()
@@ -129,21 +131,27 @@ class WatchdogService : Service() {
                 // Нет HTTP-прокси из конфига (не vpn_proxy) — мониторить нечем
                 // и не на что переключать: состояние disabled, интервал выжидаем.
                 stats.recordDisabled()
+                WatchdogLog.add("DISABLED: нет локального socks-прокси без auth (не vpn_proxy) — пропуск пробы")
                 delay(TunnelWatchdog.PROBE_INTERVAL_MS)
                 continue
             }
             val result = TunnelWatchdog.probeViaProxy(proxy)
+            val current = TunnelWatchdog.directionOf(config)
+                ?.let { activeConfigOf(it) } ?: UNKNOWN_NODE
             if (result.ok) {
                 stats.recordOk(result.rttMs)
                 // Выход живой — серия неудач текущего конфига обнуляется.
                 timeoutStreak.clear()
+                WatchdogLog.add("PROBE OK  ${result.rttMs}ms  конфиг=$current")
             } else {
                 stats.recordTimeout()
+                WatchdogLog.add("PROBE FAIL  конфиг=$current  ошибка=${result.error}")
                 onProbeFailed(config)
             }
             delay(TunnelWatchdog.PROBE_INTERVAL_MS)
         }
         Log.d(TAG, "watchdog loop finished")
+        WatchdogLog.add("═══ цикл вачдога завершён (туннель остановлен)")
     }
 
     /// ТЗ: переключение — когда ТЕКУЩИЙ конфиг накопил
@@ -151,7 +159,11 @@ class WatchdogService : Service() {
     /// узлу (см. [activeConfigOf]): успешная проба обнуляет серию. До порога —
     /// просто копим.
     private suspend fun onProbeFailed(config: String) {
-        val direction = TunnelWatchdog.directionOf(config) ?: return
+        val direction = TunnelWatchdog.directionOf(config)
+        if (direction == null) {
+            WatchdogLog.add("SWITCH? нет direction (route.final/группа не найдены) — переключение невозможно")
+            return
+        }
         val current = activeConfigOf(direction)
         val streak = (timeoutStreak[current] ?: 0) + 1
         timeoutStreak[current] = streak
@@ -159,10 +171,14 @@ class WatchdogService : Service() {
             // Порог пройден раньше, переключение не удалось (не было живых /
             // cooldown / RPC молчал) — продолжаем пробовать; полный замер
             // гейтит cooldown внутри attemptSwitch, не каждые 3с.
+            WatchdogLog.add("FAIL streak=$streak  конфиг=$current (уже defective) → повторная попытка смены")
             attemptSwitch(direction, current)
             return
         }
-        if (streak < TIMEOUTS_BEFORE_SWITCH) return
+        if (streak < TIMEOUTS_BEFORE_SWITCH) {
+            WatchdogLog.add("FAIL streak=$streak/$TIMEOUTS_BEFORE_SWITCH  конфиг=$current — ждём ещё таймаутов")
+            return
+        }
         timeoutStreak.remove(current)
         // Порог достигнут: конфиг — в чёрный список сессии СРАЗУ, независимо
         // от того, состоится ли замер в этом же проходе и найдётся ли замена.
@@ -170,6 +186,9 @@ class WatchdogService : Service() {
         if (current != UNKNOWN_NODE) {
             defectiveTags.add(current)
             Log.w(TAG, "$current: $streak timeouts in a row → defective (session list: $defectiveTags)")
+            WatchdogLog.add("⚠ $current: $streak таймаутов подряд → в чёрный список; список: $defectiveTags")
+        } else {
+            WatchdogLog.add("⚠ порог по «$UNKNOWN_NODE» — в чёрный список не пишется")
         }
         attemptSwitch(direction, current)
     }
@@ -194,17 +213,23 @@ class WatchdogService : Service() {
     /// не молотим urlTest каждые 3с.
     private suspend fun attemptSwitch(direction: TunnelWatchdog.DirectionInfo, current: String) {
         val now = SystemClock.elapsedRealtime()
-        if (now - lastSwitchAttemptMs < TunnelWatchdog.SWITCH_COOLDOWN_MS) return
+        if (now - lastSwitchAttemptMs < TunnelWatchdog.SWITCH_COOLDOWN_MS) {
+            WatchdogLog.add("SWITCH: cooldown — ждём ${(TunnelWatchdog.SWITCH_COOLDOWN_MS - (now - lastSwitchAttemptMs)) / 1000}с")
+            return
+        }
         lastSwitchAttemptMs = now
 
         // ТЗ: «список конфигов и результат пинга каждого» —
         // меряем ВСЕХ членов направления и логируем каждый исход.
+        WatchdogLog.add("── SWEEP: замер ${direction.members.size} конфигов группы ${direction.groupTag} ──")
         val results = TunnelWatchdog.testNodesDetailed(direction.members)
+        if (results.isEmpty()) {
+            WatchdogLog.add("SWEEP: ядро не ответило (пустой результат) — работается по fallback-пинам")
+        }
         for (r in results) {
-            Log.i(
-                TAG,
-                if (r.ok) "ping ${r.tag} = ${r.delayMs}ms" else "ping ${r.tag} FAILED: ${r.error}",
-            )
+            val line = if (r.ok) "  ping ${r.tag} = ${r.delayMs}ms" else "  ping ${r.tag} ✗ ${r.error}"
+            Log.i(TAG, line.trim())
+            WatchdogLog.add(line)
         }
         var live = results.filter { it.ok }.associate { it.tag to it.delayMs }
         if (live.isEmpty()) {
@@ -212,10 +237,12 @@ class WatchdogService : Service() {
             // (только по актуальным членам группы!).
             live = WatchdogStats.instance.initialPings()
                 .filterKeys { it in direction.members }
+            if (live.isNotEmpty()) WatchdogLog.add("SWEEP: живых нет → fallback на коннект-пины: $live")
         }
 
         // current уже в defectiveTags (добавлен в onProbeFailed на пороге).
         val free = live.filterKeys { it !in defectiveTags }
+        WatchdogLog.add("кандидаты (без defective $defectiveTags): ${if (free.isEmpty()) "—" else free.entries.joinToString { "${it.key}=${it.value}ms" }}")
         val target = free.minByOrNull { it.value }?.key
             // Ни свежего замера, ни коннект-пинов (реле лёгло — urlTest у всех
             // в ошибку) — ТЗ: всё равно уйти на СЛЕДУЮЩИЙ конфиг по порядку,
@@ -226,9 +253,10 @@ class WatchdogService : Service() {
                 TAG,
                 "no switch target: all defective (current=$current defective=$defectiveTags)",
             )
+            WatchdogLog.add("✗ все конфиги в чёрном списке — сменить не на что, остаёмся на $current")
             return
         }
-        val delayInfo = live[target]?.let { "$it ms" } ?: "no ping data, next by order"
+        val delayInfo = if (target in live) "${live[target]}ms по пингу" else "нет живых пингов — следующий по порядку"
 
         if (TunnelWatchdog.switchNode(direction.groupTag, target)) {
             Log.w(
@@ -236,7 +264,10 @@ class WatchdogService : Service() {
                 "switched ${direction.groupTag}: $current -> $target " +
                     "($delayInfo, defective=$defectiveTags)",
             )
+            WatchdogLog.add("⇄ SWITCH  $current → $target  ($delayInfo)")
             WatchdogStats.instance.recordSwitch(current, target)
+        } else {
+            WatchdogLog.add("✗ selectOutbound(${direction.groupTag}, $target) — ядро отклонило смену")
         }
     }
 
