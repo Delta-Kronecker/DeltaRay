@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../controllers/home_controller.dart';
 import '../controllers/subscription_controller.dart';
 import '../models/home_state.dart';
+import '../models/server_list.dart';
 import '../models/validation.dart';
 import '../services/app_log.dart';
 import '../services/error_humanize.dart';
@@ -425,7 +426,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ti
     return wasUp;
   }
 
-  Future<void> _initSubsAndAutoUpdate() async {
+Future<void> _initSubsAndAutoUpdate() async {
     await _subController.init();
 
     // §101 — bootstrap обязан дождаться:
@@ -435,6 +436,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ti
     //      (нужен для решения `configRaw.isEmpty`; раньше — delay 100ms).
     try {
       await Future.wait([_subController.rehydrationDone, _controllerInit]);
+      await _ensureSubscriptionFresh();
       if (mounted) {
         final hasEntries = _subController.entries.isNotEmpty;
         final emptyConfig = _controller.state.configRaw.isEmpty;
@@ -490,6 +492,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ti
       // настройки (mtime bump) и не должны попадать в окно сборки конфига.
       // mounted-guard: после dispose (autoUpdater остановлен) не рестартуем.
       if (mounted) _autoUpdater.start();
+    }
+  }
+
+  /// §DM — при старте подписка должна быть не только зарегистрирована, но и
+  /// реально отдавать конфиг (ноды). Если ни одна подписка ещё не фетчилась
+  /// успешно (`UpdateStatus.never/failed`) или все пустые — показываем блокер
+  /// «Updating subscription link…» и гоняем force-refresh до результата.
+  /// Это закрывает холодный старт после сброса: seed-подписка есть, но
+  /// конфиг соберётся из nodes=[].
+  Future<void> _ensureSubscriptionFresh() async {
+    if (!mounted) return;
+    // Свежая подписка = успешный фетч с нодами. Считаем пустыми всё, что
+    // никогда не обновлялось / упало / отдало 0 нод.
+    final needsRefresh = _subController.entries.any((e) =>
+        e.url.isNotEmpty &&
+        (e.lastUpdateStatus != UpdateStatus.ok || e.nodeCount == 0));
+    if (!needsRefresh) return;
+
+    AppLog.I.info('bootstrap: subscription empty — force refresh with blocker');
+    // Блокер держим на стеке навигации, закрываем по завершении фетча.
+    // ignore: use_build_context_synchronously
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _UpdatingSubDialog(),
+    );
+
+    try {
+      await _autoUpdater.maybeUpdateAll(UpdateTrigger.manual, force: true);
+    } finally {
+      if (mounted) Navigator.of(context).pop();
     }
   }
 
@@ -1195,5 +1228,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ti
       );
     }
     return true;
+  }
+}
+
+/// §DM — блокирующий диалог «Updating subscription link…» на холодном старте:
+/// подписка ещё не отдала конфиг, без неё собирать пусто. Закрывается только
+/// фетчем (barrierDismissible=false, кнопок нет).
+class _UpdatingSubDialog extends StatelessWidget {
+  const _UpdatingSubDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(getLocalText.s("Updating subscription link…")),
+      content: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 16),
+          Flexible(
+            child: Text("Please wait"),
+          ),
+        ],
+      ),
+    );
   }
 }
