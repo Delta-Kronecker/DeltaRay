@@ -49,7 +49,7 @@ Future<void> _saveServerLists(List<ServerList> lists, {bool flush = true}) async
 
 /// Стартовая подписка, которая сеется на чистой установке.
 const kDefaultSubscriptionUrl =
-    'https://github.com/Delta-Kronecker/DeltaRay/raw/refs/heads/main/src/lxbox/config.txt';
+    'https://github.com/Delta-Kronecker/DeltaRayConfig/raw/refs/heads/main/config.txt';
 
 /// Сид первой подписки на чистой установке: если `server_lists` ещё ни разу
 /// не сохранялся (fresh install), записываем стартовую подписку. Идемпотентна —

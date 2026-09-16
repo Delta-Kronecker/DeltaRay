@@ -31,11 +31,11 @@ object RemoteRuntimeUpdater {
     private const val TAG = "RemoteRuntimeUpdater"
 
     private const val BASE_URL =
-        "https://github.com/Delta-Kronecker/DeltaRay/raw/refs/heads/main"
+        "https://github.com/Delta-Kronecker/DeltaRayConfig/raw/refs/heads/main"
     private const val VERSION_URL = "$BASE_URL/version.txt"
-    private const val CONFIG_URL = "$BASE_URL/src/zerodpi/config.toml"
-    private const val SNI_LIST_URL = "$BASE_URL/src/zerodpi/sni_list.txt"
-    private const val IP_LIST_URL = "$BASE_URL/src/zerodpi/ip_list.txt"
+    private const val CONFIG_URL = "$BASE_URL/config.txt"
+    private const val SNI_LIST_URL = "$BASE_URL/sni_list.txt"
+    private const val IP_LIST_URL = "$BASE_URL/ip_list.txt"
 
     /// Версия ресурсов, вшитая в APK (android/app/src/main/assets/version.txt).
     private const val ASSET_VERSION_PATH = "version.txt"
