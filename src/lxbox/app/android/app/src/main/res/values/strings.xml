@@ -30,15 +30,15 @@
     <string name="no_browser" translatable="false">No browser available</string>
 
     <!-- DeltaRay: connect-all monitor statuses -->
-    <string name="launcher_status_zdpi_starting" translatable="false">Connecting… starting Bypass Engine</string>
-    <string name="launcher_status_zdpi_scanning" translatable="false">Connecting… Bypass Engine scan %1$d%%</string>
-    <string name="launcher_status_zdpi_active" translatable="false">Connecting… Bypass Engine ready</string>
-    <string name="launcher_status_lxbox_starting" translatable="false">Connecting… starting L×Box</string>
-    <string name="launcher_status_ping_configs" translatable="false">Connecting… testing configs</string>
+    <string name="launcher_status_zdpi_starting" translatable="false">Starting Bypass Engine…</string>
+    <string name="launcher_status_zdpi_scanning" translatable="false">Bypass Engine scan %1$d%%…</string>
+    <string name="launcher_status_zdpi_active" translatable="false">Bypass Engine ready</string>
+    <string name="launcher_status_lxbox_starting" translatable="false">Starting L×Box…</string>
+    <string name="launcher_status_ping_configs" translatable="false">Testing configs…</string>
     <string name="launcher_status_connected" translatable="false">Connected</string>
     <string name="launcher_status_zdpi_failed" translatable="false">Bypass Engine failed: %1$s</string>
     <string name="launcher_status_connect_failed" translatable="false">Connecting failed: %1$s</string>
-    <string name="launcher_status_ping_no_reply" translatable="false">Connecting… no config answered</string>
+    <string name="launcher_status_ping_no_reply" translatable="false">No config answered</string>
 
     <!-- DeltaRay: tunnel watchdog (probe through local proxy, 3s) -->
     <string name="launcher_watchdog_starting" translatable="false">Watchdog starting…</string>
