@@ -283,6 +283,6 @@ class WatchdogService : Service() {
         const val UNKNOWN_NODE = "<unknown>"
 
         /// ТЗ оператора: таймаутов подряд на одном конфиге до переключения.
-        const val TIMEOUTS_BEFORE_SWITCH = 2
+        const val TIMEOUTS_BEFORE_SWITCH = 3
     }
 }
