@@ -649,18 +649,7 @@ class HomeController extends ChangeNotifier
   ///           статусный fallback "Connected").
   /// Dart владеет обеими строками — native при своих show(...) не затирает их.
   Future<void> _pushNotificationLabels() async {
-    // §311 — шторка описывает ТЕКУЩИЙ туннель: название всегда «DeltaRay»,
-    // имя конфига (селектора) в уведомлении не показываем.
-    final node = _state.activeInGroup;
-    final String text;
-    if (node != null && node.isNotEmpty) {
-      text = node;
-    } else {
-      text = '';
-    }
-
     await _vpn.setNotificationTitle('DeltaRay');
-    await _vpn.setNotificationText(text);
   }
 
   /// Atomic start: native call + intent-based sticky reset.

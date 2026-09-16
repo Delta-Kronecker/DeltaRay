@@ -611,30 +611,10 @@ class BoxService(
         // Flutter-движка → Dart не прислал лейбл), через ~3с сами читаем
         // выбранную ноду одним unary-pull'ом и рисуем подтекст. serviceScope:
         // отменяется в onDestroy/stop → не рисуем шторку мёртвого туннеля.
-        serviceScope.launch {
-            delay(NOTIFICATION_SNAPSHOT_DELAY_MS)
-            // Stop/reload успел / Dart уже прислал лейбл (UI открыт) → молчим:
-            // Dart-источник авторитетнее (знает selectedGroup, ловит и смены).
-            if (status != VpnStatus.Started) return@launch
-            if (ConfigManager.notificationText.isNotEmpty()) return@launch
-            val label = commandClient?.selectedNodeLabel(ConfigManager.load())
-            if (label.isNullOrEmpty()) return@launch
-            ConfigManager.setNotificationText(label)
-            withContext(Dispatchers.Main) {
-                if (status == VpnStatus.Started) {
-                    notification.show(ConfigManager.notificationTitle, label)
-                }
-            }
-        }
-
         withContext(Dispatchers.Main) {
-            // §123 — подтекст = тег активной ноды / route.final (из Dart через
-            // setNotificationText). Пусто → fallback на статус "Connected".
             notification.show(
                 ConfigManager.notificationTitle,
-                ConfigManager.notificationText.ifEmpty {
-                    L10n.str(service, R.string.status_connected)
-                },
+                L10n.str(service, R.string.status_connected),
             )
         }
     }
