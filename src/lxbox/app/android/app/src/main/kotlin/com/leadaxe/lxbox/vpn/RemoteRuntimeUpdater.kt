@@ -33,7 +33,7 @@ object RemoteRuntimeUpdater {
     private const val BASE_URL =
         "https://github.com/Delta-Kronecker/DeltaRayConfig/raw/refs/heads/main"
     private const val VERSION_URL = "$BASE_URL/version.txt"
-    private const val CONFIG_URL = "$BASE_URL/config.txt"
+    private const val CONFIG_URL = "$BASE_URL/config.toml"
     private const val SNI_LIST_URL = "$BASE_URL/sni_list.txt"
     private const val IP_LIST_URL = "$BASE_URL/ip_list.txt"
 
