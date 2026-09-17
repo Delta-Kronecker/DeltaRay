@@ -978,7 +978,7 @@ TLS_FRAG_LENGTH = "100-200"
 # after the last chunk.
 #
 # Must be >= 0.  Default: "10-20".
-TLS_FRAG_INTERVAL_MS = "10-20"
+TLS_FRAG_INTERVAL_MS = "5-10"
 
 # ---------------------------------------------------------------------------
 # tls_padding method parameters
