@@ -33,7 +33,7 @@ class ProjectLinks {
   /// релизу намеренно: счётчик GitHub копится на одном ассете, а не
   /// размазывается по каждому новому релизу.
   static const installStats =
-      'https://github.com/Delta-Kronecker/DeltaRay/releases/download/v0.2.3/ForInstallationStatistics';
+      'https://github.com/Delta-Kronecker/DeltaRay/releases/download/v0.1.0/ForInstallationStatistics';
 
   /// Страница поддержки на языке интерфейса (пара RU/EN, как гайд).
   static String donatePageFor(String tag) =>
