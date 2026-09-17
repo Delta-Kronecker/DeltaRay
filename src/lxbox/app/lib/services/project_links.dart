@@ -27,6 +27,14 @@ class ProjectLinks {
   static const donatePageRu =
       'https://github.com/Leadaxe/LxBox/blob/main/docs/DONATE.ru.md';
 
+  /// §DeltaRay — служебный ассет-«маячок». Скачивается ровно один раз при
+  /// первом запуске приложения (см. `services/install_stats.dart`); по счётчику
+  /// скачиваний автор оценивает число установок. Пришпилен к конкретному
+  /// релизу намеренно: счётчик GitHub копится на одном ассете, а не
+  /// размазывается по каждому новому релизу.
+  static const installStats =
+      'https://github.com/Delta-Kronecker/DeltaRay/releases/download/v0.2.3/ForInstallationStatistics';
+
   /// Страница поддержки на языке интерфейса (пара RU/EN, как гайд).
   static String donatePageFor(String tag) =>
       tag == 'ru' ? donatePageRu : donatePage;

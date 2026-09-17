@@ -15,6 +15,7 @@ import 'services/automation/event_emitter.dart';
 import 'services/clash_log_pump.dart';
 import 'services/crash_banner_state.dart';
 import 'services/install_source.dart';
+import 'services/install_stats.dart';
 import 'services/oom_reports.dart';
 import 'services/stderr_reader.dart';
 import 'services/subscription/subscription_identity.dart';
@@ -85,6 +86,10 @@ void main() async {
     // ДО UI (UI читает native-тумблеры из JSON-зеркала) и ДО возможного
     // авто-старта VPN. best-effort: ошибка не валит запуск (try выше).
     await SettingsStorage.bootstrapAndSyncNativePrefs();
+    // §DeltaRay — одноразовый маячок установки: скачиваем служебный ассет
+    // из GitHub Releases ровно при первом запуске (persist-флаг внутри).
+    // Fire-and-forget: старт не ждём, результат ни на что не влияет.
+    unawaited(InstallStats.maybeReportFirstRun());
     // §279 — язык приложения: применить сохранённую настройку ДО runApp
     // (первый кадр локализован) и ДО seed-миграций ниже (seed-time метки
     // резолвятся через активную локаль — TemplateLoader.load() кладёт кэш
