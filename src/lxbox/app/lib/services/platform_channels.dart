@@ -12,14 +12,20 @@
 class PlatformChannels {
   const PlatformChannels._();
 
-  /// §324/§046 — он же package name приложения: ключ self-исключения из tun в
-  /// split-tunneling (`tun_packages.dart`). Раньше native клал его в
-  /// `OverrideOptions.includePackage` для allow-режима — закрыто §046 (loop
-  /// ZeroDPI); теперь native override его не трогает. Публичный, чтобы литерал
-  /// не расползался копией.
-  static const packageName = 'com.leadaxe.lxbox';
+  /// §DeltaRay — фактический install-идентификатор приложения
+  /// (`applicationId` в `build.gradle.kts`). Именно его видят
+  /// PackageManager/ядро, поэтому он — ключ self-исключения из tun
+  /// (`tun_packages.dart`) и подстановки в store-ссылки. Должен совпадать с
+  /// `applicationId` один-в-один; отличается от оригинального L×Box, чтобы
+  /// приложение ставилось рядом.
+  static const packageName = 'com.deltakronecker.deltaray';
 
-  static const _ns = packageName;
+  /// §DeltaRay — неймспейс MethodChannel/EventChannel. Осознанно оставлен
+  /// легаси-строкой `com.leadaxe.lxbox`: каналы scoped нашим Flutter-движком,
+  /// кросс-апп конфликта не создают, а Kotlin-зеркало (`MainActivity.kt` /
+  /// `VpnPlugin.kt` / `QuickConnectActivity.kt`) содержит эти литералы
+  /// дословно — менять их синхронно ради косметики не нужно.
+  static const _ns = 'com.leadaxe.lxbox';
 
   /// Основной двусторонний канал: config/VPN lifecycle/notification/system-proxy
   /// и пр. (`VpnPlugin.kt handleMethodCall`).

@@ -193,10 +193,15 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEYSTORE_STORE_TYPE: ${{ secrets.ANDROID_KEYSTORE_STORE_TYPE }}
         run: |
           set -euo pipefail
           if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
-            echo "No ANDROID_KEYSTORE_BASE64 secret; release APK will use debug signing."
+            if [ "${{ needs.meta.outputs.is_release }}" = "true" ]; then
+              echo "::error::Release build requires the ANDROID_KEYSTORE_BASE64 secret — refusing to publish a debug-signed APK."
+              exit 1
+            fi
+            echo "No ANDROID_KEYSTORE_BASE64 secret; non-release APK will use debug signing."
             exit 0
           fi
           : "${ANDROID_KEYSTORE_PASSWORD:?Set ANDROID_KEYSTORE_PASSWORD when BASE64 is set}"
@@ -208,6 +213,7 @@ jobs:
             echo "keyPassword=$ANDROID_KEY_PASSWORD"
             echo "keyAlias=$ANDROID_KEY_ALIAS"
             echo "storeFile=upload-keystore.jks"
+            echo "storeType=${ANDROID_KEYSTORE_STORE_TYPE:-PKCS12}"
           } > android/key.properties
 
       - name: Build combined APK (${{ matrix.abi }})
@@ -234,6 +240,33 @@ jobs:
           OUT=build/app/outputs/flutter-apk
           mv "$OUT/app-release.apk" "$OUT/app-${{ matrix.abi }}-release.apk"
           ls -la "$OUT"
+
+      - name: Verify APK (package id + signature)
+        working-directory: src/lxbox/app
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="build/app/outputs/flutter-apk/app-${{ matrix.abi }}-release.apk"
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          if [ -z "$SDK" ] || [ ! -d "$SDK/build-tools" ]; then
+            echo "::error::Android SDK build-tools not found (SDK='$SDK')"
+            exit 1
+          fi
+          APKSIGNER="$(find "$SDK/build-tools" -maxdepth 2 -name apksigner -type f | sort -V | tail -1)"
+          AAPT="$(find "$SDK/build-tools" -maxdepth 2 -name aapt -type f | sort -V | tail -1)"
+          echo "== package =="
+          "$AAPT" dump badging "$APK" | grep -E "^package:|^application-label:" || true
+          if ! "$AAPT" dump badging "$APK" | grep -q "package: name='com.deltakronecker.deltaray'"; then
+            echo "::error::Unexpected applicationId in APK (expected com.deltakronecker.deltaray)"
+            exit 1
+          fi
+          echo "== signature =="
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+          if "$APKSIGNER" verify --print-certs "$APK" | grep -qi "CN=Android Debug"; then
+            echo "::error::APK is signed with the Android debug key"
+            exit 1
+          fi
+          echo "OK: ${{ matrix.abi }} signed with the release key"
 
       - name: Publish build diagnostics (on failure)
         if: failure()

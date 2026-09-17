@@ -220,15 +220,15 @@
             android:exported="true"
             android:enabled="false">
             <intent-filter>
-                <action android:name="com.leadaxe.lxbox.START_VPN" />
-                <action android:name="com.leadaxe.lxbox.STOP_VPN" />
-                <action android:name="com.leadaxe.lxbox.TOGGLE_VPN" />
-                <action android:name="com.leadaxe.lxbox.SWITCH_NODE" />
-                <action android:name="com.leadaxe.lxbox.SET_GROUP" />
-                <action android:name="com.leadaxe.lxbox.REBUILD_CONFIG" />
-                <action android:name="com.leadaxe.lxbox.REFRESH_SUBS" />
-                <action android:name="com.leadaxe.lxbox.RESET_NETWORK" />
-                <action android:name="com.leadaxe.lxbox.URLTEST_GROUP" />
+                <action android:name="com.deltakronecker.deltaray.START_VPN" />
+                <action android:name="com.deltakronecker.deltaray.STOP_VPN" />
+                <action android:name="com.deltakronecker.deltaray.TOGGLE_VPN" />
+                <action android:name="com.deltakronecker.deltaray.SWITCH_NODE" />
+                <action android:name="com.deltakronecker.deltaray.SET_GROUP" />
+                <action android:name="com.deltakronecker.deltaray.REBUILD_CONFIG" />
+                <action android:name="com.deltakronecker.deltaray.REFRESH_SUBS" />
+                <action android:name="com.deltakronecker.deltaray.RESET_NETWORK" />
+                <action android:name="com.deltakronecker.deltaray.URLTEST_GROUP" />
             </intent-filter>
         </receiver>
 

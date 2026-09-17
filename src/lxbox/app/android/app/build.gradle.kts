@@ -51,7 +51,15 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.leadaxe.lxbox"
+        // §DeltaRay — уникальный applicationId, чтобы приложение ставилось
+        // РЯДОМ с оригинальным L×Box (`com.leadaxe.lxbox`), а не как его
+        // замена (иначе Android видит тот же package и падает на
+        // INSTALL_FAILED_ALREADY_EXISTS / signature mismatch).
+        //
+        // `namespace` выше остаётся `com.leadaxe.lxbox`: это лишь пакет
+        // сгенерированного R-класса и FQN Kotlin-компонентов, он НЕ является
+        // install-идентичностью и не мешает сосуществованию.
+        applicationId = "com.deltakronecker.deltaray"
         // Android 7.0 (API 24) minimum — §233. Это абсолютный пол: Flutter
         // 3.41.x поддерживает минимум API 24, libbox.aar требует 23.
         // Приоритет тестирования и поддержки — 11+ (primary target window).
@@ -118,6 +126,17 @@ android {
                 keyPassword = keystoreProperties.getProperty("keyPassword")!!
                 storePassword = keystoreProperties.getProperty("storePassword")!!
                 storeFile = rootProject.file(keystoreProperties.getProperty("storeFile")!!)
+                // §DeltaRay — современное хранилище (keystore от JDK 9+ по
+                // умолчанию PKCS12; JKS deprecated). CI кладёт storeType в
+                // key.properties; дефолт — PKCS12.
+                storeType = keystoreProperties.getProperty("storeType") ?: "PKCS12"
+                // Явно требуем все схемы подписи: v1 (JAR, API < 24 / legacy
+                // verifier), v2 (APK Signing Block, API 24+) и v3 (ключевая
+                // ротация, API 28+). Так APK проверяется на любом устройстве
+                // и совместим с ротацией ключа.
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
             }
         }
     }

@@ -82,12 +82,13 @@ class VpnPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware,
 
         /// §047 outgoing emit: Dart (`AutomationEventEmitter`) шлёт событие
         /// наружу. action — короткое имя (`VPN_CONNECTED`), namespace'ится в
-        /// `com.leadaxe.lxbox.event.<action>`. Открыт всем подписчикам — события
-        /// не содержат секретов (только лейблы: теги нод, группы, статус); см.
-        /// §157 (permission-фильтр удалён вместе с нерабочей галкой).
+        /// `com.deltakronecker.deltaray.event.<action>`. Открыт всем
+        /// подписчикам — события не содержат секретов (только лейблы: теги
+        /// нод, группы, статус); см. §157 (permission-фильтр удалён вместе с
+        /// нерабочей галкой).
         fun sendAutomationBroadcast(action: String, extras: Map<String, Any?>) {
             val ctx = appContext ?: return
-            val intent = Intent("com.leadaxe.lxbox.event.$action")
+            val intent = Intent("com.deltakronecker.deltaray.event.$action")
             for ((k, v) in extras) {
                 when (v) {
                     null -> {}

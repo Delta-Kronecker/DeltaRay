@@ -35,15 +35,15 @@ class _AutomationTabState extends State<AutomationTab> {
 
   /// (action-строка, подпись с extras) для UI-списка команд.
   static const _commands = <(String, String)>[
-    ('com.leadaxe.lxbox.START_VPN', ''),
-    ('com.leadaxe.lxbox.STOP_VPN', ''),
-    ('com.leadaxe.lxbox.TOGGLE_VPN', ''),
-    ('com.leadaxe.lxbox.SWITCH_NODE', 'extra: tag'),
-    ('com.leadaxe.lxbox.SET_GROUP', 'extra: group'),
-    ('com.leadaxe.lxbox.REBUILD_CONFIG', ''),
-    ('com.leadaxe.lxbox.REFRESH_SUBS', 'extra: force'),
-    ('com.leadaxe.lxbox.RESET_NETWORK', ''),
-    ('com.leadaxe.lxbox.URLTEST_GROUP', 'extra: group'),
+    ('com.deltakronecker.deltaray.START_VPN', ''),
+    ('com.deltakronecker.deltaray.STOP_VPN', ''),
+    ('com.deltakronecker.deltaray.TOGGLE_VPN', ''),
+    ('com.deltakronecker.deltaray.SWITCH_NODE', 'extra: tag'),
+    ('com.deltakronecker.deltaray.SET_GROUP', 'extra: group'),
+    ('com.deltakronecker.deltaray.REBUILD_CONFIG', ''),
+    ('com.deltakronecker.deltaray.REFRESH_SUBS', 'extra: force'),
+    ('com.deltakronecker.deltaray.RESET_NETWORK', ''),
+    ('com.deltakronecker.deltaray.URLTEST_GROUP', 'extra: group'),
   ];
 
   bool _loaded = false;
