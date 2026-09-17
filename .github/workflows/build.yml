@@ -292,6 +292,7 @@ jobs:
           tag_name: ${{ needs.meta.outputs.tag }}
           name: DeltaRay ${{ needs.meta.outputs.version }}
           draft: false
+          overwrite_files: true
           files: |
             DeltaRay-${{ needs.meta.outputs.version }}-arm64-v8a.apk
             DeltaRay-${{ needs.meta.outputs.version }}-armeabi-v7a.apk
