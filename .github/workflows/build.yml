@@ -1,7 +1,8 @@
 # DeltaRay — CI/CD for the combined L×Box + ZeroDPI APK.
 #
 # Triggers:
-#   1) Tag push (v*):            checks → build → GitHub Release with APK
+#   1) Tag push (v*):            checks → build → GitHub Release with APKs
+#                                (arm64-v8a + armeabi-v7a)
 #   2) push main / PR → main:    checks only
 #   3) workflow_dispatch:        checks | build (+release if run on a tag)
 #
@@ -97,14 +98,22 @@ jobs:
         run: flutter test
 
   android:
-    name: Build APK
+    name: Build APK (${{ matrix.abi }})
     if: startsWith(github.ref, 'refs/tags/v') ||
         github.event_name == 'workflow_dispatch'
     needs: [meta]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - abi: arm64-v8a
+            flutter_target: android-arm64
+          - abi: armeabi-v7a
+            flutter_target: android-arm
     env:
       ZERODPI_RUNTIME_DIR: ${{ github.workspace }}/src/zerodpi/dist/android-app/full
-      ZERODPI_ABI: arm64-v8a
+      ZERODPI_ABI: ${{ matrix.abi }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -117,18 +126,18 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Rust toolchain (Android target)
+      - name: Rust toolchain (Android targets)
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android
+          targets: aarch64-linux-android,armv7-linux-androideabi
 
-      - name: Build ZeroDPI Android runtime (full / arm64-v8a)
+      - name: Build ZeroDPI Android runtime (full / ${{ matrix.abi }})
         working-directory: src/zerodpi
         shell: bash
         run: |
           set -euo pipefail
           python3 build.py --platform android \
-            --android-app-abi arm64-v8a \
+            --android-app-abi ${{ matrix.abi }} \
             --android-app-runtime full \
             --android-app-build-type debug \
             --android-skip-apk
@@ -164,7 +173,7 @@ jobs:
           else
             CODE_VERSION="$VERSION"
           fi
-          BUILD_NUMBER=$(../scripts/version-code.sh "$CODE_VERSION" arm64-v8a)
+          BUILD_NUMBER=$(../scripts/version-code.sh "$CODE_VERSION" ${{ matrix.abi }})
           sed -i.bak -E "s/^version: .*/version: $VERSION+$BUILD_NUMBER/" pubspec.yaml
           rm -f pubspec.yaml.bak
           echo "Injected: $VERSION+$BUILD_NUMBER"
@@ -201,19 +210,19 @@ jobs:
             echo "storeFile=upload-keystore.jks"
           } > android/key.properties
 
-      - name: Build combined APK (arm64-v8a)
+      - name: Build combined APK (${{ matrix.abi }})
         working-directory: src/lxbox/app
         env:
-          LXBOX_ABI_FILTER: arm64-v8a
+          LXBOX_ABI_FILTER: ${{ matrix.abi }}
         shell: bash
         run: |
           set -euo pipefail
-          CODE=$(../scripts/version-code.sh "$CODE_VERSION" arm64-v8a)
+          CODE=$(../scripts/version-code.sh "$CODE_VERSION" ${{ matrix.abi }})
           mkdir -p "$GITHUB_WORKSPACE/build"
           LOG="$GITHUB_WORKSPACE/build/flutter-build.log"
           set +e
           flutter build apk --release \
-            --target-platform android-arm64 \
+            --target-platform ${{ matrix.flutter_target }} \
             --build-name "$VERSION_NAME" --build-number "$CODE" \
             2>&1 | tee "$LOG" | tail -200
           STATUS=${PIPESTATUS[0]}
@@ -223,7 +232,7 @@ jobs:
             exit "$STATUS"
           fi
           OUT=build/app/outputs/flutter-apk
-          mv "$OUT/app-release.apk" "$OUT/app-arm64-v8a-release.apk"
+          mv "$OUT/app-release.apk" "$OUT/app-${{ matrix.abi }}-release.apk"
           ls -la "$OUT"
 
       - name: Publish build diagnostics (on failure)
@@ -242,8 +251,8 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: android-apks-release
-          path: src/lxbox/app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          name: android-apk-${{ matrix.abi }}
+          path: src/lxbox/app/build/app/outputs/flutter-apk/app-${{ matrix.abi }}-release.apk
           if-no-files-found: error
           retention-days: ${{ startsWith(github.ref, 'refs/tags/') && 1 || 30 }}
 
@@ -255,23 +264,26 @@ jobs:
       contents: write
     if: needs.meta.outputs.is_release == 'true'
     steps:
-      - name: Download APK
+      - name: Download APKs
         uses: actions/download-artifact@v4
         with:
-          name: android-apks-release
+          pattern: android-apk-*
           path: release-artifacts
+          merge-multiple: true
 
-      - name: Prepare APK
+      - name: Prepare APKs
         shell: bash
         run: |
           set -euo pipefail
           VERSION="${{ needs.meta.outputs.version }}"
-          SRC=$(find release-artifacts/ -name "app-arm64-v8a-release.apk" -type f | head -1)
-          if [ -z "$SRC" ]; then
-            echo "ERROR: arm64-v8a APK not found!"
-            exit 1
-          fi
-          cp "$SRC" "DeltaRay-${VERSION}-arm64-v8a.apk"
+          for abi in arm64-v8a armeabi-v7a; do
+            SRC=$(find release-artifacts/ -name "app-${abi}-release.apk" -type f | head -1)
+            if [ -z "$SRC" ]; then
+              echo "ERROR: ${abi} APK not found!"
+              exit 1
+            fi
+            cp "$SRC" "DeltaRay-${VERSION}-${abi}.apk"
+          done
           ls -la DeltaRay-*.apk
 
       - name: Create GitHub Release
@@ -282,3 +294,4 @@ jobs:
           draft: false
           files: |
             DeltaRay-${{ needs.meta.outputs.version }}-arm64-v8a.apk
+            DeltaRay-${{ needs.meta.outputs.version }}-armeabi-v7a.apk

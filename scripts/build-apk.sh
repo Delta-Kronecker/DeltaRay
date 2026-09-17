@@ -15,6 +15,7 @@ cd "$REPO_ROOT"
 ABI="${ZERODPI_ABI:-arm64-v8a}"
 RUNTIME="${ZERODPI_RUNTIME:-full}"
 RUNTIME_DIR="$REPO_ROOT/src/zerodpi/dist/android-app/$RUNTIME"
+export ZERODPI_ABI="$ABI"
 
 echo "==> [1/3] Fetch dependencies (libbox.aar + ZeroDPI runtime)"
 bash "$REPO_ROOT/scripts/fetch-deps.sh"

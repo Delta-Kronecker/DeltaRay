@@ -36,6 +36,15 @@ export ANDROID_SDK_ROOT
 
 cd "$(dirname "$0")/.."
 
+# §379/ABI — целевая архитектура сборки. По умолчанию arm64-v8a; для arm v7
+# задайте ZERODPI_ABI=armeabi-v7a (см. также scripts/build-apk.sh).
+ABI="${ZERODPI_ABI:-arm64-v8a}"
+case "$ABI" in
+  arm64-v8a)    FLUTTER_TARGET=android-arm64 ;;
+  armeabi-v7a)  FLUTTER_TARGET=android-arm ;;
+  *) echo "build-local: unsupported ABI '$ABI' (arm64-v8a|armeabi-v7a)" >&2; exit 1 ;;
+esac
+
 # Восстанавливаем pubspec к закоммиченному placeholder'у на любом выходе, чтобы
 # вычисленная на время сборки `version:` не оставалась в рабочем дереве.
 # `git checkout` возвращает ровно то, что в HEAD (устойчиво к смене placeholder'а).
@@ -53,7 +62,7 @@ TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
 if [ -n "$TAG" ]; then
   SINCE=$(git rev-list "$TAG..HEAD" --count)
   VER="${TAG#v}"
-  CODE=$(./scripts/version-code.sh "$VER" arm64-v8a)
+  CODE=$(./scripts/version-code.sh "$VER" "$ABI")
   [ "$SINCE" != "0" ] && VER="$VER-dev.$SINCE"
   LINE="version: ${VER}+${CODE}"
   sed -i.bak -E "s/^version: .*/${LINE}/" app/pubspec.yaml
@@ -62,7 +71,7 @@ if [ -n "$TAG" ]; then
 else
   # Нет релизного тега на ветке — fallback на 0.0.0, чтобы сборка не падала.
   # Downgrade-риск неактуален без релизов.
-  CODE=$(./scripts/version-code.sh 0.0.0 arm64-v8a)
+  CODE=$(./scripts/version-code.sh 0.0.0 "$ABI")
   sed -i.bak -E "s/^version: .*/version: 0.0.0+${CODE}/" app/pubspec.yaml
   rm -f app/pubspec.yaml.bak
   echo "build-local: no tag vN.N.N — version: 0.0.0+${CODE}"
@@ -76,11 +85,11 @@ cd app
 # поэтому сужаем native libs из AAR через LXBOX_ABI_FILTER (иначе gradle тянет
 # libbox под все 3 ABI и APK раздувается до ~76 MB). `--target-platform`
 # сужает flutter engine + Dart AOT.
-LXBOX_ABI_FILTER=arm64-v8a \
-  flutter build apk --release --target-platform android-arm64 "$@"
+LXBOX_ABI_FILTER="$ABI" \
+  flutter build apk --release --target-platform "$FLUTTER_TARGET" "$@"
 
 # Без сплита Flutter пишет `app-release.apk`. Переименовываем в привычное
-# per-ABI имя — на него смотрят scripts/install-apk.sh и мышечная память.
+# per-ABI имя — на него смотрят релизные артефакты и мышечная память.
 OUT=build/app/outputs/flutter-apk
-mv "$OUT/app-release.apk" "$OUT/app-arm64-v8a-release.apk"
-echo "build-local: $OUT/app-arm64-v8a-release.apk"
+mv "$OUT/app-release.apk" "$OUT/app-$ABI-release.apk"
+echo "build-local: $OUT/app-$ABI-release.apk"
