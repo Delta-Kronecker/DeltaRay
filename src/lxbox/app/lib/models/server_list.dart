@@ -205,7 +205,7 @@ final class SubscriptionServers extends ServerList {
     this.lastUpdated,
     this.lastUpdateAttempt,
     this.lastUpdateStatus = UpdateStatus.never,
-    this.updateIntervalHours = 24,
+    this.updateIntervalHours = 1,
     this.lastNodeCount = 0,
     this.consecutiveFails = 0,
     this.disabledHashes = const {},
@@ -291,7 +291,7 @@ final class SubscriptionServers extends ServerList {
           orElse: () => UpdateStatus.never,
         ),
         updateIntervalHours:
-            (j['update_interval_hours'] as num?)?.toInt() ?? 24,
+            (j['update_interval_hours'] as num?)?.toInt() ?? 1,
         lastNodeCount: (j['last_node_count'] as num?)?.toInt() ?? 0,
         consecutiveFails: (j['consecutive_fails'] as num?)?.toInt() ?? 0,
         disabledHashes: _disabledHashesFromJson(j['disabled_hashes']),

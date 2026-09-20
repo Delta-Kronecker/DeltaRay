@@ -28,7 +28,7 @@ enum UpdateTrigger {
 /// (WorkManager) остаётся вне скопа.
 ///
 /// Параметры фиксированы (в спеке документированы):
-/// - `updateIntervalHours` берётся с каждой подписки (default 24, из
+/// - `updateIntervalHours` берётся с каждой подписки (default 1, из
 ///   `profile-update-interval`).
 /// - `minRetryInterval` = 15 мин — между повторами той же подписки.
 /// - `maxFailsPerSession` = 5 — после 5 фейлов подряд подписка «парится»
@@ -72,11 +72,13 @@ class AutoUpdater {
 
   /// Вызвать один раз при init приложения (из `SubscriptionController.init`
   /// или `main.dart`). Запускает trigger #1 и взводит periodic-таймер.
-  void start() {
+  /// [onAppStartUpdateStart] — колбэк для показа диалога при appStart fetch'е.
+  Future<void> start({void Function(int candidateCount)? onAppStartUpdateStart}) async {
     _periodicTimer ??= Timer.periodic(periodicInterval, (_) {
       unawaited(maybeUpdateAll(UpdateTrigger.periodic));
     });
-    unawaited(maybeUpdateAll(UpdateTrigger.appStart));
+    await maybeUpdateAll(UpdateTrigger.appStart,
+        onUpdateStart: onAppStartUpdateStart);
   }
 
   /// Зовёт `HomeController` на transition → `connected`.
@@ -110,8 +112,10 @@ class AutoUpdater {
 
   /// Пройтись по всем подпискам и обновить те, которым пора.
   /// Последовательно, с задержкой 10с между подписками.
+  /// [onUpdateStart] — колбэк, вызывается с числом кандидатов перед началом
+  /// обновления (для показа диалога прогресса).
   Future<void> maybeUpdateAll(UpdateTrigger trigger,
-      {bool force = false}) async {
+      {bool force = false, void Function(int candidateCount)? onUpdateStart}) async {
     if (_running) {
       AppLog.I.debug('AutoUpdater: skip ${trigger.name} — already running');
       return;
@@ -148,6 +152,7 @@ class AutoUpdater {
         return;
       }
       AppLog.I.info('AutoUpdater: ${candidates.length} to refresh');
+      onUpdateStart?.call(candidates.length);
 
       // §323 — реакции копим за весь проход и применяем ОДИН раз в конце.
       // Иначе три обновившиеся подписки дали бы три пересборки (и до трёх

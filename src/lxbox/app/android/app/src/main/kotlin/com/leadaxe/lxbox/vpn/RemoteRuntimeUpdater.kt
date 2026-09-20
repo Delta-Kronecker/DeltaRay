@@ -50,24 +50,23 @@ object RemoteRuntimeUpdater {
     private var checkStarted = false
 
     /// Один прогон на процесс: предзагруженные re-launch не дублируют качание.
-    suspend fun checkAndUpdate(context: Context) = withContext(Dispatchers.IO) {
-        if (checkStarted) return@withContext
+    /// Возвращает `true` если ресурсы были обновлены, `false` если уже актуальны.
+    suspend fun checkAndUpdate(context: Context): Boolean = withContext(Dispatchers.IO) {
+        if (checkStarted) return@withContext false
         checkStarted = true
         val app = context.applicationContext
         try {
             val prefs = app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            // Какую версию ресурсов «имеет» приложение: последнюю применённую,
-            // иначе — вшитую в APK при первой установке.
             val bundled = bundledVersion(app)
             val applied = prefs.getInt(KEY_APPLIED_VERSION, bundled)
             val remote = fetch(VERSION_URL)?.trim()?.toIntOrNull()
             if (remote == null) {
                 Log.w(TAG, "version probe failed; skip")
-                return@withContext
+                return@withContext false
             }
             if (remote == applied) {
                 Log.d(TAG, "runtime resources already at v$remote")
-                return@withContext
+                return@withContext false
             }
 
             val configText = fetch(CONFIG_URL)
@@ -79,19 +78,19 @@ object RemoteRuntimeUpdater {
                     "download failed; skip (config=${configText != null}, " +
                         "sni=${sniText != null}, ip=${ipText != null})",
                 )
-                return@withContext
+                return@withContext false
             }
 
-            // Профиль, которым пользуется лаунчер (маркер последнего запуска
-            // ZeroDPI), иначе default — он бутстрапится автоматически.
             val marker = ZeroDpiRuntimeStateStore.runtimeMarker(app)
             val profileId = marker.profileId?.takeIf { it.isNotBlank() }
                 ?: ZeroDpiProfile.DEFAULT_PROFILE_ID
             RuntimeStorage(app).saveAll(profileId, configText, sniText, ipText)
             prefs.edit().putInt(KEY_APPLIED_VERSION, remote).apply()
             Log.i(TAG, "runtime resources updated to v$remote (profile=$profileId)")
+            return@withContext true
         } catch (e: Exception) {
             Log.w(TAG, "update failed: ${e.message}")
+            return@withContext false
         }
     }
 

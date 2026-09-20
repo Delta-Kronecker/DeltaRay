@@ -2114,7 +2114,7 @@ BackupSubscriptionMerge mergeBackupSubscriptions(
       tagPrefix: sub.tagPrefix,
       detourPolicy: DetourPolicy.defaults,
       url: sub.url,
-      updateIntervalHours: sub.updateIntervalHours ?? 24,
+      updateIntervalHours: sub.updateIntervalHours ?? 1,
       // §401 (D-083) — per-source identity: чем подписка представляется
       // провайдеру. Провайдеры ВЕТВЯТ выдачу по UA, и без переноса та же
       // ссылка отдала бы на новой машине другой набор узлов.

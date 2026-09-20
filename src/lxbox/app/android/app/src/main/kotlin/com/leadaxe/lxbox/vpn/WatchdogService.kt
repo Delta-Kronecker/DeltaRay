@@ -138,18 +138,19 @@ class WatchdogService : Service() {
             if (BoxVpnService.currentStatus != VpnStatus.Started) break
             val stats = WatchdogStats.instance
             val config = ConfigManager.load()
-            val proxy = TunnelWatchdog.localProxy(config)
-            if (proxy == null || proxy.authEnabled || !proxy.socksCapable) {
-                // Нет HTTP-прокси из конфига (не vpn_proxy) — мониторить нечем
-                // и не на что переключать: состояние disabled, интервал выжидаем.
+            val direction = TunnelWatchdog.directionOf(config)
+            val current = direction?.let { activeConfigOf(it) } ?: UNKNOWN_NODE
+            // §428 — پروب از طریق urlTestOutbound: خود هسته درخواست HTTP
+            // از طریق outbound فعلی می‌زند. نیازی به تشخیص پروکسی محلی نیست.
+            val result = if (current != UNKNOWN_NODE) {
+                TunnelWatchdog.probeViaOutbound(current)
+            } else {
+                // نود مشخص نیست — غیرفعال
                 stats.recordDisabled()
-                WatchdogLog.add("DISABLED: no local socks proxy without auth (not vpn_proxy) — probe skipped")
+                WatchdogLog.add("DISABLED: active node unknown — probe skipped")
                 delay(TunnelWatchdog.PROBE_INTERVAL_MS)
                 continue
             }
-            val result = TunnelWatchdog.probeViaProxy(proxy)
-            val current = TunnelWatchdog.directionOf(config)
-                ?.let { activeConfigOf(it) } ?: UNKNOWN_NODE
             if (result.ok) {
                 stats.recordOk(result.rttMs)
                 // Выход живой — серия неудач текущего конфига обнуляется.

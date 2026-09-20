@@ -372,4 +372,32 @@ object TunnelWatchdog {
         Log.w(TAG, "probe failed: $error (${SystemClock.elapsedRealtime() - start}ms)")
         return ProbeResult(ok = false, rttMs = 0L, error = error)
     }
+
+    /// §428 — پروب از طریق urlTestOutbound هسته: خود sing-box درخواست HTTP
+    /// از طریق outbound مشخص‌شده می‌زند و تاخیر را برمی‌گرداند. ساده‌تر و
+    /// قابل اطمینان‌تر از probeViaProxy چون نیازی به SOCKS5 نیست.
+    fun probeViaOutbound(tag: String): ProbeResult {
+        val start = SystemClock.elapsedRealtime()
+        val client = ConnectConfigPing.openClient()
+            ?: return fail("command client not connected", start)
+        return try {
+            val r = client.urlTestOutbound(
+                tag,
+                ConnectConfigPing.DEFAULT_PING_URL,
+                PROXY_TIMEOUT_MS.toInt(),
+            )
+            val err = r.getError() ?: ""
+            if (err.isEmpty()) {
+                val delay = r.getDelay()
+                Log.d(TAG, "probeViaOutbound ok: ${delay}ms (tag=$tag)")
+                ProbeResult(ok = true, rttMs = delay.toLong(), error = "")
+            } else {
+                fail(err, start)
+            }
+        } catch (e: Exception) {
+            fail(e.message ?: e.javaClass.simpleName, start)
+        } finally {
+            runCatching { client.disconnect() }
+        }
+    }
 }

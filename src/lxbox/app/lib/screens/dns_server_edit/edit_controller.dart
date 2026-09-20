@@ -476,8 +476,8 @@ class DnsServerEditController extends ChangeNotifier {
     }
     if (isHostnameAddress) {
       if (domainResolver.isEmpty) {
-        final def = dnsServerTags.contains('google_tls')
-            ? 'google_tls'
+        final def = dnsServerTags.contains('dns_group')
+            ? 'dns_group'
             : (dnsServerTags.isNotEmpty ? dnsServerTags.first : '');
         if (def.isNotEmpty) _body['domain_resolver'] = def;
       }

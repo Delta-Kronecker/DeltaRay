@@ -51,6 +51,8 @@
     <string name="launcher_update_message" translatable="false">DeltaRay %1$s is available.</string>
     <string name="launcher_update_download" translatable="false">Download from GitHub</string>
     <string name="launcher_update_dismiss" translatable="false">Not now</string>
+    <string name="launcher_updating_settings_title" translatable="false">Updating settings…</string>
+    <string name="launcher_updating_settings_message" translatable="false">Please wait</string>
 
     <!-- Quick Connect (tile / shortcuts consent flow) -->
     <string name="qc_first_open">Opening L×Box for VPN permission (one-time)</string>

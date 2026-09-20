@@ -491,7 +491,20 @@ Future<void> _initSubsAndAutoUpdate() async {
       // §101 — AutoUpdater после bootstrap'а: его appStart-fetch'и персистят
       // настройки (mtime bump) и не должны попадать в окно сборки конфига.
       // mounted-guard: после dispose (autoUpdater остановлен) не рестартуем.
-      if (mounted) _autoUpdater.start();
+      if (mounted) {
+        await _autoUpdater.start(onAppStartUpdateStart: (count) {
+          if (count > 0 && mounted) {
+            showDialog<void>(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => const _UpdatingSubDialog(),
+            );
+          }
+        });
+        if (mounted && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+      }
     }
   }
 

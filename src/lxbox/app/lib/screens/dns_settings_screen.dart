@@ -658,7 +658,7 @@ class _DnsSettingsScreenState extends State<DnsSettingsScreen>
             value: _dnsFinal,
             serverTags: resolverTags,
             onChanged: (v) => setState(() { _dnsFinal = v; _markDirty(); }),
-            tooltip: getLocalText.s("Default fallback DNS server. Used when an app makes a DNS query and no DNS rule above matches it. Every app DNS query that isn't routed by a rule ends up here.\n\n  • google_tls — default; encrypted DNS-over-TLS to dns.google:853 (Google DNS)"),
+            tooltip: getLocalText.s("Default fallback DNS server. Used when an app makes a DNS query and no DNS rule above matches it. Every app DNS query that isn't routed by a rule ends up here.\n\n  • dns_group — DNS group (OpenDNS + Comodo)"),
             warnIfLocal: false,
           ),
 
@@ -675,15 +675,15 @@ class _DnsSettingsScreenState extends State<DnsSettingsScreen>
             value: _defaultResolver,
             serverTags: resolverTags,
             onChanged: (v) => setState(() { _defaultResolver = v; _markDirty(); }),
-            tooltip: getLocalText.s("Used by routing engine to resolve hostnames internally (outbound endpoints, routing rules). Not the resolver apps use.\n\n  • google_tls — default; encrypted DNS-over-TLS to dns.google:853 (Google DNS)"),
+            tooltip: getLocalText.s("Used by routing engine to resolve hostnames internally (outbound endpoints, routing rules). Not the resolver apps use.\n\n  • dns_group — DNS group (OpenDNS + Comodo)"),
             warnIfLocal: true,
           ),
           if (_defaultResolver == 'local_dns_resolver')
             LocalResolverWarningBanner(
-              hasCloudflareUdp:
-                  _servers.any((s) => s['tag'] == 'cloudflare_udp'),
-              onSwitchToCloudflareUdp: () => setState(() {
-                _defaultResolver = 'cloudflare_udp';
+              hasDnsGroup:
+                  _servers.any((s) => s['tag'] == 'dns_group'),
+              onSwitchToDnsGroup: () => setState(() {
+                _defaultResolver = 'dns_group';
                 _markDirty();
               }),
             ),

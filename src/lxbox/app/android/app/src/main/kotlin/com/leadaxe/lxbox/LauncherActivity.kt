@@ -46,6 +46,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -177,9 +178,22 @@ class LauncherActivity : Activity() {
         }
 
         // Проверка обновления runtime-ресурсов ZeroDPI (config/sni/ip по
-        // version.txt в репозитории) — фоном, UI и ошибки сети не трогаем.
+        // version.txt в репозитории) — с диалогом прогресса.
         scope.launch {
-            RemoteRuntimeUpdater.checkAndUpdate(applicationContext)
+            val dialog = Dialog(this@LauncherActivity)
+            withContext(Dispatchers.Main) {
+                dialog.setContentView(R.layout.dialog_updating_settings)
+                dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+                dialog.setCancelable(false)
+                dialog.show()
+            }
+            try {
+                RemoteRuntimeUpdater.checkAndUpdate(applicationContext)
+            } finally {
+                withContext(Dispatchers.Main) {
+                    if (dialog.isShowing) dialog.dismiss()
+                }
+            }
         }
         // Оповещение о новом релизе (диалог с прямой ссылкой на APK).
         maybePromptUpdate()

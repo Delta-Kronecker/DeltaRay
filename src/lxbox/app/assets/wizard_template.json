@@ -8,9 +8,9 @@
   "dns_options": {
     "servers": [
       {
-        "description": "Google DNS (via VPN)",
+        "description": "OpenDNS 1 (via VPN)",
         "enabled": true,
-"vars": [
+        "vars": [
           {
             "name": "outbound",
             "type": "outbound",
@@ -20,11 +20,81 @@
           }
         ],
         "server": {
-          "type": "tls",
-          "tag": "google_tls",
-          "server": "dns.google",
-          "server_port": 853,
+          "type": "udp",
+          "tag": "opendns_1",
+          "server": "208.67.220.220",
           "detour": "@outbound"
+        }
+      },
+      {
+        "description": "OpenDNS 2 (via VPN)",
+        "enabled": true,
+        "vars": [
+          {
+            "name": "outbound",
+            "type": "outbound",
+            "default_value": "vpn-1",
+            "title": "Outbound",
+            "tooltip": "Which direction carries DNS queries to this server"
+          }
+        ],
+        "server": {
+          "type": "udp",
+          "tag": "opendns_2",
+          "server": "208.67.222.222",
+          "detour": "@outbound"
+        }
+      },
+      {
+        "description": "Comodo DNS 1 (via VPN)",
+        "enabled": true,
+        "vars": [
+          {
+            "name": "outbound",
+            "type": "outbound",
+            "default_value": "vpn-1",
+            "title": "Outbound",
+            "tooltip": "Which direction carries DNS queries to this server"
+          }
+        ],
+        "server": {
+          "type": "udp",
+          "tag": "comodo_dns_1",
+          "server": "8.26.56.26",
+          "detour": "@outbound"
+        }
+      },
+      {
+        "description": "Comodo DNS 2 (via VPN)",
+        "enabled": true,
+        "vars": [
+          {
+            "name": "outbound",
+            "type": "outbound",
+            "default_value": "vpn-1",
+            "title": "Outbound",
+            "tooltip": "Which direction carries DNS queries to this server"
+          }
+        ],
+        "server": {
+          "type": "udp",
+          "tag": "comodo_dns_2",
+          "server": "8.20.247.20",
+          "detour": "@outbound"
+        }
+      },
+      {
+        "description": "DNS Group (OpenDNS + Comodo)",
+        "enabled": true,
+        "server": {
+          "type": "group",
+          "tag": "dns_group",
+          "servers": [
+            "opendns_1",
+            "opendns_2",
+            "comodo_dns_1",
+            "comodo_dns_2"
+          ]
         }
       }
     ],
@@ -345,20 +415,20 @@
         {
 "name": "dns_default_domain_resolver",
           "type": "text",
-          "default_value": "google_tls",
+          "default_value": "dns_group",
           "required": true,
           "wizard_ui": "fix",
           "title": "Default domain resolver",
-          "tooltip": "Used by routing engine to resolve hostnames internally (outbound endpoints, routing rules). Not the resolver apps use.\n\n  • google_tls — default; encrypted DNS-over-TLS to dns.google:853 (Google DNS)"
+          "tooltip": "Used by routing engine to resolve hostnames internally (outbound endpoints, routing rules). Not the resolver apps use.\n\n  • dns_group — DNS group (OpenDNS + Comodo)"
         },
         {
 "name": "dns_final",
           "type": "text",
-          "default_value": "google_tls",
+          "default_value": "dns_group",
           "required": true,
           "wizard_ui": "fix",
           "title": "DNS final",
-          "tooltip": "Default fallback DNS server. Used when an app's DNS query doesn't match any DNS rule.\n\n  • google_tls — default; encrypted DNS-over-TLS to dns.google:853 (Google DNS)"
+          "tooltip": "Default fallback DNS server. Used when an app's DNS query doesn't match any DNS rule.\n\n  • dns_group — DNS group (OpenDNS + Comodo)"
         }
       ]
     },

@@ -555,8 +555,8 @@ class CustomRuleEditController extends ChangeNotifier {
     }
     var tag = _dns?.serverTag ?? '';
     if (tag.isEmpty) {
-      tag = _dnsServerTags.contains('google_tls')
-          ? 'google_tls'
+      tag = _dnsServerTags.contains('dns_group')
+          ? 'dns_group'
           : (_dnsServerTags.isNotEmpty ? _dnsServerTags.first : '');
     }
     // §256: copyWith сохраняет forceIpv4 (ортогонален dedicated-серверу).

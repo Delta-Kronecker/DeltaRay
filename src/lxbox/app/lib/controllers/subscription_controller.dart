@@ -1077,10 +1077,10 @@ class SubscriptionController extends ChangeNotifier {
         await HttpCache.remove(old.url); // осиротевший ключ старого источника
       }
       // §129 — file → interval -1 (никогда авто, сервера нет); online → если был
-      // ≤0 (пришли с файла / «не обновлять»), вернуть дефолт 24, иначе текущий.
+      // ≤0 (пришли с файла / «не обновлять»), вернуть дефолт 1, иначе текущий.
       final nextInterval = toFile
           ? -1
-          : (old.updateIntervalHours <= 0 ? 24 : old.updateIntervalHours);
+          : (old.updateIntervalHours <= 0 ? 1 : old.updateIntervalHours);
       final next = old.copyWith(
         url: newUrl,
         meta: result.meta,
