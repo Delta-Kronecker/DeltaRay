@@ -227,7 +227,7 @@ object XrayConfigTranslator {
                 JSONObject().apply {
                     put("tag", tag)
                     put("selector", JSONArray().apply { members.forEach { put(it) } })
-                    put("strategy", JSONArray().apply { put(JSONObject().put("type", "random")) })
+                    put("strategy", JSONObject().put("type", "random"))
                 },
             )
         }
@@ -267,6 +267,35 @@ object XrayConfigTranslator {
             },
         )
         out.put("api", api)
+
+        // ---- stats/policy: без них StatsService.QueryStats(>>>traffic>>>) не
+        // соберёт ни одного счётчика — статус/трафик в приложении мертвы.
+        out.put(
+            "policy",
+            JSONObject().apply {
+                put(
+                    "levels",
+                    JSONObject().put(
+                        "0",
+                        JSONObject().apply {
+                            put("statsUserUplink", true)
+                            put("statsUserDownlink", true)
+                            put("statsUserConnection", true)
+                        },
+                    ),
+                )
+                put(
+                    "system",
+                    JSONObject().apply {
+                        put("statsInboundUplink", true)
+                        put("statsInboundDownlink", true)
+                        put("statsOutboundUplink", true)
+                        put("statsOutboundDownlink", true)
+                    },
+                )
+            },
+        )
+        out.put("stats", JSONObject())
 
         return Translated(out.toString(), API_PORT, tunAddresses, tunMtu)
     }
