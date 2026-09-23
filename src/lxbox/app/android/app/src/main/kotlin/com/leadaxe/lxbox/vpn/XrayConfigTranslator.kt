@@ -253,6 +253,9 @@ object XrayConfigTranslator {
         rules.put(
             JSONObject().apply {
                 put("type", "field")
+                // Xray cтакает условие обязательно (без него — "this rule has no
+                // effective fields"): network=tcp,udp покрывает весь трафик tun.
+                put("network", "tcp,udp")
                 if (ctx.groups.containsKey(finalOut)) put("balancerTag", finalOut) else put("outboundTag", finalOut)
             },
         )
