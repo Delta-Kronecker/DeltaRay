@@ -278,6 +278,21 @@ object XrayConfigTranslator {
         )
         out.put("api", api)
 
+        // ---- observatory ---------------------------------------------------------------
+        // БЕЗ блока `observatory` api-сервис ObservatoryService делает
+        // RequireFeatures(Observatory, false) → зависимость не резолвится →
+        // core: "not all dependencies are resolved" на старте. Плюс это и есть
+        // источник статуса/задержек нод для приложения (GetOutboundStatus).
+        val observatory = JSONObject()
+        val nodeTags = ctx.groups.values.flatten().distinct()
+        if (nodeTags.isNotEmpty()) {
+            observatory.put("subjectSelector", JSONArray().apply { nodeTags.forEach { put(it) } })
+        }
+        // duration.Duration требует СТРОКУ (time.ParseDuration), число → "invalid duration"
+        observatory.put("probeInterval", "1m")
+        observatory.put("enableConcurrency", true)
+        out.put("observatory", observatory)
+
         // ---- stats/policy: без них StatsService.QueryStats(>>>traffic>>>) не
         // соберёт ни одного счётчика — статус/трафик в приложении мертвы.
         out.put(
