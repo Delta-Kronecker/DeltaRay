@@ -580,8 +580,10 @@ object XrayConfigTranslator {
         }
         r.optJSONArray("ip_cidr")?.let { out.put("ip", it); matched = true }
         r.optJSONArray("source_ip_cidr")?.let { out.put("source", it); matched = true }
-        r.optJSONArray("port")?.let { out.put("port", it); matched = true }
-        r.optJSONArray("source_port")?.let { out.put("sourcePort", it); matched = true }
+        // port в Xray — СТРОКА "500,4500" или число; sing-box емиттит массив
+        // [500,4500] → PortList.UnmarshalJSON падает («invalid port: [...]»).
+        portList(r, "port")?.let { out.put("port", it); matched = true }
+        portList(r, "source_port")?.let { out.put("sourcePort", it); matched = true }
         r.optString("inbound").takeIf { it.isNotEmpty() }?.let {
             out.put("inboundTag", JSONArray().put(it))
             matched = true
@@ -603,6 +605,28 @@ object XrayConfigTranslator {
             val v = this.opt(i)
             if (v is String) block(v)
         }
+    }
+
+    /// sing-box `port` → Xray-строка. Массив [500,4500] → "500,4500";
+    /// элемент-"500-4500" сохраняется как диапазон. Одиночный string/число — копируется.
+    private fun portList(r: JSONObject, key: String): String? {
+        if (r.has(key)) {
+            val arr = r.optJSONArray(key)
+            if (arr != null) {
+                val parts = mutableListOf<String>()
+                for (i in 0 until arr.length()) {
+                    val v = arr.opt(i)
+                    when (v) {
+                        is String -> parts += v
+                        is Number -> parts += v.toString()
+                        else -> {}
+                    }
+                }
+                return parts.joinToString(",").takeIf { it.isNotEmpty() }
+            }
+            return r.optString(key).takeIf { it.isNotEmpty() }
+        }
+        return null
     }
 
     const val API_PORT = 16531
