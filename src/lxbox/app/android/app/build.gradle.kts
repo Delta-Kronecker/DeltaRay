@@ -61,7 +61,7 @@ android {
         // install-идентичностью и не мешает сосуществованию.
         applicationId = "com.deltakronecker.deltaray"
         // Android 7.0 (API 24) minimum — §233. Это абсолютный пол: Flutter
-        // 3.41.x поддерживает минимум API 24, libbox.aar требует 23.
+        // 3.41.x поддерживает минимум API 24, libXray.aar требует 21.
         // Приоритет тестирования и поддержки — 11+ (primary target window).
         //
         // Tiers:
@@ -81,7 +81,7 @@ android {
 
         // ABI filter (build-size optimization). Flutter `--target-platform`
         // влияет только на свой engine + Dart AOT; нативные .so из Maven
-        // (libbox 1.13 — 55-66 MB per ABI) gradle подтягивает для всех
+        // (libXray — 50-67 MB per ABI) gradle подтягивает для всех
         // ABI, и APK раздувается до ~76MB.
         //
         // Сужаем через переменную окружения `LXBOX_ABI_FILTER` (выставляется
@@ -95,7 +95,7 @@ android {
     // умолчанию выставляет `ndk.abiFilters` для всех 3 ABI
     // (armeabi-v7a, arm64-v8a, x86_64) — даже если передан
     // `--target-platform android-arm64` это влияет только на flutter engine
-    // и Dart AOT, native libs из Maven AAR (libbox 55-66 MB / ABI)
+    // и Dart AOT, native libs из Maven AAR (libXray 50-67 MB / ABI)
     // подтягиваются под все 3.
     //
     // Очищаем `ndk.abiFilters` и задаём только нужный ABI через env-var
@@ -107,7 +107,7 @@ android {
         val keepAbis = abiFilterEnv.split(",").map { it.trim() }.toSet()
         defaultConfig.ndk.abiFilters.clear()
         defaultConfig.ndk.abiFilters.addAll(keepAbis)
-        // Дополнительно: исключаем JNI-libs других ABI из AAR (libbox).
+        // Дополнительно: исключаем JNI-libs других ABI из AAR (libXray).
         // `ndk.abiFilters` контролирует только локально-собранные .so;
         // AAR-вложенные .so отфильтровываются именно `packaging.jniLibs.excludes`.
         val allAbis = setOf("armeabi-v7a", "arm64-v8a", "x86_64", "x86")
@@ -158,11 +158,19 @@ android {
 }
 
 dependencies {
-    // §104 — ядро: собственный fork sing-box-lx (AWG2 + XHTTP, §097).
-    // AAR не в git (~73MB, libs/ в .gitignore): его кладёт
-    // scripts/fetch-libbox.sh (пин версии — app/android/libbox.version),
-    // вызывается из build-local-apk.sh и CI (ci.yml → "Fetch sing-box-lx core").
-    implementation(files("libs/libbox.aar"))
+    // §104 — ядро: Xray-core через libXray (XTLS/libXray gomobile wrapper).
+    // AAR не в git (~99MB, libs/ в .gitignore): его кладёт
+    // scripts/fetch-xray.sh (пин версии+sha256 — app/android/xray.version),
+    // вызывается из build-local-apk.sh и CI (build.yml → "Fetch Xray core").
+    implementation(files("libs/libxray.aar"))
+    // §Xray — gRPC-клиент к командному API Xray (commander "api"-blok).
+    // Стабы пред-сгенерированы (app/src/main/java/com/xray) — плагин codegen
+    // не нужен: AGP 9 + protobuf-gradle-plugin несовместимы, см. §migration.
+    implementation("io.grpc:grpc-okhttp:1.68.1")
+    implementation("io.grpc:grpc-stub:1.68.1")
+    implementation("io.grpc:grpc-protobuf:1.68.1")
+    implementation("com.google.protobuf:protobuf-java:3.25.5")
+    implementation("javax.annotation:javax.annotation-api:1.3.2")
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.drawerlayout:drawerlayout:1.2.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")

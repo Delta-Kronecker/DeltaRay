@@ -187,9 +187,9 @@ jobs:
         env:
           CARGO_TERM_COLOR: always
 
-      - name: Fetch sing-box-lx core (libbox.aar)
+      - name: Fetch Xray core (libxray.aar)
         working-directory: src/lxbox
-        run: ./scripts/fetch-libbox.sh
+        run: ./scripts/fetch-xray.sh
 
       - name: Flutter version pin
         id: flutter_pin

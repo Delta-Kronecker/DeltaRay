@@ -338,15 +338,9 @@ class VpnPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware,
                 result.success(uptime)
             }
             "getCoreVersion" -> {
-                // Libbox.version() — статический Go-side метод; возвращает
-                // строку вида "1.13.11". Используется в About screen.
-                // Не требует libbox.setup; safe to call в любой момент.
-                try {
-                    result.success(io.nekohasekai.libbox.Libbox.version())
-                } catch (t: Throwable) {
-                    Log.e(TAG, "getCoreVersion failed", t)
-                    result.success("")
-                }
+                // §migration — версия ядра Xray через JSON-RPC `xrayVersion`.
+                // Ответ обёртки "1.13.11"-стиля не гарантирован; no-throw внутри.
+                result.success(BoxApplication.coreVersion())
             }
             "reloadVPN" -> {
                 // Spec 030: in-place reload sing-box runtime через
@@ -361,29 +355,12 @@ class VpnPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware,
                 result.success(true)
             }
             "setQuicKnob" -> {
-                // §341 — диагностические env-ручки quic-go (GSO/ECN offload).
-                // Статические Libbox-вызовы (Go-side os.Setenv), эффект — на
-                // следующем (ре)коннекте QUIC-аутбаундов; сервис не нужен.
-                val knob = call.argument<String>("knob")
-                val disabled = call.argument<Boolean>("disabled") ?: false
-                val ok = try {
-                    when (knob) {
-                        "gso" -> {
-                            io.nekohasekai.libbox.Libbox.setQuicGSODisabled(disabled)
-                            true
-                        }
-                        "ecn" -> {
-                            io.nekohasekai.libbox.Libbox.setQuicECNDisabled(disabled)
-                            true
-                        }
-                        else -> false
-                    }
-                } catch (t: Throwable) {
-                    // Старый AAR без экспорта — не роняем канал, отвечаем false.
-                    Log.e(TAG, "setQuicKnob($knob) failed", t)
-                    false
-                }
-                result.success(ok)
+                // §migration — env-ручки quic-go относились к sing-box
+                // (Libbox.setQuicGSODisabled/setQuicECNDisabled). Xray таких
+                // контролей не экспортирует — ложим persist-значение пользователю
+                // не даём, отвечаем false (честная деградация).
+                Log.d(TAG, "setQuicKnob degraded (not supported by Xray)")
+                result.success(false)
             }
             "clearDnsCache" -> {
                 // §263 — удалить cache.db (FakeIP + DNS RDRC). Running → reload
@@ -611,17 +588,11 @@ class VpnPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware,
                 // при следующем подключении VPN.
                 val value = call.argument<String>("value") ?: BootReceiver.MEMORY_LIMIT_AUTO
                 BootReceiver.setMemoryLimit(context, value)
-                val appContext = context
-                pluginScope.launch(Dispatchers.IO) {
-                    runCatching {
-                        BoxApplication.libboxReady.await()
-                        val opts = io.nekohasekai.libbox.SetupOptions().apply {
-                            oomKillerEnabled = true
-                            oomMemoryLimit = BoxApplication.resolveMemoryLimitBytes(appContext)
-                        }
-                        io.nekohasekai.libbox.Libbox.reloadSetupOptions(opts)
-                    }.onFailure { Log.w(TAG, "reloadSetupOptions failed: ${it.message}") }
-                }
+                // §migration — Libbox.reloadSetupOptions (debug.SetMemoryLimit
+                // sing-box) для Xray недоступен: persist-значение сохранено,
+                // live-применение деградировано (применится на следующем старте
+                // процесса, где оно учитывается как конфиг-решение ядра не
+                // требуется; управление памятью Go у Xray жёстко встроено).
                 result.success(null)
             }
             "openNotificationSettings" -> {
@@ -900,22 +871,16 @@ class VpnPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware,
             // отсутствует в старом .aar, любой throw). Caller деградирует
             // консервативно — «изменилось» (§324).
             "formatConfig" -> {
+                // §migration — Libbox.formatConfig (канонический re-marshal
+                // sing-box парсером) для Xray не существует, а подавать ему
+                // sing-box JSON бессмысленно (несовместимая схема). null →
+                // Dart деградирует консервативно («не удалось отформатировать»).
                 val text = call.argument<String>("config") ?: ""
                 if (text.isBlank()) {
                     result.success(null)
                 } else {
-                    pluginScope.launch {
-                        val r = withContext(Dispatchers.IO) {
-                            try {
-                                io.nekohasekai.libbox.Libbox.formatConfig(text)?.value
-                            } catch (t: Throwable) {
-                                // Невалидный конфиг — ожидаемый случай, не шумим error'ом.
-                                Log.d(TAG, "formatConfig failed: ${t.message}")
-                                null
-                            }
-                        }
-                        result.success(r)
-                    }
+                    Log.d(TAG, "formatConfig degraded (no canonical formatter in Xray)")
+                    result.success(null)
                 }
             }
             // §208/§209 — unary снапшот пула round_robin-группы. На Dispatchers.IO

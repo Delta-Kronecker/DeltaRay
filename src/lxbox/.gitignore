@@ -38,7 +38,7 @@ CLAUDE.md
 # Night autonomous session reports (personal, never commit)
 docs/night-reports/
 
-# §097 — local sing-box-lx core AAR (dev-only, not committed)
+# §097 — local Xray core AAR (libxray.aar, dev-only, not committed)
 app/android/app/libs/
 
 # Отладочные логи probe/e2e (случайно закоммичены в §285, удалены)

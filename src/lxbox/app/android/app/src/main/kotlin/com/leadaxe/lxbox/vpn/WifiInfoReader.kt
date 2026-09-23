@@ -2,7 +2,6 @@ package com.leadaxe.lxbox.vpn
 
 import android.content.Context
 import android.os.Build
-import io.nekohasekai.libbox.WIFIState
 
 /**
  * §051 — single source of truth для чтения текущей Wi-Fi сети.
@@ -60,14 +59,9 @@ object WifiInfoReader {
         return Result.Success(ssid, bssid)
     }
 
-    /// Convenience для callers которым нужен WIFIState? (sing-box callback
-    /// + auto-record). null на любую ошибку — sing-box обрабатывает gracefully
-    /// (existing F12.3 fix flow).
-    fun readAsState(ctx: Context): WIFIState? = when (val r = read(ctx)) {
-        is Result.Success -> WIFIState(r.ssid, r.bssid)
-        is Result.UnknownSsid -> WIFIState("", "")
-        else -> null
-    }
+    /// §migration-removed `readAsState(WIFIState?)`: тип принадлежал sing-box
+    /// (PlatformInterface.readWIFIState) — единственный caller был в удалённом
+    /// PlatformInterfaceWrapper.
 
     /// Permission preflight — combined check для BACKGROUND_LOCATION
     /// (API 29+) + NEARBY_WIFI_DEVICES (API 33+). Без них `connectionInfo`

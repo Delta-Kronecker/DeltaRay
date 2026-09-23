@@ -77,13 +77,13 @@ else
   echo "build-local: no tag vN.N.N — version: 0.0.0+${CODE}"
 fi
 
-# §104 — ядро sing-box-lx: качаем пиненую версию AAR если ещё нет (идемпотентно).
-./scripts/fetch-libbox.sh
+# §104 — ядро Xray-core (libXray): качаем пиненую версию AAR если ещё нет (идемпотентно).
+./scripts/fetch-xray.sh
 
 cd app
 # §379: без `--split-per-abi` конфликта splits.abi ↔ ndk.abiFilters больше нет,
 # поэтому сужаем native libs из AAR через LXBOX_ABI_FILTER (иначе gradle тянет
-# libbox под все 3 ABI и APK раздувается до ~76 MB). `--target-platform`
+# libXray под все 3 ABI и APK раздувается до ~70 MB). `--target-platform`
 # сужает flutter engine + Dart AOT.
 LXBOX_ABI_FILTER="$ABI" \
   flutter build apk --release --target-platform "$FLUTTER_TARGET" "$@"

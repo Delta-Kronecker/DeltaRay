@@ -3,7 +3,6 @@ package com.leadaxe.lxbox.vpn
 import android.os.SystemClock
 import android.util.Log
 import com.leadaxe.lxbox.ConnectConfigPing
-import io.nekohasekai.libbox.CommandClient
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.IOException

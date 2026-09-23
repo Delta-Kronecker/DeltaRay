@@ -7,7 +7,6 @@ import android.os.Build
 import android.os.LocaleList
 import android.util.Log
 import androidx.annotation.RequiresApi
-import io.nekohasekai.libbox.Libbox
 import java.util.Locale
 
 /// §279 Phase 6 (спека §6.2) — резолвер локали нативных поверхностей.
@@ -101,27 +100,13 @@ object L10n {
     }
 
     /// §279 (спека §6.3, шаг 5) — mid-run переключение локали строк ядра.
-    /// Верифицировано по исходникам sing-box-lx: `locale.Set` хранит текущую
-    /// локаль в atomic-указателе, читаемом В МОМЕНТ форматирования строки
-    /// (experimental/locale/locale.go) — mid-run вызов поддержан. Окно: уже
-    /// отформатированные/закэшированные строки остаются на прежнем языке до
-    /// следующего рендера ядром (device-verification pending).
+    /// §migration: `Libbox.setLocale` (sing-box `locale.Set`) для Xray не
+    /// существует — mid-run переключение локали ТОЛЬКО через Android per-app
+    /// locale (см. applySetting, LocaleManager). Сохранён имя и вызов, чтобы не
+    /// трогать refreshSurfaces-сценарий.
     fun applyLibboxLocale(base: Context) {
-        val s = setting(base)
-        runCatching {
-            if (s == SETTING_SYSTEM) {
-                // Как в BoxApplication.onCreate: libbox 1.14 строг к
-                // комбинации язык+регион → fallback на голый язык.
-                runCatching {
-                    Libbox.setLocale(
-                        Locale.getDefault().toLanguageTag().replace("-", "_"))
-                }.recoverCatching {
-                    Libbox.setLocale(Locale.getDefault().language)
-                }.getOrThrow()
-            } else {
-                Libbox.setLocale(s)
-            }
-        }.onFailure { Log.w(TAG, "Libbox.setLocale failed: ${it.message}") }
+        // no-op: локализация строк Xray живёт внутри ядра (по умолчанию en).
+        Log.d(TAG, "applyLibboxLocale degraded (no core locale API in Xray)")
     }
 
     /// §279 (спека §6.4) — снимок per-app-локалей для Dart-reconciliation.

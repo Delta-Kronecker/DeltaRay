@@ -7,11 +7,10 @@ import android.net.ProxyInfo
 import android.net.VpnService
 import android.os.Build
 import android.os.IBinder
+import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import android.util.Log
-import java.io.File
 import androidx.core.content.ContextCompat
-import io.nekohasekai.libbox.TunOptions
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -19,15 +18,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import org.json.JSONObject
+import java.io.File
 
-/// §049 F1 split (mirror reference SagerNet 1.13.11).
+/// §049 F1 split (mirror reference SagerNet/Bailu style).
 ///
-/// `BoxVpnService` — Android `VpnService` + `PlatformInterfaceWrapper` (PI only).
-/// Хранит `service: BoxService` в field initializer и форвардит Android
-/// lifecycle callbacks в `service.X()`. Весь state и CSH-implementation
-/// живут в `BoxService` — это даёт `CommandServer(this, platformInterface)`
-/// с двумя разными Java instance, как у reference.
-class BoxVpnService : VpnService(), PlatformInterfaceWrapper {
+/// `BoxVpnService` — Android `VpnService`. В отличие от sing-box-слоя
+/// (ядро звало `openTun` через PlatformInterface), здесь **app-driven TUN**:
+/// сам сервис строит `VpnService.Builder` из настроек tun-inbound конфига
+/// Xray и прокидывает fd ядру через `env.xray.tun.fd` (см. BoxService).
+class BoxVpnService : VpnService() {
 
     companion object {
         private const val TAG = "BoxVpnService"
@@ -37,91 +37,48 @@ class BoxVpnService : VpnService(), PlatformInterfaceWrapper {
         const val ACTION_FORCE_STOP = "com.leadaxe.lxbox.ACTION_FORCE_STOP"
         const val ACTION_RELOAD = "com.leadaxe.lxbox.ACTION_RELOAD"
         const val ACTION_RESET_NETWORK = "com.leadaxe.lxbox.ACTION_RESET_NETWORK"
-        /// §263 — сброс DNS-кэша: удалить cache.db + reload (если running).
+        /// §263 — сброс DNS-кэша (удалить cache.db + reload).
         const val ACTION_CLEAR_DNS_CACHE = "com.leadaxe.lxbox.ACTION_CLEAR_DNS_CACHE"
-        /// §182 — кнопка Reconnect в foreground-уведомлении: native-side
-        /// reconnect (stopAwait→start), переживает убитый UI-движок.
+        /// §182 — кнопка Reconnect в foreground-уведомлении: native-side reconnect.
         const val ACTION_RECONNECT = "com.leadaxe.lxbox.ACTION_RECONNECT"
         /// §223 — live-перерисовка лейблов уведомления при смене ноды (#20).
         const val ACTION_UPDATE_NOTIFICATION = "com.leadaxe.lxbox.ACTION_UPDATE_NOTIFICATION"
         const val BROADCAST_STATUS = "com.leadaxe.lxbox.BROADCAST_STATUS"
         const val EXTRA_STATUS = "status"
 
-        /// §415 — бюджет ожидания штатной остановки (`stopAwait` → setStatus(Stopped)).
-        ///
-        /// Лестница бюджетов, СТРОГО по возрастанию — иначе внешний слой объявит
-        /// таймаут раньше внутреннего и юзер получит ложную ошибку при успешной
-        /// остановке:
-        ///
-        ///   нативный `STOP_AWAIT_TIMEOUT_MS` (9с)
-        ///     < Dart `_Timeouts.stopVpn` (10с, `app/lib/vpn/box_vpn_client/timeouts.dart`)
-        ///
-        /// Зазор в 1с — на доставку результата обратно через MethodChannel
-        /// (сериализация + hop на Flutter-поток). Если бы бюджеты совпали, Dart
-        /// успел бы отвалиться по таймауту ПЕРВЫМ и `stopVPN()` бросил бы
-        /// TimeoutException вместо честного `false` — та же ложная ошибка,
-        /// только с другой стороны.
-        ///
-        /// Почему 9с, а не прежние 5с: device-замер (эмулятор, AWG/WARP-эндпоинт
-        /// + ~25 живых соединений) показал реальный teardown 5.2с — `closeFileDescriptor`
-        /// один занимает ~1.95с, плюс завершение WireGuard-устройства. 5с резали
-        /// успешную остановку на самом финише. 9с — заведомо больше худшего
-        /// наблюдаемого teardown'а, но всё ещё меньше Dart-бюджета.
+        /// §415 — бюджет ожидания штатной остановки (`stopAwait`).
+        /// Должен быть строго МЕНЬШЕ Dart `_Timeouts.stopVpn` (10с, зазор 1с), иначе
+        /// внешний слой объявит таймаут раньше и вернёт ложную ошибку (см. §415).
         const val STOP_AWAIT_TIMEOUT_MS = 9_000L
 
-        /// §276 — признак «туннель отобрало другое VPN-приложение». Едет рядом с
-        /// EXTRA_STATUS=Stopped, а НЕ отдельным значением VpnStatus: revoke —
-        /// терминальное состояние, и весь teardown (stopCompleter, onStartCommand
-        /// guard, isForeignVpnActive) завязан на `== Stopped`. Отдельный статус
-        /// подвесил бы stopVPN до таймаута (§224: setStatus(Stopped) —
-        /// единственная детерминированная точка всех teardown-путей).
+        /// §276 — признак «туннель отобрало другое VPN-приложение».
         const val EXTRA_REVOKED = "revoked"
 
-        /// Mirror of the live service status, readable from anywhere.
-        /// VpnPlugin.getVpnStatus читает это чтобы Flutter мог пересинхрониться
-        /// после re-attach (process killed но service выжил из-за keep-on-exit).
         @Volatile
         var currentStatus: VpnStatus = VpnStatus.Stopped
             private set
 
-        /// §069: snapshot значения `allow_bypass` при последнем `establish()`.
-        /// Отражает то что **сейчас applied** в `VpnService.Builder.allowBypass()`,
-        /// в отличие от persisted `BootReceiver.isAllowBypass()` который меняется
-        /// до `establish()` reload. Reset в `onDestroy()` чтобы UI warning исчезал
-        /// когда service умирает.
+        /// §069: snapshot `allow_bypass` при последнем `establishTun()`.
         @Volatile
         var currentSessionAllowBypass: Boolean = false
             private set
 
-        /// §187 — время старта туннеля (`SystemClock.elapsedRealtime()`,
-        /// монотонные часы — не прыгают при смене системного времени/таймзоны).
-        /// PERSISTENT companion → переживает swipe (туннель keep-alive не
-        /// перезапускался) → даёт честный uptime после cold-start, когда Dart-
-        /// `connectedSince` обнулился бы на «сейчас». 0 = не запущен.
+        /// §187 — время старта туннеля (monotonic).
         @Volatile
         var tunnelStartedElapsedMs: Long = 0L
             private set
 
-        /// §276 — зеркало «последний Stopped пришёл из onRevoke». Нужно для
-        /// pull-пути (`getVpnStatus` на resume): broadcast'ятся только переходы,
-        /// и без этого поля UI, вернувшийся из фона после перехвата, увидел бы
-        /// голый Stopped и показал нейтральный Disconnected (кейс, помеченный
-        /// в §003 как «намеренно не покрыто»).
+        /// §276 — зеркало «последний Stopped пришёл из onRevoke».
         @Volatile
         var currentRevoked: Boolean = false
             private set
 
-        /// Internal — для BoxService.setStatus() обновлять companion-state.
         internal fun setCurrentStatus(s: VpnStatus, revoked: Boolean = false) {
             currentStatus = s
-            // §276 — Starting/Started снимают метку: туннель снова наш. На
-            // Stopped метка приходит из setStatus (true только от onRevoke).
             currentRevoked = when (s) {
                 VpnStatus.Starting, VpnStatus.Started -> false
                 else -> revoked
             }
-            // §187 — фиксируем старт ОДИН раз на переходе в Started (не
-            // перетирать при дедуп-повторе). Сброс на Stopped → uptime обнулится.
             when (s) {
                 VpnStatus.Started ->
                     if (tunnelStartedElapsedMs == 0L) {
@@ -132,11 +89,7 @@ class BoxVpnService : VpnService(), PlatformInterfaceWrapper {
             }
         }
 
-        /// §361 — жив ли ACTION_STOP-приёмник (ведёт `BoxService` в паре с своим
-        /// `receiverRegistered`). `stopAwait` шлёт стоп широковещательно, и без
-        /// этого признака у него нет способа отличить «сервис работает, сейчас
-        /// остановится» от «принимать некому» — во втором случае он честно ждал
-        /// свои 5 секунд и возвращал false.
+        /// §361 — жив ли ACTION_STOP-приёмник.
         @Volatile
         var stopReceiverAlive: Boolean = false
             private set
@@ -145,23 +98,20 @@ class BoxVpnService : VpnService(), PlatformInterfaceWrapper {
             stopReceiverAlive = alive
         }
 
-        /// Completer для `stopAwait` — completes когда `setStatus(Stopped)`
-        /// отработал, т.е. все cleanup стадии завершились.
         @Volatile
         private var stopCompleter: CompletableDeferred<Unit>? = null
 
-        /// Internal — BoxService.setStatus() при переходе в Stopped зовёт этот.
         internal fun completeStopIfWaiting() {
             stopCompleter?.complete(Unit)
             stopCompleter = null
         }
 
-        /// §043: Sink для core logs от sing-box → Flutter EventChannel.
+        /// §043: Sink для core logs (здесь — деградировано: Xray не стримит логи;
+        /// продюсер отсутствует, поле сохранено для совместимости EventChannel).
         @Volatile
         var coreLogSink: io.flutter.plugin.common.EventChannel.EventSink? = null
 
-        /// §122 Фаза 0 — sink'и нового CommandClient-канала (`BoxCommandClient`).
-        /// Инвариант §2.1: эмиттер живёт во Flutter-процессе (как `coreLogSink`).
+        /// §122 Фаза 0 — sink'и new CommandClient-канала (`BoxCommandClient`).
         @Volatile
         var ccStatusSink: io.flutter.plugin.common.EventChannel.EventSink? = null
         @Volatile
@@ -170,9 +120,19 @@ class BoxVpnService : VpnService(), PlatformInterfaceWrapper {
         var ccGroupsSink: io.flutter.plugin.common.EventChannel.EventSink? = null
         @Volatile
         var ccConnectionsSink: io.flutter.plugin.common.EventChannel.EventSink? = null
-        /// §180 — DNS-журнал из ядра (SPEC 018). Батч-доставка списком CcDnsQuery.
+        /// §180 — DNS-журнал из ядра (SPEC 018). Деградировано: Xray не отдаёт
+        /// per-query журнал, продюсер пуст (см. BoxCommandClient).
         @Volatile
         var ccDnsQueriesSink: io.flutter.plugin.common.EventChannel.EventSink? = null
+
+        /// Текущий активный инстанс VpnService — для `protectFd` (DialerController)
+        /// и обращения к VpnService-скоупу из фоновых корутин ядра.
+        @Volatile
+        private var activeService: BoxVpnService? = null
+
+        /// §046 — protect исходящего сокета (ядро зовёт из DialerController).
+        fun protectFd(fd: Int): Boolean =
+            activeService?.runCatching { protect(fd) }?.getOrDefault(false) ?: false
 
         fun start(context: Context) {
             Log.d(TAG, "[vpn] companion.start() → startForegroundService, current status=${currentStatus.name}")
@@ -187,11 +147,7 @@ class BoxVpnService : VpnService(), PlatformInterfaceWrapper {
             )
         }
 
-        /// §129 — fire-and-forget force-stop: НЕ ждём `setStatus(Stopped)` от
-        /// ядра (оно зависло вхолостую — detour AWG→WG, #2). Шлёт ACTION_FORCE_STOP;
-        /// `BoxService.doForceStop` сразу делает `stopSelf()`, teardown ядра — фоном
-        /// best-effort. В отличие от `stopAwait` — НЕ возвращает Deferred (ждать
-        /// нечего: ядро Stopped не отдаст).
+        /// §129 — fire-and-forget force-stop.
         fun forceStop(context: Context) {
             Log.w(TAG, "[vpn] companion.forceStop() → sendBroadcast(ACTION_FORCE_STOP), current status=${currentStatus.name}")
             context.sendBroadcast(
@@ -213,10 +169,8 @@ class BoxVpnService : VpnService(), PlatformInterfaceWrapper {
             )
         }
 
-        /// §263 — сброс DNS-кэша. Running: broadcast → receiver удалит cache.db
-        /// в правильном окне и reload'нёт (ядро создаст чистый). Off: broadcast
-        /// некому ловить (receiver жив только у работающего сервиса) → удаляем
-        /// файл прямо здесь; чистый cache.db создастся при следующем старте.
+        /// §263 — сброс DNS-кэша (degraded: Xray кэша cache.db не ведёт, на
+        /// совместимость чистим ведущиеся ядром файлы, если они появятся).
         fun clearDnsCache(context: Context) {
             Log.d(TAG, "[vpn] companion.clearDnsCache() current status=${currentStatus.name}")
             if (currentStatus == VpnStatus.Started ||
@@ -230,9 +184,6 @@ class BoxVpnService : VpnService(), PlatformInterfaceWrapper {
             }
         }
 
-        /// §263 — удалить cache.db (FakeIP-аллокации + DNS RDRC). Путь =
-        /// `filesDir/cache.db` (basePath ядра, см. BoxApplication.setup).
-        /// Идемпотентно: нет файла (свежая установка / уже чисто) → no-op.
         internal fun deleteCacheDbFile() {
             val f = File(BoxApplication.application.filesDir, "cache.db")
             if (!f.exists()) {
@@ -243,11 +194,7 @@ class BoxVpnService : VpnService(), PlatformInterfaceWrapper {
             Log.i(TAG, "[dns] cache.db delete=$ok (${f.absolutePath})")
         }
 
-        /// §223 — попросить работающий сервис перерисовать foreground-уведомление
-        /// свежими лейблами из ConfigManager (#20: смена ноды без рестарта).
-        /// Вне Started — no-op: receiver зарегистрирован только у живого сервиса,
-        /// а его обработчик дополнительно гейтит рендер на Started; закэшированные
-        /// лейблы подхватит обычный connect-рендер.
+        /// §223 — попросить работающий сервис перерисовать foreground-уведомление.
         fun updateNotification(context: Context) {
             context.sendBroadcast(
                 Intent(ACTION_UPDATE_NOTIFICATION).setPackage(context.packageName)
@@ -259,12 +206,6 @@ class BoxVpnService : VpnService(), PlatformInterfaceWrapper {
             if (currentStatus == VpnStatus.Stopped) {
                 return CompletableDeferred(Unit)
             }
-            // §361 — статус не Stopped, но принимать ACTION_STOP некому: сервис
-            // уже уничтожен, а статус остался «живым» (запоздавший setStatus от
-            // отменённого старта — корень закрыт в BoxService, это второй эшелон
-            // на случай другого пути рассинхрона). Broadcast ушёл бы в пустоту, а
-            // вызывающий висел бы 5 секунд ради `false` и мёртвой кнопки «Стоп».
-            // Приводим companion-состояние к правде и отвечаем сразу.
             if (!stopReceiverAlive) {
                 Log.w(TAG, "[vpn §361] stopAwait: no live receiver (status=${currentStatus.name}) — force Stopped")
                 setCurrentStatus(VpnStatus.Stopped)
@@ -287,26 +228,12 @@ class BoxVpnService : VpnService(), PlatformInterfaceWrapper {
             return completer
         }
 
-        /// §182 — process-level scope для reconnect-цепочки stopAwait→start.
-        /// НЕ на serviceScope: doStop()→stopSelf()→onDestroy отменил бы serviceScope
-        /// до того как мы дождёмся Stopped и сделаем новый start. Живёт на уровне
-        /// процесса (companion), как stopCompleter; не отменяется нигде (лёгкий:
-        /// одна короткоживущая корутина за reconnect).
         private val reconnectScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-        /// §182 — guard от двойного reconnect'а (двойной тап по кнопке в шторке).
         @Volatile
         private var reconnecting: Boolean = false
 
-        /// §182 — native-side reconnect для кнопки Reconnect в уведомлении.
-        /// = stopAwait() (дождаться полного Stopped) → start() (новый
-        /// startForegroundService). Через stopAwait, а НЕ «doStop()+сразу start()»:
-        /// ранний start попал бы в onStartCommand guard (status != Stopped → silent
-        /// return) и сервис не перезапустился бы (тот же race, что §002 закрыл для
-        /// Dart-пути). Работает с убитым UI-движком — путь полностью native.
-        ///
-        /// JNI no-throw (§141/§151): зовётся из BroadcastReceiver; тело защищено,
-        /// наружу не бросаем.
+        /// §182 — native-side reconnect: stopAwait() → start().
         fun reconnect(context: Context) {
             Log.d(TAG, "[vpn] companion.reconnect() current status=${currentStatus.name}")
             if (reconnecting) {
@@ -320,8 +247,6 @@ class BoxVpnService : VpnService(), PlatformInterfaceWrapper {
             reconnecting = true
             reconnectScope.launch {
                 val stopped = try {
-                    // §415 — тот же teardown, что и в обычном stop ⇒ тот же бюджет
-                    // (был свой литерал 6с — резал успешную остановку на 5.2с).
                     withTimeout(STOP_AWAIT_TIMEOUT_MS) { stopAwait(context).await(); true }
                 } catch (t: Throwable) {
                     Log.w(TAG, "[vpn] reconnect: stop phase failed/timeout: ${t.message}")
@@ -330,8 +255,6 @@ class BoxVpnService : VpnService(), PlatformInterfaceWrapper {
                 if (stopped) {
                     start(context)   // startForegroundService(ACTION_START)
                 } else {
-                    // D-1: stop не подтвердился — НЕ стартуем поверх (избегаем
-                    // guard-залипания). Юзер увидит что VPN не поднялся, повторит.
                     Log.w(TAG, "[vpn] reconnect aborted — stop not confirmed")
                 }
                 reconnecting = false
@@ -339,15 +262,13 @@ class BoxVpnService : VpnService(), PlatformInterfaceWrapper {
         }
     }
 
-    /// §049 F1 — field initializer (как `VPNService.kt:26` reference): инстанс
-    /// создаётся при создании Android Service, до onCreate(). Это держит
-    /// strong-ref на `platformInterface (= this)` через `private val` в
-    /// BoxService — препятствует преждевременному GC Go-side wrapper'а.
-    private val service = BoxService(this, this)
+    /// §049 F1 — field initializer: инстанс создаётся при создании Android Service,
+    /// до onCreate(). Strong-ref на BoxService живёт всё время жизни сервиса.
+    private val service = BoxService(this)
 
-    /// §049 F17 — state HTTP-proxy для `BoxService.getSystemProxyStatus()`.
-    @JvmField var systemProxyAvailable = false
-    @JvmField var systemProxyEnabled = false
+    /// Открытый нами tun-parcel. Закрывается BoxService при stop/reload.
+    @Volatile
+    var tun: ParcelFileDescriptor? = null
 
     // -------------------------------------------------------------------------
     // Android lifecycle — forward в BoxService
@@ -355,6 +276,7 @@ class BoxVpnService : VpnService(), PlatformInterfaceWrapper {
 
     override fun onCreate() {
         super.onCreate()
+        activeService = this
         service.onCreate()
     }
 
@@ -366,9 +288,8 @@ class BoxVpnService : VpnService(), PlatformInterfaceWrapper {
 
     override fun onDestroy() {
         service.onDestroy()
-        // §069: runtime applied значение больше не действует — clear snapshot
-        // чтобы Stats screen warning исчез при stop VPN.
         currentSessionAllowBypass = false
+        activeService = null
         super.onDestroy()
     }
 
@@ -383,120 +304,99 @@ class BoxVpnService : VpnService(), PlatformInterfaceWrapper {
     }
 
     // -------------------------------------------------------------------------
-    // PlatformInterfaceWrapper overrides — VPN-specific
+    // app-driven TUN (Xray-слой)
     // -------------------------------------------------------------------------
 
-    override fun autoDetectInterfaceControl(fd: Int) {
-        protect(fd)
-    }
-
-    override fun openTun(options: TunOptions): Int {
-        if (prepare(this) != null) error("android: missing vpn permission")
+    /// Открывает TUN по настройкам tun-inbound из конфига Xray. Возвращает fd
+    /// (ядро получит его через `xray.tun.fd`) или null на ошибку (лог без броска).
+    /// Вызывается из BoxService на Dispatchers.IO.
+    fun establishTun(configJson: String): Int? {
+        if (prepare(this) != null) {
+            Log.e(TAG, "establishTun: missing vpn permission")
+            return null
+        }
+        val cfg = runCatching { parseTunConfig(configJson) }.getOrElse { err ->
+            Log.e(TAG, "establishTun: bad config: ${err.message}")
+            return null
+        }
 
         val builder = Builder()
-            .setSession("sing-box")
-            .setMtu(options.mtu)
+            .setSession("lxbox")
+            .setMtu(cfg.mtu)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) builder.setMetered(false)
 
-        // §049 F15: allowBypass opt-in toggle.
-        // §069: snapshot runtime applied value для UI warning + Debug API.
         val allowBypass = BootReceiver.isAllowBypass(this)
         currentSessionAllowBypass = allowBypass
         if (allowBypass) {
             builder.allowBypass()
         }
 
-        val inet4 = options.inet4Address
-        while (inet4.hasNext()) { val a = inet4.next(); builder.addAddress(a.address(), a.prefix()) }
-        val inet6 = options.inet6Address
-        while (inet6.hasNext()) { val a = inet6.next(); builder.addAddress(a.address(), a.prefix()) }
-
-        if (options.autoRoute) {
-            // libbox 1.14: dnsServerAddress стал StringIterator (раньше — одиночный
-            // OptionalString с .value). Добавляем все объявленные ядром DNS-сервера.
-            val dnsServers = options.dnsServerAddress
-            while (dnsServers.hasNext()) {
-                val dns = dnsServers.next()
-                if (dns.isNotEmpty()) builder.addDnsServer(dns)
-            }
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                val r4 = options.inet4RouteAddress
-                if (r4.hasNext()) { while (r4.hasNext()) builder.addRoute(r4.next().toIpPrefix()) }
-                else if (options.inet4Address.hasNext()) builder.addRoute("0.0.0.0", 0)
-
-                val r6 = options.inet6RouteAddress
-                if (r6.hasNext()) { while (r6.hasNext()) builder.addRoute(r6.next().toIpPrefix()) }
-                else if (options.inet6Address.hasNext()) builder.addRoute("::", 0)
-
-                val x4 = options.inet4RouteExcludeAddress
-                while (x4.hasNext()) builder.excludeRoute(x4.next().toIpPrefix())
-                val x6 = options.inet6RouteExcludeAddress
-                while (x6.hasNext()) builder.excludeRoute(x6.next().toIpPrefix())
-            } else {
-                val r4 = options.inet4RouteRange
-                if (r4.hasNext()) { while (r4.hasNext()) { val a = r4.next(); builder.addRoute(a.address(), a.prefix()) } }
-                val r6 = options.inet6RouteRange
-                if (r6.hasNext()) { while (r6.hasNext()) { val a = r6.next(); builder.addRoute(a.address(), a.prefix()) } }
-            }
-
-            val incl = options.includePackage
-            if (incl.hasNext()) { while (incl.hasNext()) { try { builder.addAllowedApplication(incl.next()) } catch (_: NameNotFoundException) {} } }
-            val excl = options.excludePackage
-            if (excl.hasNext()) { while (excl.hasNext()) { try { builder.addDisallowedApplication(excl.next()) } catch (_: NameNotFoundException) {} } }
+        cfg.addresses.forEach { addr ->
+            runCatching { builder.addAddress(addr.ip(), addr.prefix()) }
+                .onFailure { Log.w(TAG, "establishTun: bad address $addr: ${it.message}") }
         }
 
-        // §049 F17: треккаем state HTTP-proxy для CommandServerHandler.getSystemProxyStatus.
-        if (options.isHTTPProxyEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            systemProxyAvailable = true
-            systemProxyEnabled = true
-            builder.setHttpProxy(
-                ProxyInfo.buildDirectProxy(
-                    options.httpProxyServer,
-                    options.httpProxyServerPort,
-                    options.httpProxyBypassDomain.toList()
-                )
-            )
-        } else {
-            systemProxyAvailable = false
-            systemProxyEnabled = false
+        cfg.dnsServers.forEach { builder.addDnsServer(it) }
+
+        // §migration (минимальный срез): full-header route как у sing-box
+        // autoRoute. Xray на Android не маршрутизирует сам (маршруты ставит
+        // VpnService.Builder) — целимся в 0/0, маски точных IP из допустимых
+        // связок config/zones — следующий workunit.
+        builder.addRoute("0.0.0.0", 0)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            builder.addRoute("::", 0)
         }
 
-        val pfd = builder.establish() ?: error("android: the application is not prepared or is revoked")
-        // §329 — номер fd + монотонная метка. Ядро дуплицирует этот fd
-        // (`libbox/service.go` dup) и раздаёт номера дальше; при переиспользовании
-        // номера чужой close бьёт в Go-сокет листенера sing-tun (§047). Пара
-        // «выдан / закрыт» по номеру и времени — единственный способ это увидеть:
-        // fdsan молчит, жертва нетегирована. Уровень `w`: виден под дефолтным
-        // порогом logcat, ничего не надо помнить про фильтр при разборе случая.
-        Log.w(TAG, "[fd §329] openTun fd=${pfd.fd} at=${SystemClock.elapsedRealtime()}ms")
-        // **§049 F1**: state живёт в BoxService — храним там.
-        // §329 — ЗАКРЫТЬ предыдущий PFD, а не просто затереть ссылку. Reload идёт
-        // мимо путей остановки (`closeFileDescriptor` зовётся только из
-        // doStop/doForceStop/onRevoke/onDestroy): ядро в `StartOrReloadService`
-        // само закрывает старый instance и сразу зовёт `openTun` заново. При
-        // простом `set` старый PFD осиротевал незакрытым, и его закрывал
-        // CloseGuard-финализатор при GC — по номеру и в произвольный момент,
-        // когда номер уже принадлежит листенеру НОВОГО стека (§047: листенер
-        // умирает, `accept4` → EINVAL, весь новый TCP получает RST). Плюс это
-        // была утечка fd на каждом reload. Паттерн — как в `closeFileDescriptor`
-        // (§049 F2): порядок безопасен, `oldInstance.Close()` завершается
-        // синхронно до `openTun`, т.е. ядро свой dup уже отпустило.
-        service.fileDescriptor.getAndSet(pfd)?.runCatching { close() }
-            ?.onFailure { Log.w(TAG, "[fd §329] stale pfd close failed: ${it.message}") }
+        val pfd = builder.establish()
+            ?: run {
+                Log.e(TAG, "establishTun: not prepared or revoked")
+                return null
+            }
+        tun?.runCatching { close() }.let { /* orphaned previous — закрыт */ }
+        tun = pfd
+        Log.w(TAG, "[fd §329] establishTun fd=${pfd.fd} at=${SystemClock.elapsedRealtime()}ms")
         return pfd.fd
     }
 
-    override fun protect(fd: Int): Boolean = super.protect(fd)
+    private data class TunConfig(
+        val mtu: Int,
+        val addresses: List<String>,
+        val dnsServers: List<String>,
+    )
 
-    /// `sendNotification` форвард в `service` — там логика построения Android Notification.
-    override fun sendNotification(notification: io.nekohasekai.libbox.Notification) {
-        service.sendNotification(notification)
-    }
-
-    /// `cancelNotification` — парный форвард (PlatformInterface ядра lx.27-rc.2).
-    override fun cancelNotification(identifier: String, typeID: Int) {
-        service.cancelNotification(identifier, typeID)
+    private fun parseTunConfig(configJson: String): TunConfig {
+        val root = JSONObject(configJson)
+        var mtu = 9000
+        val addresses = mutableListOf<String>()
+        val inbounds = root.optJSONArray("inbounds")
+        if (inbounds != null) {
+            for (i in 0 until inbounds.length()) {
+                val inb = inbounds.optJSONObject(i) ?: continue
+                if (inb.optString("protocol") != "tun") continue
+                mtu = inb.optJSONObject("settings")?.optInt("mtu")?.takeIf { it in 68..65535 } ?: mtu
+                val addrArr = inb.optJSONObject("settings")?.optJSONArray("address") ?: continue
+                for (j in 0 until addrArr.length()) addrArr.optString(j).takeIf { it.isNotEmpty() }?.let { addresses += it }
+            }
+        }
+        // DNS-сервера для Android (Xray сам ходит в DNS своими сокетами; сюда —
+        // только чтобы VpnService.Builder знал резолверы tun).
+        val dnsServers = mutableListOf<String>()
+        val dnsRoot = root.optJSONObject("dns")
+        val srvArr = dnsRoot?.optJSONArray("servers")
+        if (srvArr != null) {
+            for (i in 0 until srvArr.length()) {
+                val s = srvArr.opt(i)
+                when (s) {
+                    is String -> dnsServers += s
+                    is JSONObject -> s.optString("address").takeIf { it.isNotEmpty() }?.let { dnsServers += it }
+                }
+            }
+        }
+        if (dnsServers.isEmpty()) dnsServers += "8.8.8.8"
+        return TunConfig(mtu, addresses.ifEmpty { listOf("10.0.0.1", "fdfe:dcba:9876::1") }, dnsServers)
     }
 }
+
+private fun String.ip(): String = substringBefore('/')
+private fun String.prefix(): Int = substringAfter('/', "24").toIntOrNull() ?: 24

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fetches external build inputs for the combined DeltaRay APK:
-#   1. sing-box-lx core (libbox.aar) — from Leadaxe/sing-box-lx releases.
+#   1. Xray core (libxray.aar) — from XTLS/libXray releases.
 #   2. ZeroDPI Android runtime (libzerodpi_exec.so + config/list assets) —
 #      cross-compiled with the repo's own build.py (--android-skip-apk).
 set -euo pipefail
@@ -19,8 +19,8 @@ else
   PY="python"
 fi
 
-echo "==> [1/2] sing-box-lx core (libbox.aar)"
-bash "$REPO_ROOT/src/lxbox/scripts/fetch-libbox.sh"
+echo "==> [1/2] Xray core (libxray.aar)"
+bash "$REPO_ROOT/src/lxbox/scripts/fetch-xray.sh"
 
 echo "==> [2/2] ZeroDPI Android runtime ($RUNTIME / $ABI)"
 # build.py must be run from the ZeroDPI tree (cargo subprocesses inherit cwd).

@@ -1,58 +1,39 @@
 package com.leadaxe.lxbox.vpn
 
 import android.util.Log
-import io.nekohasekai.libbox.CommandClient
-import io.nekohasekai.libbox.CommandClientHandler
-import io.nekohasekai.libbox.CommandClientOptions
-import io.nekohasekai.libbox.CommandServer
-import io.nekohasekai.libbox.CommandServerHandler
-import io.nekohasekai.libbox.ConnectionEvents
-import io.nekohasekai.libbox.DnsQuery
-import io.nekohasekai.libbox.LogIterator
-import io.nekohasekai.libbox.OutboundGroupIterator
-import io.nekohasekai.libbox.OutboundGroupItemIterator
-import io.nekohasekai.libbox.OverrideOptions
-import io.nekohasekai.libbox.StatusMessage
-import io.nekohasekai.libbox.StringIterator
-import io.nekohasekai.libbox.SystemProxyStatus
 import java.util.concurrent.atomic.AtomicReference
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.runBlocking
+import org.json.JSONArray
+import org.json.JSONObject
 
-/// §236 — headless probe-сессия: ВРЕМЕННЫЙ CommandServer + конфиг БЕЗ tun,
-/// чтобы гонять `urlTestOutbound` по нодам папки, пока VPN ВЫКЛЮЧЕН.
+/// §236 — headless probe-сессия (Xray): проверка нод папки ПОКА VPN ВЫКЛЮЧЕН.
 ///
-/// Ограничение, диктующее модель: command.sock живёт в глобальном basePath
-/// (`Libbox.setup` — один на процесс) → два CommandServer одновременно
-/// невозможны. Поэтому:
-///  - probe стартует ТОЛЬКО при выключенном VPN (гейт по
-///    `BoxService.commandClient == null`);
-///  - старт VPN всегда приоритетнее: `BoxService` зовёт [stop] перед своим
-///    `startCommandServer()` (закрывает забытую/висящую сессию).
+/// libbox-версия поднимала ВТОРОЙ sing-box (CommandServer + command.sock) и
+/// гоняла urlTestOutbound против него. libXray держит ОДИН managed-core на
+/// процесс (`runXray`), поэтому живой второй инстанции нет: probe-сессия
+/// хранит переведённый в Xray конфиг, а каждый `urlTest` — это `pingBatch`:
+/// libXray поднимает транзиентный Xray для переданного конфига, тестит
+/// outbound и гасит — managed-core (боевой VPN) при этом не трогается.
+///
+/// Ограничения, диктующие модель:
+///  - транзиентный Xray в `pingBatch` разделяет глобальные структуры ядра с
+///    `runXray` → gate ТОТ ЖЕ, что был: probe стартует ТОЛЬКО при выключенном
+///    VPN (`BoxService.commandClient == null`);
+///  - тело HTTP-ответа `getURLViaOutbound` pingBatch не возвращает (только
+///    задержку/ошибку) → `getUrl` деградирован с честной ошибкой.
 ///
 /// НЕ Android-сервис: VpnStatus-broadcast, уведомления и tun не затрагиваются.
-/// Все колбэки из Go — no-throw (JNI: unchecked exception = Runtime::Abort).
-object ProbeSession : CommandServerHandler {
+object ProbeSession {
     private const val TAG = "ProbeSession"
 
-    private val server = AtomicReference<CommandServer?>(null)
-    private val client = AtomicReference<CommandClient?>(null)
+    private val probeXray = AtomicReference<String?>(null)
+    private val probeTags = AtomicReference<Set<String>>(emptySet())
 
-    /// §237-fix — `LocalResolver` отвечает SERVFAIL, пока
-    /// `DefaultNetworkMonitor.defaultNetwork == null`, а монитор поднимает
-    /// только боевой VPN-flow. Probe-сессия стартует его сама (и гасит только
-    /// свой — если к моменту stop VPN уже жив, монитор принадлежит ему).
-    private var probeScope: CoroutineScope? = null
-    private var monitorOwned = false
+    val active: Boolean get() = probeXray.get() != null
 
-    val active: Boolean get() = server.get() != null
-
-    /// Запуск сессии с готовым probe-конфигом (без inbound'ов). Возвращает ''
+    /// Запуск сессии с готовым sing-box probe-конфигом (без tun). Переводим в
+    /// Xray и запоминаем; до первого urlTest живой инстанции нет. Возвращает ''
     /// при успехе, иначе текст ошибки. Повторный вызов поверх живой сессии —
-    /// рестарт (старая закрывается).
+    /// рестарт (старое содержимое стирается).
     @Synchronized
     fun start(config: String): String {
         if (BoxService.commandClient != null) {
@@ -60,20 +41,16 @@ object ProbeSession : CommandServerHandler {
         }
         stopInternal()
         return runCatching {
-            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-            probeScope = scope
-            // Без монитора local-DNS (§049 F26) мертв → каждый lookup из
-            // probe-конфига падал SERVFAIL (device-репро 04.07.2026).
-            runBlocking { DefaultNetworkMonitor.start(scope) { } }
-            monitorOwned = true
-            val cs = CommandServer(this, ProbePlatform)
-            cs.start()
-            server.set(cs)
-            cs.startOrReloadService(config, OverrideOptions())
-            val cl = CommandClient(ProbeClientHandler, CommandClientOptions())
-            cl.connect()
-            client.set(cl)
-            Log.d(TAG, "probe session started")
+            val translated = XrayConfigTranslator.translate(
+                config, BoxApplication.application.filesDir.absolutePath
+            )
+            val tags = parseOutboundTags(translated.json)
+            if (tags.isEmpty()) {
+                throw IllegalArgumentException("no outbounds in translated probe config")
+            }
+            probeXray.set(translated.json)
+            probeTags.set(tags)
+            Log.d(TAG, "probe session ready (${tags.size} outbounds)")
             ""
         }.getOrElse {
             Log.e(TAG, "probe start failed", it)
@@ -83,117 +60,61 @@ object ProbeSession : CommandServerHandler {
     }
 
     /// Синхронный тест одной ноды (SPEC 014, Variant B: провал — в `error`
-    /// результата, не в исключении). Конкурентные вызовы допустимы — unary
-    /// gRPC мультиплексируется на одном клиенте (как pingClient §209).
+    /// результата, не в исключении). Механика — `pingBatch` с одним конфигом.
+    /// Конкурентные вызовы допустимы (инвок-обёртка ядра сериализует).
     fun urlTest(tag: String, link: String, timeoutMs: Int): Map<String, Any> {
-        val cl = client.get()
+        val xray = probeXray.get()
             ?: return mapOf("delay" to 0, "error" to "probe session not running")
+        if (tag !in probeTags.get()) {
+            return mapOf("delay" to 0, "error" to "tag not in probe config: $tag")
+        }
         return runCatching {
-            val r = cl.urlTestOutbound(tag, link, timeoutMs)
-            mapOf("delay" to r.delay, "error" to (r.error ?: ""))
+            val item = JSONObject()
+                .put("xrayJson", xray)
+                .put("outboundTag", tag)
+            val payload = JSONObject()
+                .put("configs", JSONArray().put(item))
+                .put("timeout", timeoutMs)
+                .put("url", link)
+            val data = BoxService.invokeXray("pingBatch", payload)
+            val results = data.optJSONArray("results") ?: JSONArray()
+            val r = if (results.length() > 0) results.optJSONObject(0) else null
+            if (r == null) {
+                mapOf("delay" to 0, "error" to "empty pingBatch response")
+            } else {
+                val err = r.optString("error")
+                mapOf(
+                    "delay" to r.optLong("delay", 0L).toInt(),
+                    "error" to (if (r.optBoolean("success")) "" else err),
+                )
+            }
         }.getOrElse {
-            mapOf("delay" to 0, "error" to (it.message ?: "urlTestOutbound failed"))
+            mapOf("delay" to 0, "error" to (it.message ?: "pingBatch failed"))
         }
     }
 
-    /// §392 — диагностический HTTP GET через узел probe-сессии (kernel SPEC
-    /// 058). Тело ответа возвращается как есть; парсинг — сторона Dart.
-    ///
-    /// Провал обмена приезжает исключением (libbox-обёртка мапит payload-error
-    /// в Go-error), не-2xx — обычный результат со статусом. Форма Map зеркалит
-    /// [BoxCommandClient.getUrlViaOutbound]: у Dart один разбор на обе ветки.
+    /// §392 — диагностический HTTP GET через узел. pingBatch возвращает только
+    /// задержку/ошибку, тела ответа нет → честная деградация (контракт Map
+    /// сохранён; Dart разберёт `error` как недоступность метода).
     fun getUrl(tag: String, link: String, timeoutMs: Int, maxBytes: Int): Map<String, Any> {
-        val cl = client.get()
-            ?: return mapOf("error" to "probe session not running")
-        return runCatching {
-            val r = cl.getURLViaOutbound(tag, link, timeoutMs, maxBytes, null)
-            // Геттеры без `get`-префикса — см. BoxCommandClient.getUrlViaOutbound.
-            mapOf(
-                "status" to r.status(),
-                "content" to r.content(),
-                "truncated" to r.truncated(),
-                "contentType" to r.contentType(),
-                "remoteAddr" to r.remoteAddr(),
-                "elapsedMs" to r.elapsedMs(),
-                "error" to "",
-            )
-        }.getOrElse {
-            mapOf("error" to (it.message ?: "getURLViaOutbound failed"))
-        }
+        Log.d(TAG, "getUrl(tag=$tag) degraded (pingBatch has no response body)")
+        return mapOf("error" to "getURLViaOutbound not supported by Xray probe")
     }
 
     @Synchronized
     fun stop() = stopInternal()
 
     private fun stopInternal() {
-        client.getAndSet(null)?.let { runCatching { it.disconnect() } }
-        server.getAndSet(null)?.let {
-            runCatching { it.closeService() }
-            runCatching { it.close() }
-            Log.d(TAG, "probe session stopped")
-        }
-        if (monitorOwned) {
-            monitorOwned = false
-            // VPN мог уже перехватить монитор (start VPN глушит probe и
-            // стартует монитор сам) — гасим только пока туннеля нет.
-            if (BoxService.commandClient == null) {
-                runCatching { runBlocking { DefaultNetworkMonitor.stop() } }
-            }
-        }
-        probeScope?.cancel()
-        probeScope = null
+        probeXray.set(null)
+        probeTags.set(emptySet())
+        Log.d(TAG, "probe session stopped")
     }
 
-    // ─── CommandServerHandler (probe-инстанс) — минимальные no-op'ы ──────
-
-    override fun serviceReload() {}
-
-    /// Ядро может попросить остановиться. НЕ synchronized-путь напрямую:
-    /// колбэк приходит из Go-потока, а монитор может держать start() —
-    /// разносим на отдельный поток, чтобы не словить deadlock через JNI.
-    override fun serviceStop() {
-        Thread { runCatching { stop() } }.start()
-    }
-
-    override fun getSystemProxyStatus(): SystemProxyStatus = SystemProxyStatus()
-    override fun setSystemProxyEnabled(isEnabled: Boolean) {}
-
-    /// Error-метод: gomobile ловит исключение и вернёт его как Go error —
-    /// до JNI Runtime::Abort не доходит (паттерн BoxService).
-    override fun connectSSHAgent(): Int =
-        throw UnsupportedOperationException("SSH agent not supported")
-
-    override fun triggerNativeCrash() {}
-
-    override fun writeDebugMessage(message: String) {
-        runCatching { Log.d(TAG, "[core] $message") }
-    }
-
-    /// Платформа probe-инстанса: конфиг без tun → `openTun` не вызывается
-    /// (§119-инвариант); дефолты `PlatformInterfaceWrapper` покрывают
-    /// остальное. Уведомления глушим — сессия невидимая.
-    private object ProbePlatform : PlatformInterfaceWrapper {
-        override fun sendNotification(notification: io.nekohasekai.libbox.Notification) {}
-    }
-
-    /// Клиент без подписок — только unary urlTestOutbound (аналог PingHandler).
-    private object ProbeClientHandler : CommandClientHandler {
-        override fun connected() { runCatching { Log.d(TAG, "client connected") } }
-        override fun disconnected(message: String) {
-            runCatching { Log.d(TAG, "client disconnected: $message") }
-        }
-        override fun clearLogs() { runCatching { } }
-        override fun setDefaultLogLevel(level: Int) { runCatching { } }
-        override fun initializeClashMode(modeList: StringIterator?, currentMode: String?) {
-            runCatching { }
-        }
-        override fun updateClashMode(newMode: String?) { runCatching { } }
-        override fun writeLogs(messageList: LogIterator?) { runCatching { } }
-        override fun writeStatus(message: StatusMessage?) { runCatching { } }
-        override fun writeGroups(groups: OutboundGroupIterator?) { runCatching { } }
-        override fun writeOutbounds(outbounds: OutboundGroupItemIterator?) { runCatching { } }
-        override fun writeConnectionEvents(message: ConnectionEvents?) { runCatching { } }
-        // §261 — CommandClientHandler расширен writeDNSQuery. Probe DNS не слушает.
-        override fun writeDNSQuery(query: DnsQuery?) { runCatching { } }
-    }
+    private fun parseOutboundTags(xrayJson: String): Set<String> = runCatching {
+        val outbounds = JSONObject(xrayJson).optJSONArray("outbounds") ?: JSONArray()
+        (0 until outbounds.length())
+            .mapNotNull { outbounds.optJSONObject(it) }
+            .mapNotNull { it.optString("tag").takeIf { t -> t.isNotEmpty() } }
+            .toSet()
+    }.getOrDefault(emptySet())
 }

@@ -1,16 +1,8 @@
 package com.leadaxe.lxbox
 
 import android.util.Log
-import io.nekohasekai.libbox.CommandClient
-import io.nekohasekai.libbox.CommandClientHandler
-import io.nekohasekai.libbox.CommandClientOptions
-import io.nekohasekai.libbox.ConnectionEvents
-import io.nekohasekai.libbox.DnsQuery
-import io.nekohasekai.libbox.LogIterator
-import io.nekohasekai.libbox.OutboundGroupIterator
-import io.nekohasekai.libbox.OutboundGroupItemIterator
-import io.nekohasekai.libbox.StatusMessage
-import io.nekohasekai.libbox.StringIterator
+import com.leadaxe.lxbox.vpn.BoxCommandClient
+import com.leadaxe.lxbox.vpn.BoxService
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.Dispatchers
@@ -25,7 +17,9 @@ import kotlinx.coroutines.withContext
 /// Вместо разбора log'ов (у libbox core-лог идёт только в Flutter — после
 /// закрытия MainActivity движка нет, а файла-журнала пингов нет) используем
 /// штатный ping-механизм самого приложения: unary RPC `urlTestOutbound`
-/// против живого ядра (command.sock). План чтения — из актуального
+/// против живого ядра. §migration (libxray): живого ядра как command.sock нет —
+/// все unary-вызовы — это gRPC на api-порт Xray через `BoxService.commandClient`
+/// (BoxCommandClient), см. [PingClient]. План чтения — из актуального
 /// `singbox_config.json`: url-test/selector-группы направлений (`vpn-N`) +
 /// их тест-URL. Как только хоть один конфиг ответил (`error == ""`) — связка
 /// считается подключённой.
@@ -208,7 +202,7 @@ object ConnectConfigPing {
         return null
     }
 
-    private fun readGroupDelays(client: CommandClient): Map<String, Int> = runCatching {
+    private fun readGroupDelays(client: PingClient): Map<String, Int> = runCatching {
         val delays = mutableMapOf<String, Int>()
         val groups = client.getGroups()
         while (groups.hasNext()) {
@@ -217,14 +211,14 @@ object ConnectConfigPing {
                 val item = items.next()
                 val tag = item.tag
                 val d = item.urlTestDelay
-                if (d > 0 && !looksIndirect(tag)) delays[tag] = d
+                if (d > 0 && !looksIndirect(tag)) delays[tag] = d.toInt()
             }
         }
         delays
     }.getOrDefault(emptyMap())
 
     /// Однократное чтение кеша задержек ядра (пинги, которые само приложение
-    /// уже наколотил штатным mass ping). null = command-клиент не поднялся.
+    /// уже наколотило штатным mass ping). null = command-клиент не поднялся.
     suspend fun appPings(): Map<String, Int>? {
         val client = openClient() ?: return null
         return try {
@@ -235,7 +229,7 @@ object ConnectConfigPing {
     }
 
     private suspend fun parallelPing(
-        client: CommandClient,
+        client: PingClient,
         tags: List<String>,
         url: String,
         timeoutMs: Int,
@@ -248,7 +242,7 @@ object ConnectConfigPing {
     /// §4.6 инвариант: `error` — единственный признак провала; `error == ""`
     /// = успех (delay может быть 0мс).
     private fun pingOnce(
-        client: CommandClient,
+        client: PingClient,
         tag: String,
         url: String,
         timeoutMs: Int,
@@ -258,66 +252,79 @@ object ConnectConfigPing {
         PingDelay(tag, error.isEmpty(), if (error.isEmpty()) r.getDelay() else 0)
     }.getOrDefault(PingDelay(tag, ok = false, delayMs = 0))
 
-    /// Открыть собственный unary-клиент (без подписок) — и для монитора
-    /// фазы коннекта, и для вачдога (getGroups/selectOutbound/urlTestOutbound).
-    fun openClient(): CommandClient? = runCatching {
-        val client = CommandClient(PingClientHandler, CommandClientOptions())
-        client.connect()
-        client
+    /// "Клиент" поверх живого `BoxService.commandClient` (BoxCommandClient).
+    /// Собственного сокета/gRPC-канала нет — это лёгкая обёртка, которая
+    /// проектирует unary-методы обёртки ядра в тот же фасад, что был у raw
+    /// CommandClient libbox (getGroups/selectOutbound/urlTestOutbound/
+    /// disconnect — disconnect теперь no-op: клиент один на процесс). null =
+    /// command-клиент не поднялся (ядро не стартовало / упало / ещё не
+    /// перешло в Started).
+    fun openClient(): PingClient? = runCatching {
+        val cc = BoxService.commandClient
+        if (cc == null) {
+            com.leadaxe.lxbox.vpn.WatchdogLog.add("openClient: commandClient unavailable (core not running?)")
+            null
+        } else {
+            PingClient(cc)
+        }
     }.onFailure {
-        Log.w(TAG, "command client connect failed: ${it.message}")
-        com.leadaxe.lxbox.vpn.WatchdogLog.add("command.sock: client connect failed — ${it.message}")
+        Log.w(TAG, "openClient failed: ${it.message}")
+        com.leadaxe.lxbox.vpn.WatchdogLog.add("openClient failed — ${it.message}")
     }.getOrNull()
 
-    /// Клиент без подписок — только unary RPC (аналог ProbeClientHandler).
-    private object PingClientHandler : CommandClientHandler {
-        override fun connected() {
-            runCatching { Log.d(TAG, "client connected") }
+    /// Экранные снапшоты групп (тот же формат, что у BoxCommandClient.getGroups):
+    /// [selected] — текущий узел (balancerOverride), [items] — члены с задержкой.
+    class ObjItem(val tag: String, val urlTestDelay: Long)
+    class ObjGroup(val tag: String, val selected: String?, val items: List<ObjItem>)
+
+    /// Итератор так же, как в libbox-контракте: `hasNext()/next()`, см.
+    /// TunnelWatchdog.currentSelectedNode и ConnectConfigPing.readGroupDelays.
+    class OutboundGroupIterator(private val groups: List<ObjGroup>) : Iterator<ObjGroup> {
+        private var idx = 0
+        override fun hasNext(): Boolean = idx < groups.size
+        override fun next(): ObjGroup { if (idx >= groups.size) throw NoSuchElementException(); return groups[idx++] }
+    }
+
+    class ObjGroupItemIterator(private val items: List<ObjItem>) : Iterator<ObjItem> {
+        private var idx = 0
+        override fun hasNext(): Boolean = idx < items.size
+        override fun next(): ObjItem { if (idx >= items.size) throw NoSuchElementException(); return items[idx++] }
+    }
+
+    /// Результат urlTest: §4.6-инвариант (error == "" = успех) + задержка.
+    class ObjUrlTest(private val delayMs: Int, private val errorMsg: String) {
+        fun getDelay(): Int = delayMs
+        fun getError(): String = errorMsg
+    }
+
+    class PingClient(private val cc: BoxCommandClient?) {
+        fun getGroups(): OutboundGroupIterator {
+            val raw = cc?.getGroups() ?: return OutboundGroupIterator(emptyList())
+            val groups = raw.mapNotNull { g ->
+                val tag = g["tag"] as? String ?: return@mapNotNull null
+                val items = (g["items"] as? List<*>)?.mapNotNull { m ->
+                    val mm = m as? Map<*, *> ?: return@mapNotNull null
+                    val itag = mm["tag"] as? String ?: return@mapNotNull null
+                    ObjItem(itag, (mm["urlTestDelay"] as? Number)?.toLong() ?: 0L)
+                } ?: emptyList<ObjItem>()
+                ObjGroup(tag, g["selected"] as? String, items)
+            }
+            return OutboundGroupIterator(groups)
         }
 
-        override fun disconnected(message: String) {
-            runCatching { Log.d(TAG, "client disconnected: $message") }
+        fun selectOutbound(group: String, tag: String): Boolean =
+            cc?.selectOutbound(group, tag) ?: false
+
+        fun urlTestOutbound(tag: String, link: String, timeoutMs: Int): ObjUrlTest {
+            val m = cc?.urlTestOutbound(tag, link, timeoutMs)
+                ?: return ObjUrlTest(0, "command client unavailable")
+            return ObjUrlTest(
+                (m["delay"] as? Number)?.toInt() ?: 0,
+                (m["error"] as? String) ?: "",
+            )
         }
 
-        override fun clearLogs() {
-            runCatching { }
-        }
-
-        override fun setDefaultLogLevel(level: Int) {
-            runCatching { }
-        }
-
-        override fun initializeClashMode(modeList: StringIterator?, currentMode: String?) {
-            runCatching { }
-        }
-
-        override fun updateClashMode(newMode: String?) {
-            runCatching { }
-        }
-
-        override fun writeLogs(messageList: LogIterator?) {
-            runCatching { }
-        }
-
-        override fun writeStatus(message: StatusMessage?) {
-            runCatching { }
-        }
-
-        override fun writeGroups(groups: OutboundGroupIterator?) {
-            runCatching { }
-        }
-
-        override fun writeOutbounds(outbounds: OutboundGroupItemIterator?) {
-            runCatching { }
-        }
-
-        override fun writeConnectionEvents(message: ConnectionEvents?) {
-            runCatching { }
-        }
-
-        // §261 — CommandClientHandler расширен writeDNSQuery. Пинги DNS не слушают.
-        override fun writeDNSQuery(query: DnsQuery?) {
-            runCatching { }
-        }
+        /// no-op: клиент один на процесс, владеет им BoxService.
+        fun disconnect() {}
     }
 }
