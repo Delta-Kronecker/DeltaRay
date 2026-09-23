@@ -206,7 +206,7 @@ object ConnectConfigPing {
         val delays = mutableMapOf<String, Int>()
         val groups = client.getGroups()
         while (groups.hasNext()) {
-            val items = groups.next().items
+            val items = groups.next().items.iterator()
             while (items.hasNext()) {
                 val item = items.next()
                 val tag = item.tag

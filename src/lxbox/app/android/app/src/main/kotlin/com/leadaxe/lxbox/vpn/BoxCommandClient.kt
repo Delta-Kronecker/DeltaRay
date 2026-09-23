@@ -238,8 +238,8 @@ class BoxCommandClient(
                         "urlTestTime" to (st?.lastSeenTime ?: 0),
                     ))
                 }
-                val selected = api.balancerOverride(g.tag) ?: g.defaultTag
-                groups.add(mapOf(
+                val selected = (api.balancerOverride(g.tag) ?: g.defaultTag).orEmpty()
+                groups.add(mapOf<String, Any>(
                     "tag" to g.tag,
                     "type" to g.type,
                     "selectable" to true,
@@ -320,7 +320,7 @@ class BoxCommandClient(
                     "urlTestTime" to (st?.lastSeenTime ?: 0),
                 ))
             }
-            val selected = api.balancerOverride(g.tag) ?: g.defaultTag
+            val selected = (api.balancerOverride(g.tag) ?: g.defaultTag).orEmpty()
             groups.add(mapOf<String, Any>(
                 "tag" to g.tag,
                 "type" to g.type,
