@@ -98,17 +98,24 @@ object XrayConfigTranslator {
                             put("protocol", "tun")
                             put("listen", "127.0.0.1")
                             put("port", 0)
+                            // Xray TunConfig читается из `settings` с КЛЮЧАМИ Xray
+                            // (name/mtu/gateway/...), а не sing-box (stack/address).
+                            // `name` обязателен: пустой → conf.GetAvailableTunName()
+                            // перечисляет интерфейсы через netlink → Android SELinux
+                            // запрещает (permission denied). Имя на Android не
+                            // валидируется (fd берётся из env.xray.tun.fd) — "tun0".
+                            // autoOutboundsInterface НЕ ставим: Index()→InterfaceByName
+                            // тоже упирается в netlink.
                             put(
                                 "settings",
                                 JSONObject().apply {
-                                    put("stack", settings.optString("stack", "gvisor"))
+                                    put("name", "tun0")
                                     put("mtu", tunMtu)
-                                    put("auto_route", settings.optBoolean("auto_route", true))
-                                    put("strict_route", settings.optBoolean("strict_route", false))
                                     put(
-                                        "address",
+                                        "gateway",
                                         JSONArray().apply { tunAddresses.forEach { put(it.substringBefore('/')) } },
                                     )
+                                    put("userLevel", 0)
                                 },
                             )
                         },
@@ -167,7 +174,7 @@ object XrayConfigTranslator {
                     put("protocol", "tun")
                     put("listen", "127.0.0.1")
                     put("port", 0)
-                    put("settings", JSONObject().put("stack", "gvisor").put("mtu", 9000))
+                    put("settings", JSONObject().put("name", "tun0").put("mtu", 9000))
                 },
             )
             hasTun = true
