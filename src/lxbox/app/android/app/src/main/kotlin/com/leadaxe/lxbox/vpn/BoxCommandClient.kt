@@ -321,7 +321,7 @@ class BoxCommandClient(
                 ))
             }
             val selected = api.balancerOverride(g.tag) ?: g.defaultTag
-            groups.add(mapOf(
+            groups.add(mapOf<String, Any>(
                 "tag" to g.tag,
                 "type" to g.type,
                 "selectable" to true,

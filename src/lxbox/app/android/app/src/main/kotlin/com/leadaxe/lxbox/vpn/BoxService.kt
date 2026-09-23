@@ -410,9 +410,9 @@ class BoxService(private val service: Service) {
             closeTun("reload")
             closeCore("reload")
         }.onFailure { Log.e(TAG, "serviceReload teardown failed", it) }
-        delay(150)
         serviceScope.launch {
             try {
+                delay(150)
                 startCore()
             } catch (t: Throwable) {
                 Log.e(TAG, "serviceReload start failed", t)

@@ -2,8 +2,8 @@ package com.leadaxe.lxbox.vpn
 
 import android.util.Log
 import com.xray.app.observatory.OutboundStatus
-import com.xray.app.observatory.command.GetOutboundStatusRequest
-import com.xray.app.observatory.command.ObservatoryServiceGrpc
+import com.xray.core.app.observatory.command.GetOutboundStatusRequest
+import com.xray.core.app.observatory.command.ObservatoryServiceGrpc
 import com.xray.app.router.command.GetBalancerInfoRequest
 import com.xray.app.router.command.ListRuleRequest
 import com.xray.app.router.command.OverrideBalancerTargetRequest

@@ -244,8 +244,8 @@ object TunnelWatchdog {
             val it = client.getGroups()
             while (it.hasNext()) {
                 val g = it.next()
-                if (g.getTag() == groupTag) {
-                    return g.getSelected()?.takeIf { s -> s.isNotEmpty() }
+                if (g.tag == groupTag) {
+                    return g.selected?.takeIf { s -> s.isNotEmpty() }
                 }
             }
             null
