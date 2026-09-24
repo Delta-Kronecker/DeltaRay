@@ -3,6 +3,7 @@ package com.leadaxe.lxbox.vpn
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.concurrent.ConcurrentHashMap
 
 /// §migration — best-effort перевод sing-box JSON (эмиттит Dart buildConfig)
 /// в JSON Xray-core. НЕ полный порт движка конфигурации (это отдельный
@@ -13,9 +14,10 @@ import org.json.JSONObject
 ///
 ///  - outbounds:      direct/block/vless/vmess/shadowsocks/trojan/wireguard,
 ///                    streamSettings (tls | ws/grpc/h2) — типовая связка.
-///  - groups:         sing selector/urltest → Xray `routing.balancers`
-///                    (strategy random; выбор ноды — через OverrideBalancerTarget,
-///                    наблюдаемость — ObservatoryService.GetOutboundStatus).
+///  - groups:         sing selector/urltest → Xray `routing.balancers`; urltest
+///                    («auto») → strategy leastping (observatory сам выбирает и
+///                    ПЕРЕКЛЮЧАЕТ на лучший узел); selector → strategy random
+///                    (выбор из приложения через OverrideBalancerTarget).
 ///  - routing:        sing route.rules (domain*/ip_cidr/source_ip_cidr/port/
 ///                    source_port/network/inbound/protocol/tls/http) → Xray
 ///                    rules; селект группы → balancerTag; `final` → catch-all.
@@ -28,12 +30,17 @@ object XrayConfigTranslator {
 
     private const val TAG = "XrayCfg"
 
+    private const val PIN_TIMEOUT_MS = 2500    // Таймаут cert-хендшейка (insecure-ноды)
+    private const val PIN_BUDGET_MS = 8000L    // Мягкий бюджет на все fetch-пины за translate()
+
     data class Translated(val json: String, val apiPort: Int, val tunAddresses: List<String>, val tunMtu: Int)
 
     private class Ctx(val warn: (String) -> Unit) {
         val groups = LinkedHashMap<String, MutableList<String>>()   // groupTag -> nodeTags
+        val groupStrategy = HashMap<String, String>()               // groupTag -> "random" | "leastping"
         val notedTags = mutableSetOf<String>()                      // теги, добавленные в outbounds
         val nodeTags = mutableSetOf<String>()                       // теги настоящих нод (не direct/block)
+        val pinBudgetStart = android.os.SystemClock.elapsedRealtime() // бюджет fetch-пинов insecure-нод
     }
 
     fun translate(singboxJson: String, baseDir: String): Translated {
@@ -199,6 +206,9 @@ object XrayConfigTranslator {
                     if (ctx.groups.putIfAbsent(tag, tags.toMutableList()) != null) {
                         warn("[$TAG] group $tag duplicated — merged")
                     }
+                    // urltest = «auto»: Xray сам переключается на лучший узел (leastping
+                    // через observatory). selector = ручной выбор (random + override из приложения).
+                    ctx.groupStrategy[tag] = if (o.optString("type") == "urltest") "leastping" else "random"
                 }
                 "direct", "dns" -> {
                     outbounds.put(freedom(tag))
@@ -209,7 +219,7 @@ object XrayConfigTranslator {
                     ctx.notedTags.add(tag)
                 }
                 else -> {
-                    val x = translateOutbound(o, tag, warn) ?: run {
+                    val x = translateOutbound(o, tag, warn, ctx) ?: run {
                         warn("[$TAG] outbound $tag (${o.optString("type")}) unsupported — skipped")
                         null
                     }
@@ -238,7 +248,9 @@ object XrayConfigTranslator {
                 JSONObject().apply {
                     put("tag", tag)
                     put("selector", JSONArray().apply { live.forEach { put(it) } })
-                    put("strategy", JSONObject().put("type", "random"))
+                    // urltest → «leastping» (observatory сам выбирает лучший узел и
+                    // переключается); selector → «random» (выбор из приложения через override).
+                    put("strategy", JSONObject().put("type", ctx.groupStrategy[tag] ?: "random"))
                 },
             )
         }
@@ -354,7 +366,7 @@ object XrayConfigTranslator {
         put("settings", JSONObject())
     }
 
-    private fun translateOutbound(o: JSONObject, tag: String, warn: (String) -> Unit): JSONObject? {
+    private fun translateOutbound(o: JSONObject, tag: String, warn: (String) -> Unit, ctx: Ctx): JSONObject? {
         val server = o.optString("server")
         val port = o.optInt("server_port", o.optInt("port", 0))
         if (server.isEmpty() || port == 0) {
@@ -492,7 +504,20 @@ object XrayConfigTranslator {
                 "tlsSettings",
                 JSONObject().apply {
                     ssl?.optString("server_name").takeIf { !it.isNullOrEmpty() }?.let { put("serverName", it) }
-                    if (ssl != null && ssl.optBoolean("insecure", false)) put("allowInsecure", true)
+                    // §v26: "allowInsecure" УДАЛЁН (PrintRemovedFeatureError при старте).
+                    // Для insecure-нод пиннуем leaf-серт (SHA-256 DER) прямо при
+                    // трансляции — это единственный эквивалент старого поведения
+                    // (skip-verification). Не удалось достать cert → warn, нода остаётся
+                    // без пина (обычная верификация).
+                    if (ssl != null && ssl.optBoolean("insecure", false)) {
+                        val sni = ssl.optString("server_name").takeIf { !it.isNullOrEmpty() } ?: server
+                        val pin = fetchLeafPin(server, port, sni, ctx, warn)
+                        if (pin != null) {
+                            put("pinnedPeerCertSha256", pin)
+                        } else {
+                            warn("[$TAG] outbound $tag: allowInsecure удалён в Xray v26, серт-пин недоступен — будет обычная верификация TLS (нода может не подключиться)")
+                        }
+                    }
                     val alpn = ssl?.optJSONArray("alpn")
                     if (alpn != null && alpn.length() > 0) {
                         put("alpn", JSONArray().apply { for (k in 0 until alpn.length()) put(alpn.optString(k)) })
@@ -682,7 +707,74 @@ object XrayConfigTranslator {
         return null
     }
 
-    /// Зеркало Xray infra/conf/xray.go requiresTransportSecurity(address):
+    private val leafPinCache = ConcurrentHashMap<String, String>()  // "host:port#sni" -> sha256 hex
+
+    /// ready-made replacement for old `allowInsecure`: fetch the peer leaf cert
+    /// (DIRECT TLS handshake, trust-all) and return its SHA-256 as Xray pin.
+    /// Bounded: ~2.5s per handshake, hard budget 8s per config-build.
+    private fun fetchLeafPin(
+        host: String,
+        port: Int,
+        sni: String,
+        ctx: Ctx,
+        warn: (String) -> Unit,
+    ): String? {
+        val key = "$host:$port#${sni.ifEmpty { host }}"
+        leafPinCache[key]?.let { return it }
+        if (android.os.SystemClock.elapsedRealtime() - ctx.pinBudgetStart > PIN_BUDGET_MS) {
+            warn("[$TAG] pin budget exceeded — skip cert fetch for $key")
+            return null
+        }
+        return try {
+            val sslCtx = javax.net.ssl.SSLContext.getInstance("TLS")
+            sslCtx.init(null, TRUST_ALL, java.security.SecureRandom())
+            java.net.Socket().use { raw ->
+                raw.connect(java.net.InetSocketAddress(host, port), PIN_TIMEOUT_MS)
+                val ssl = sslCtx.socketFactory.createSocket(raw, host, port, true) as javax.net.ssl.SSLSocket
+                ssl.use {
+                    if (!isIpLiteral(sni.ifEmpty { host })) {
+                        it.sslParameters = it.sslParameters.apply {
+                            serverNames = listOf(javax.net.ssl.SNIHostName(sni.ifEmpty { host }))
+                        }
+                    }
+                    it.soTimeout = PIN_TIMEOUT_MS
+                    it.startHandshake()
+                    val cert = it.session.peerCertificates.firstOrNull()
+                    (cert as? java.security.cert.X509Certificate)?.let { c ->
+                        val pin = sha256Hex(c.encoded)
+                        leafPinCache[key] = pin
+                        pin
+                    } ?: run {
+                        warn("[$TAG] no peer cert ($key)")
+                        null
+                    }
+                }
+            }
+        } catch (t: Throwable) {
+            warn("[$TAG] cert fetch failed for $key: ${t.message}")
+            null
+        }
+    }
+
+    private fun sha256Hex(bytes: ByteArray): String {
+        val d = java.security.MessageDigest.getInstance("SHA-256").digest(bytes)
+        return StringBuilder(d.size * 2).run {
+            for (b in d) append("%02x".format(b.toInt() and 0xFF))
+            toString()
+        }
+    }
+
+    private fun isIpLiteral(h: String): Boolean =
+        Regex("""^\d{1,3}(\.\d{1,3}){3}$""").matches(h) ||
+                (h.contains(':') && Regex("""^[0-9a-f:.%]+$""").matches(h))
+
+    private val TRUST_ALL = arrayOf<javax.net.ssl.TrustManager>(object : javax.net.ssl.X509TrustManager {
+        override fun checkClientTrusted(chain: Array<out java.security.cert.X509Certificate>?, authType: String?) {}
+        override fun checkServerTrusted(chain: Array<out java.security.cert.X509Certificate>?, authType: String?) {}
+        override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = arrayOf()
+    })
+
+/// Зеркало Xray infra/conf/xray.go requiresTransportSecurity(address):
     /// TRUE = публичный address (Xray запрещает plaintext VLESS/Trojan на него).
     /// IPv4/IPv6 литерелы — без DNS; домен — приватный только для reserved-TLD.
     private fun requiresTransportSecurity(host: String): Boolean {
