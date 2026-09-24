@@ -813,12 +813,12 @@ object XrayConfigTranslator {
         (ip ushr 24) == 10L -> true                      // 10.0.0.0/8
         (ip ushr 24) == 127L -> true                     // 127.0.0.0/8 (loopback)
         (ip ushr 16) in 0x6440..0x647F -> true           // 100.64.0.0/10 (CGNAT)
-        (ip ushr 16) == 0xA9FE -> true                   // 169.254.0.0/16 (link-local)
+        (ip ushr 16) == 0xA9FEL -> true                  // 169.254.0.0/16 (link-local)
         (ip ushr 16) in 0xAC10..0xAC1F -> true           // 172.16.0.0/12
-        (ip ushr 16) == 0xC0A8 -> true                   // 192.168.0.0/16
+        (ip ushr 16) == 0xC0A8L -> true                  // 192.168.0.0/16
         (ip ushr 16) in 0xC000..0xC07F -> true           // 192.0.0.0/24, 192.0.2.0/24
         (ip ushr 16) in 0xC612..0xC7FF -> true           // 198.18.0.0/15 (benchmark)
-        (ip ushr 16) == 0xC633 -> true                   // 198.51.100.0/24 (docs)
+        (ip ushr 16) == 0xC633L -> true                  // 198.51.100.0/24 (docs)
         (ip ushr 16) in 0xCB00..0xCBFF -> true           // 203.0.113.0/24 (docs)
         else -> false
     }
