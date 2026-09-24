@@ -37,9 +37,12 @@ object XrayConfigTranslator {
 
     private class Ctx(val warn: (String) -> Unit) {
         val groups = LinkedHashMap<String, MutableList<String>>()   // groupTag -> nodeTags
+        val groupType = HashMap<String, String>()                   // groupTag -> "selector"|"urltest"
         val groupStrategy = HashMap<String, String>()               // groupTag -> "random" | "leastping"
         val notedTags = mutableSetOf<String>()                      // теги, добавленные в outbounds
         val nodeTags = mutableSetOf<String>()                       // теги настоящих нод (не direct/block)
+        val skippedGroups = mutableSetOf<String>()                  // auto-двойники "-auto", склеенные в родителя
+        val skippedOf = HashMap<String, String>()                   // "-auto" tag -> родительская группа
         val pinBudgetStart = android.os.SystemClock.elapsedRealtime() // бюджет fetch-пинов insecure-нод
     }
 
@@ -208,6 +211,7 @@ object XrayConfigTranslator {
                     }
                     // urltest = «auto»: Xray сам переключается на лучший узел (leastping
                     // через observatory). selector = ручной выбор (random + override из приложения).
+                    ctx.groupType[tag] = o.optString("type")
                     ctx.groupStrategy[tag] = if (o.optString("type") == "urltest") "leastping" else "random"
                 }
                 "direct", "dns" -> {
@@ -237,20 +241,51 @@ object XrayConfigTranslator {
         }
         out.put("outbounds", outbounds)
 
+        // ---- склейка auto-пары --------------------------------------------------------
+        // Dart эмиттит «направление» парой: selector `x` + urltest-двойник `x-auto`
+        // (одинаковые члены), route.final = x; auto = выбор двойника, manual = выбор ноды.
+        // Xray НЕ умеет override НА не-outbound (двойник) — `Balancer.PickOutbound`
+        // вернёт тег двойника как outbound, диспетчер не найдёт его → мёртвый туннель.
+        // Нативно «auto» = strategy leastping БЕЗ override: склеиваем пару в ОДИН
+        // balancer `x` (leastping), двойник `x-auto` не эмиттим (о-1: прыжок в него —
+        // через override — тоже невозможен).
+        ctx.groups.keys.toList().forEach { tag ->
+            val sib = "$tag-auto"
+            if (sib !in ctx.groups) return@forEach
+            // Члены-НОДЫ (теги вложенных групп, в т.ч. сам двойник, отбрасываем —
+            // селектор может содержать `x-auto` в своём списке).
+            val groupKeys = ctx.groups.keys
+            val nodesOf = { t: String -> (ctx.groups[t] ?: emptyList()).filter { it !in groupKeys }.toSet() }
+            val a = nodesOf(tag)
+            val b = nodesOf(sib)
+            if (b.isEmpty() || a != b) return@forEach
+            ctx.skippedGroups.add(sib)
+            ctx.skippedOf[sib] = tag
+            if ((ctx.groupType[tag] ?: "") != "urltest") {
+                ctx.groupStrategy[tag] = "leastping"
+            }
+            Log.i(TAG, "auto-pair $tag + $sib merged -> single balancer (${ctx.groupStrategy[tag]})")
+        }
+
         // ---- routing ----------------------------------------------------------------
         val routing = JSONObject()
         routing.put("domainStrategy", "AsIs")
         val balancers = JSONArray()
         ctx.groups.forEach { (tag, members) ->
+            if (tag in ctx.skippedGroups) return@forEach
             val live = members.filter { it in ctx.notedTags }
             if (live.isEmpty()) return@forEach
+            val strategy = ctx.groupStrategy[tag] ?: "random"
             balancers.put(
                 JSONObject().apply {
                     put("tag", tag)
                     put("selector", JSONArray().apply { live.forEach { put(it) } })
-                    // urltest → «leastping» (observatory сам выбирает лучший узел и
-                    // переключается); selector → «random» (выбор из приложения через override).
-                    put("strategy", JSONObject().put("type", ctx.groupStrategy[tag] ?: "random"))
+                    // urltest/auto → «leastping» (observatory сам выбирает лучший узел и
+                    // переключается); selector (manual) → «random» (пин из приложения).
+                    put("strategy", JSONObject().put("type", strategy))
+                    // Пока observatory не зондировал (первый probe ~через 10с),
+                    // leastping возвращает "" → без fallbackTag агрегат мёртв на старте.
+                    if (strategy == "leastping" && live.isNotEmpty()) put("fallbackTag", live.first())
                 },
             )
         }
@@ -269,6 +304,10 @@ object XrayConfigTranslator {
         // §v26 — если final указывает на пропущенную ноду/группу — фоллбэк на
         // живой outbound, иначе ядро упадёт с "outbound not found".
         val safeFinal = when {
+            finalOut in ctx.skippedGroups -> {
+                val p = ctx.skippedOf[finalOut]
+                if (p != null && (ctx.groups[p]?.any { it in ctx.notedTags } == true)) p else null
+            }
             ctx.groups[finalOut]?.any { it in ctx.notedTags } == true -> finalOut
             finalOut in ctx.notedTags -> finalOut
             "direct" in ctx.notedTags -> "direct"
@@ -318,7 +357,7 @@ object XrayConfigTranslator {
             observatory.put("subjectSelector", JSONArray().apply { nodeTags.forEach { put(it) } })
         }
         // duration.Duration требует СТРОКУ (time.ParseDuration), число → "invalid duration"
-        observatory.put("probeInterval", "1m")
+        observatory.put("probeInterval", "30s")
         observatory.put("enableConcurrency", true)
         out.put("observatory", observatory)
 
@@ -617,6 +656,8 @@ object XrayConfigTranslator {
         val targetOutbound = action.optString("outbound").ifEmpty { r.optString("outbound") }
         val groupLive = ctx.groups[targetOutbound]?.any { it in ctx.notedTags } == true
         when {
+            targetOutbound.isNotEmpty() && targetOutbound in ctx.skippedGroups ->
+                ctx.warn("[$TAG] rule target '$targetOutbound' — auto-двойник склеен в родительскую группу, правило дропнуто")
             targetOutbound.isNotEmpty() && groupLive ->
                 out.put("balancerTag", targetOutbound)
             targetOutbound.isNotEmpty() && targetOutbound in ctx.notedTags ->

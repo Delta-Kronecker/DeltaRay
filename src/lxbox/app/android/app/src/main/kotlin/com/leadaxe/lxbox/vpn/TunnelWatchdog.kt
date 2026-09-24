@@ -271,17 +271,18 @@ object TunnelWatchdog {
         }
     }
 
-    /// Вернуть Направление в режим auto: селектор выбирает свой urltest-двойник
-    /// `<tag>-auto` (§141 default). Best-effort: если двойника нет (auto off) или
-    /// RPC не ответил — просто лог, не фатал. Нужно на КАЖДОМ старте: ручной /
-    /// вачдоговый выбор переживает перезапуск (ядро живёт, selection в памяти).
+    /// Вернуть Направление в режим auto. В sing-box это выбор urltest-двойника
+/// `<tag>-auto`; в Xray «auto» = стратегия leastping активна БЕЗ override
+/// (двойник склеен в родителя на трансляции, override НА него невозможен).
+/// Очищаем override у группы — leastping сам выбирает лучший живой узел и
+/// переключается (native auto). Best-effort: если RPC молчит — просто лог.
     fun selectAuto(direction: DirectionInfo?): Boolean {
         if (direction == null) return false
-        if (!switchNode(direction.groupTag, direction.autoTag)) {
-            Log.w(TAG, "selectAuto(${direction.groupTag} → ${direction.autoTag}) failed")
+        if (!switchNode(direction.groupTag, "")) {
+            Log.w(TAG, "selectAuto(${direction.groupTag} → clear) failed")
             return false
         }
-        Log.d(TAG, "direction ${direction.groupTag} back to auto (${direction.autoTag})")
+        Log.d(TAG, "direction ${direction.groupTag} back to auto (override cleared, leastping)")
         return true
     }
 

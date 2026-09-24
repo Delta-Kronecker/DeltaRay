@@ -122,6 +122,23 @@ class XrayApiClient(private val port: Int) {
         null
     }
 
+    /// Фактически выбранный узел auto-балансера (leastping): Xray отдаёт через
+    /// `principleTarget` — для leastping это ОДин тег (сейчас выбранный узел).
+    /// Для random — весь список членов, поэтому отдаём одиночку только когда она
+    /// в списке [members] и ответ одноэлементный.
+    fun balancerPrincipleTarget(balancerTag: String, members: Set<String>): String? = runCatching {
+        val resp = routing.withDeadlineAfter(
+            DEADLINE_SEC, TimeUnit.SECONDS
+        ).getBalancerInfo(
+            GetBalancerInfoRequest.newBuilder().setTag(balancerTag).build(),
+        )
+        val list = resp.balancer?.principleTarget?.tagList.orEmpty()
+        if (list.size == 1 && list[0] in members) list[0] else null
+    }.getOrElse { err ->
+        Log.w(TAG, "balancerPrincipleTarget($balancerTag) failed: ${err.message}")
+        null
+    }
+
     /// Селецта balancer'а (эквивалент selectOutbound группы).
     fun setBalancerTarget(balancerTag: String, target: String): Boolean = runCatching {
         routing.withDeadlineAfter(

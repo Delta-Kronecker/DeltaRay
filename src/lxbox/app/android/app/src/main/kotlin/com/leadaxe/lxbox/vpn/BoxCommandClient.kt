@@ -238,7 +238,7 @@ class BoxCommandClient(
                         "urlTestTime" to (st?.lastSeenTime ?: 0),
                     ))
                 }
-                val selected = (api.balancerOverride(g.tag) ?: g.defaultTag).orEmpty()
+                val selected = selectedOf(g)
                 groups.add(mapOf<String, Any>(
                     "tag" to g.tag,
                     "type" to g.type,
@@ -320,7 +320,7 @@ class BoxCommandClient(
                     "urlTestTime" to (st?.lastSeenTime ?: 0),
                 ))
             }
-            val selected = (api.balancerOverride(g.tag) ?: g.defaultTag).orEmpty()
+            val selected = selectedOf(g)
             groups.add(mapOf<String, Any>(
                 "tag" to g.tag,
                 "type" to g.type,
@@ -363,9 +363,24 @@ class BoxCommandClient(
         JSONObject(configRaw).optJSONObject("route")?.optString("final")?.takeIf { it.isNotEmpty() }
     }.getOrNull()
 
-    /// Выбор ноды группы = OverrideBalancerTarget (commander).
-    fun selectOutbound(group: String, tag: String): Boolean =
-        api.setBalancerTarget(group, tag)
+    /// Активный узел группы для UI/вачдога: ручной override (пин конкретной
+    /// ноды) → фактический выбранный узел auto-балансера (leastping,
+    /// principleTarget) → зафиксированный в конфиге sing default. Используется
+    /// в push- и pull-снапшотах getGroups.
+    private fun selectedOf(g: SingGroup): String =
+        (api.balancerOverride(g.tag)?.takeIf { it in g.members }
+            ?: api.balancerPrincipleTarget(g.tag, g.members.toSet())
+            ?: g.defaultTag?.takeIf { it in g.members }).orEmpty()
+
+    /// Селецта balancer'а (эквивалент selectOutbound группы).
+    fun selectOutbound(group: String, tag: String): Boolean {
+        // «auto»-выбор из приложения/вачдога = выбор urltest-двойника `<group>-auto`.
+        // В Xray native-auto = стратегия leastping БЕЗ override (двойник склеен в
+        // родителя на трансляции); override НА двойник невозможен (не outbound).
+        // Нормализуем: выбор auto-двойника → очистка override.
+        val target = if (tag.isEmpty() || tag == "$group-auto") "" else tag
+        return api.setBalancerTarget(group, target)
+    }
 
     /// Xray commander не отдаёт per-connection закрытие — честный false.
     fun closeConnection(id: String): Boolean {
