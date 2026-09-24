@@ -105,6 +105,8 @@ void main() {
         MasqueVhttpInvalidWarning() => 'masque_vhttp_invalid',
         AnyTlsMinIdleInvalidWarning() => 'anytls_min_idle_invalid',
         PacketEncodingUnknownWarning() => 'packet_encoding_unknown',
+        // §X — Xray A/B-фрагментация (fm=): невалидный JSON → warning+null
+        FinalMaskInvalidWarning() => 'finalmask_invalid',
       };
       expect(label, 'transport');
     });
