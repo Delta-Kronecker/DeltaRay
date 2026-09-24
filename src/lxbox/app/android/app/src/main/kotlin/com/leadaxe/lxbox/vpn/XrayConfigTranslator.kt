@@ -33,6 +33,7 @@ object XrayConfigTranslator {
     private class Ctx(val warn: (String) -> Unit) {
         val groups = LinkedHashMap<String, MutableList<String>>()   // groupTag -> nodeTags
         val notedTags = mutableSetOf<String>()                      // теги, добавленные в outbounds
+        val nodeTags = mutableSetOf<String>()                       // теги настоящих нод (не direct/block)
     }
 
     fun translate(singboxJson: String, baseDir: String): Translated {
@@ -215,6 +216,7 @@ object XrayConfigTranslator {
                     if (x != null) {
                         outbounds.put(x)
                         ctx.notedTags.add(tag)
+                        ctx.nodeTags.add(tag)
                     }
                 }
             }
@@ -230,10 +232,12 @@ object XrayConfigTranslator {
         routing.put("domainStrategy", "AsIs")
         val balancers = JSONArray()
         ctx.groups.forEach { (tag, members) ->
+            val live = members.filter { it in ctx.notedTags }
+            if (live.isEmpty()) return@forEach
             balancers.put(
                 JSONObject().apply {
                     put("tag", tag)
-                    put("selector", JSONArray().apply { members.forEach { put(it) } })
+                    put("selector", JSONArray().apply { live.forEach { put(it) } })
                     put("strategy", JSONObject().put("type", "random"))
                 },
             )
@@ -250,15 +254,28 @@ object XrayConfigTranslator {
             }
         }
         val finalOut = route?.optString("final")?.takeIf { it.isNotEmpty() } ?: "direct"
-        rules.put(
-            JSONObject().apply {
-                put("type", "field")
-                // Xray cтакает условие обязательно (без него — "this rule has no
-                // effective fields"): network=tcp,udp покрывает весь трафик tun.
-                put("network", "tcp,udp")
-                if (ctx.groups.containsKey(finalOut)) put("balancerTag", finalOut) else put("outboundTag", finalOut)
-            },
-        )
+        // §v26 — если final указывает на пропущенную ноду/группу — фоллбэк на
+        // живой outbound, иначе ядро упадёт с "outbound not found".
+        val safeFinal = when {
+            ctx.groups[finalOut]?.any { it in ctx.notedTags } == true -> finalOut
+            finalOut in ctx.notedTags -> finalOut
+            "direct" in ctx.notedTags -> "direct"
+            ctx.notedTags.isNotEmpty() -> ctx.notedTags.first()
+            else -> null
+        }
+        if (safeFinal != null) {
+            rules.put(
+                JSONObject().apply {
+                    put("type", "field")
+                    // Xray cтакает условие обязательно (без него — "this rule has no
+                    // effective fields"): network=tcp,udp покрывает весь трафик tun.
+                    put("network", "tcp,udp")
+                    if (ctx.groups.containsKey(safeFinal)) put("balancerTag", safeFinal) else put("outboundTag", safeFinal)
+                },
+            )
+        } else {
+            warn("[$TAG] no usable outbound/group left — config has no routing target")
+        }
         routing.put("rules", rules)
         out.put("routing", routing)
 
@@ -284,7 +301,7 @@ object XrayConfigTranslator {
         // core: "not all dependencies are resolved" на старте. Плюс это и есть
         // источник статуса/задержек нод для приложения (GetOutboundStatus).
         val observatory = JSONObject()
-        val nodeTags = ctx.groups.values.flatten().distinct()
+        val nodeTags = ctx.nodeTags.toList().distinct()
         if (nodeTags.isNotEmpty()) {
             observatory.put("subjectSelector", JSONArray().apply { nodeTags.forEach { put(it) } })
         }
@@ -539,6 +556,23 @@ object XrayConfigTranslator {
         // §X — Xray `streamSettings.finalmask` (A/B-фрагментация) прокидывается
         // из sing-JSON служебным ключом `xray_finalmask` (не sing-box поле).
         o.optJSONObject("xray_finalmask")?.let { stream.put("finalmask", it) }
+
+        // §v26.7 — Xray запрещает VLESS/Trojan БЕЗ TLS/REALITY/шифрования на
+        // публичный адрес (infra/conf/xray.go requiresTransportSecurity).
+        // Повторяем guard, чтобы НЕ ронять весь конфиг на старте: блокируемую
+        // ноду пропускаем, остальные живы. Private-IP/домен (localhost/LAN)
+        // Xray пропускает — их не трогаем.
+        if (stream.optString("security", "none") == "none") {
+            val proto = o.optString("type")
+            if ((proto == "vless" || proto == "trojan") &&
+                o.optString("encryption", "none").ifEmpty { "none" } == "none" &&
+                requiresTransportSecurity(server)
+            ) {
+                warn("[$TAG] outbound $tag ($proto) пропущен: plaintext на публичный адрес запрещён Xray (security:none без TLS/REALITY/encryption)")
+                return null
+            }
+        }
+
         base.put("streamSettings", stream)
         return base
     }
@@ -556,11 +590,14 @@ object XrayConfigTranslator {
 
         val action = r.optJSONObject("action") ?: JSONObject()
         val targetOutbound = action.optString("outbound").ifEmpty { r.optString("outbound") }
+        val groupLive = ctx.groups[targetOutbound]?.any { it in ctx.notedTags } == true
         when {
-            targetOutbound.isNotEmpty() && ctx.groups.containsKey(targetOutbound) ->
+            targetOutbound.isNotEmpty() && groupLive ->
                 out.put("balancerTag", targetOutbound)
-            targetOutbound.isNotEmpty() ->
+            targetOutbound.isNotEmpty() && targetOutbound in ctx.notedTags ->
                 out.put("outboundTag", targetOutbound)
+            targetOutbound.isNotEmpty() ->
+                ctx.warn("[$TAG] rule target '$targetOutbound' отсутствует в итоговом конфиге (нода пропущена) — правило дропнуто")
         }
 
         var matched = false
@@ -645,5 +682,59 @@ object XrayConfigTranslator {
         return null
     }
 
+    /// Зеркало Xray infra/conf/xray.go requiresTransportSecurity(address):
+    /// TRUE = публичный address (Xray запрещает plaintext VLESS/Trojan на него).
+    /// IPv4/IPv6 литерелы — без DNS; домен — приватный только для reserved-TLD.
+    private fun requiresTransportSecurity(host: String): Boolean {
+        val h = host.trim().lowercase().removePrefix("[").removeSuffix("]").trimEnd('.')
+        if (h.isEmpty()) return false
+
+        val v4 = Regex("""^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$""").matchEntire(h)
+        if (v4 != null) {
+            val b = v4.groupValues.drop(1).map { it.toIntOrNull() ?: return false }
+            if (b.any { it !in 0..255 }) return false
+            val ip = (((b[0].toLong()) shl 24) or
+                    ((b[1].toLong()) shl 16) or
+                    ((b[2].toLong()) shl 8) or
+                    b[3].toLong()) and 0xFFFFFFFFL
+            return !privateV4(ip)
+        }
+
+        // IPv6-литерел: только hex:цифры и ':' — getByName в этом случае НЕ
+        // делает DNS, парсит адрес. Прочее (домен с буквами за пределами a-f) → false.
+        if (h.contains(':') && Regex("""^[0-9a-f:.]+$""").matches(h)) {
+            val addr = try { java.net.InetAddress.getByName(h) } catch (_: Throwable) { return false }
+            val priv = addr.isLoopbackAddress || addr.isSiteLocalAddress ||
+                    addr.isLinkLocalAddress || addr.isMulticastAddress
+            return !priv
+        }
+
+        // Домен: приватный = reserved/zone TLD (геосайт "private" резервирует
+        // localhost/.local/.lan/.internal/.home.arpa/.test/.invalid и т.д.).
+        val privDom = h == "localhost" ||
+                PRIVATE_DOMAINS.any { h == it || h.endsWith(".$it") }
+        return !privDom
+    }
+
+    private fun privateV4(ip: Long): Boolean = when {
+        (ip ushr 24) == 0L -> true                       // 0.0.0.0/8
+        (ip ushr 24) == 10L -> true                      // 10.0.0.0/8
+        (ip ushr 24) == 127L -> true                     // 127.0.0.0/8 (loopback)
+        (ip ushr 16) in 0x6440..0x647F -> true           // 100.64.0.0/10 (CGNAT)
+        (ip ushr 16) == 0xA9FE -> true                   // 169.254.0.0/16 (link-local)
+        (ip ushr 16) in 0xAC10..0xAC1F -> true           // 172.16.0.0/12
+        (ip ushr 16) == 0xC0A8 -> true                   // 192.168.0.0/16
+        (ip ushr 16) in 0xC000..0xC07F -> true           // 192.0.0.0/24, 192.0.2.0/24
+        (ip ushr 16) in 0xC612..0xC7FF -> true           // 198.18.0.0/15 (benchmark)
+        (ip ushr 16) == 0xC633 -> true                   // 198.51.100.0/24 (docs)
+        (ip ushr 16) in 0xCB00..0xCBFF -> true           // 203.0.113.0/24 (docs)
+        else -> false
+    }
+
     const val API_PORT = 16531
+
+    private val PRIVATE_DOMAINS = setOf(
+        "local", "localhost", "lan", "internal", "test", "invalid", "localdomain",
+        "home.arpa", "corp", "intranet", "private",
+    )
 }
