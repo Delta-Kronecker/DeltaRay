@@ -58,6 +58,9 @@ VlessSpec? parseVless(String uri) {
   // пустого значения (эмит его не пишет).
   final encryption = (q['encryption'] ?? '').trim();
 
+  // §X — A/B-фрагментация (Xray `streamSettings.finalmask`, `fm=` в URI).
+  final finalMask = parseFinalMask(q, warnings: warnings);
+
   return VlessSpec(
     id: newUuidV4(),
     tag: tag,
@@ -71,6 +74,7 @@ VlessSpec? parseVless(String uri) {
     transport: transport,
     packetEncoding: packetEncoding,
     encryption: encryption,
+    finalMask: finalMask,
     warnings: warnings,
   );
 }

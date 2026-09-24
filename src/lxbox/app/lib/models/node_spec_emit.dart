@@ -67,6 +67,10 @@ Outbound emitVless(VlessSpec s, TemplateVars vars) {
   final tlsMap = s.tls.toSingbox();
   if (tlsMap.isNotEmpty) out['tls'] = tlsMap;
 
+  // §X — Xray `streamSettings.finalmask` (A/B-фрагментация, `fm=`): прокидываем
+  // в sing-JSON служебным ключом, translator переносит в streamSettings.
+  if (s.finalMask != null) out['xray_finalmask'] = deepCopyJson(s.finalMask);
+
   _addDetour(out, s);
 
   return Outbound(out);
@@ -107,9 +111,14 @@ String toUriVless(VlessSpec s) {
     }
     if (s.tls.alpn.isNotEmpty) q['alpn'] = s.tls.alpn.join(',');
     if (s.tls.insecure) q['allowInsecure'] = '1';
+    if (s.tls.cipherSuites != null && s.tls.cipherSuites!.isNotEmpty) {
+      q['cs'] = s.tls.cipherSuites!;
+    }
   } else {
     q['security'] = 'none';
   }
+
+  if (s.finalMask != null) q['fm'] = jsonEncode(s.finalMask!);
 
   return _buildUri('vless', s.uuid, s.server, s.port, q, s.label);
 }
@@ -135,6 +144,8 @@ Outbound emitVmess(VmessSpec s, TemplateVars vars) {
   final tlsMap = s.tls.toSingbox();
   if (tlsMap.isNotEmpty) out['tls'] = tlsMap;
 
+  if (s.finalMask != null) out['xray_finalmask'] = deepCopyJson(s.finalMask);
+
   _addDetour(out, s);
   return Outbound(out);
 }
@@ -157,6 +168,8 @@ String toUriVmess(VmessSpec s) {
     if (s.tls.serverName != null) 'sni': s.tls.serverName,
     if (s.tls.fingerprint != null) 'fp': s.tls.fingerprint,
     if (s.tls.alpn.isNotEmpty) 'alpn': s.tls.alpn.join(','),
+    if (s.tls.cipherSuites != null) 'cs': s.tls.cipherSuites,
+    if (s.finalMask != null) 'fm': jsonEncode(s.finalMask!),
   };
   final cleaned = Map<String, dynamic>.fromEntries(
       json.entries.where((e) => e.value != null));
@@ -209,6 +222,7 @@ Outbound emitTrojan(TrojanSpec s, TemplateVars vars) {
   // ключ `tls` не эмитим вовсе (было: {enabled:false}, чего Go не пишет).
   final tlsMap = s.tls.toSingbox();
   if (tlsMap.isNotEmpty) out['tls'] = tlsMap;
+  if (s.finalMask != null) out['xray_finalmask'] = deepCopyJson(s.finalMask);
   _addDetour(out, s);
   return Outbound(out);
 }
@@ -222,9 +236,13 @@ String toUriTrojan(TrojanSpec s) {
     if (s.tls.fingerprint != null) q['fp'] = s.tls.fingerprint!;
     if (s.tls.alpn.isNotEmpty) q['alpn'] = s.tls.alpn.join(',');
     if (s.tls.insecure) q['allowInsecure'] = '1';
+    if (s.tls.cipherSuites != null && s.tls.cipherSuites!.isNotEmpty) {
+      q['cs'] = s.tls.cipherSuites!;
+    }
   } else {
     q['security'] = 'none';
   }
+  if (s.finalMask != null) q['fm'] = jsonEncode(s.finalMask!);
   return _buildUri('trojan', s.password, s.server, s.port, q, s.label);
 }
 

@@ -189,6 +189,10 @@ final class VlessSpec extends NodeSpec {
   /// есть — валидирует ядро.
   final String encryption;
 
+  /// Xray `streamSettings.finalmask` (A/B-фрагментация, `fm=` в URI). Проброс
+  /// как есть: значения/валидность — за ядром.
+  final Map<String, dynamic>? finalMask;
+
   VlessSpec({
     required super.id,
     required super.tag,
@@ -202,6 +206,7 @@ final class VlessSpec extends NodeSpec {
     this.transport,
     this.packetEncoding = '',
     this.encryption = '',
+    this.finalMask,
     super.chained,
     super.warnings,
   });
@@ -229,6 +234,9 @@ final class VmessSpec extends NodeSpec {
   // §219 — VMess не имеет packet_encoding в sing-box (это VLESS-параметр);
   // поле было write-only copy-paste из VlessSpec, удалено.
 
+  /// Xray `streamSettings.finalmask` (A/B-фрагментация, `fm=` в URI).
+  final Map<String, dynamic>? finalMask;
+
   VmessSpec({
     required super.id,
     required super.tag,
@@ -241,6 +249,7 @@ final class VmessSpec extends NodeSpec {
     this.security = 'auto',
     this.tls = TlsSpec.disabled,
     this.transport,
+    this.finalMask,
     super.chained,
     super.warnings,
   });
@@ -264,6 +273,9 @@ final class TrojanSpec extends NodeSpec {
   final TlsSpec tls;
   final TransportSpec? transport;
 
+  /// Xray `streamSettings.finalmask` (A/B-фрагментация, `fm=` в URI).
+  final Map<String, dynamic>? finalMask;
+
   TrojanSpec({
     required super.id,
     required super.tag,
@@ -274,6 +286,7 @@ final class TrojanSpec extends NodeSpec {
     required this.password,
     this.tls = TlsSpec.disabled,
     this.transport,
+    this.finalMask,
     super.chained,
     super.warnings,
   });

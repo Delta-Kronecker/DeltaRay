@@ -763,3 +763,23 @@ final class PacketEncodingUnknownWarning extends NodeWarning {
   @override
   WarningSeverity get severity => WarningSeverity.warning;
 }
+
+/// `finalmask_invalid` (warning) — `fm=` в URI не является валидным JSON,
+/// либо парсится не в объект. Xray `streamSettings.finalmask` отбрасывается,
+/// узел остаётся рабочим (без A/B-фрагментации).
+final class FinalMaskInvalidWarning extends NodeWarning {
+  final String value;
+
+  const FinalMaskInvalidWarning(this.value);
+
+  @override
+  List<Object?> get props => [value];
+
+  @override
+  String messageWith(GetLocalText t) => t.s(
+      "Finalmask (fm=) is not a valid JSON object and was dropped — the node keeps working without A/B-fragmentation (%s).",
+      value);
+
+  @override
+  WarningSeverity get severity => WarningSeverity.warning;
+}

@@ -30,6 +30,9 @@ TrojanSpec? parseTrojan(String uri) {
 
   if (tls.insecure) warnings.add(const InsecureTlsWarning());
 
+  // §X — A/B-фрагментация (Xray `streamSettings.finalmask`, `fm=` в URI).
+  final finalMask = parseFinalMask(q, warnings: warnings);
+
   return TrojanSpec(
     id: newUuidV4(),
     tag: tag,
@@ -40,6 +43,7 @@ TrojanSpec? parseTrojan(String uri) {
     password: password,
     tls: tls,
     transport: transport,
+    finalMask: finalMask,
     warnings: warnings,
   );
 }

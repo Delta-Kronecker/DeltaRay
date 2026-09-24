@@ -481,6 +481,9 @@ object XrayConfigTranslator {
                         put("alpn", JSONArray().apply { for (k in 0 until alpn.length()) put(alpn.optString(k)) })
                     }
                     put("fingerprint", "chrome")
+                    // Xray `tlsSettings.cipherSuites` (vless `cs=` param).
+                    ssl?.optString("cipher_suites").takeIf { !it.isNullOrEmpty() }
+                        ?.let { put("cipherSuites", it) }
                 },
             )
         }
@@ -488,16 +491,26 @@ object XrayConfigTranslator {
             when (transport.optString("type", "tcp")) {
                 "ws" -> {
                     stream.put("network", "ws")
-                    val ws = JSONObject().apply {
-                        put("path", transport.optString("path", "/"))
-                        transport.optJSONObject("headers")?.let { put("headers", it) }
+                    val ws = JSONObject()
+                    // Xray ED = хвост пути `?ed=N` (sing-box: `max_early_data` без
+                    // `early_data_header_name`; референс: path "/?ed=2560").
+                    var path = transport.optString("path", "/")
+                    val maxEd = transport.optInt("max_early_data", 0)
+                    val ehHeader = transport.optString("early_data_header_name")
+                    if (maxEd > 0 && !path.contains("?ed=")) {
+                        if (ehHeader.isEmpty()) {
+                            path = if (path.contains('?')) "$path&ed=$maxEd" else "$path?ed=$maxEd"
+                        } else {
+                            warn("[$TAG] ws early-data header mode не перенесён в Xray — ed отброшен, путь без ED")
+                        }
                     }
-                    val host = transport.optString("host")
-                    if (host.isNotEmpty()) {
-                        val h = ws.optJSONObject("headers") ?: JSONObject()
-                        h.put("Host", host)
-                        ws.put("headers", h)
-                    }
+                    ws.put("path", path.ifEmpty { "/" })
+                    // host: из явного host либо из заголовка Host (паритет с reference).
+                    val headers = transport.optJSONObject("headers")
+                    val hostFromHeaders = headers?.remove("Host")?.toString()
+                    val host = transport.optString("host").takeIf { it.isNotEmpty() } ?: hostFromHeaders
+                    if (!host.isNullOrEmpty()) ws.put("host", host)
+                    if (headers != null && headers.length() > 0) ws.put("headers", headers)
                     stream.put("wsSettings", ws)
                 }
                 "grpc" -> {
@@ -523,6 +536,9 @@ object XrayConfigTranslator {
                 else -> stream.put("network", "tcp")
             }
         }
+        // §X — Xray `streamSettings.finalmask` (A/B-фрагментация) прокидывается
+        // из sing-JSON служебным ключом `xray_finalmask` (не sing-box поле).
+        o.optJSONObject("xray_finalmask")?.let { stream.put("finalmask", it) }
         base.put("streamSettings", stream)
         return base
     }

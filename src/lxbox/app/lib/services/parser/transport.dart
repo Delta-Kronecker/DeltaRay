@@ -507,7 +507,13 @@ TlsSpec parseVlessTls(
     fingerprint: fp,
     insecure: isTlsInsecure(q),
     alpn: alpnFromQuery(q),
+    cipherSuites: _nonEmptyParam(q['cs']),
   );
+}
+
+String? _nonEmptyParam(String? raw) {
+  final s = (raw ?? '').trim();
+  return s.isEmpty ? null : s;
 }
 
 /// TLS parameters for Trojan.
@@ -530,6 +536,7 @@ TlsSpec parseTrojanTls(
     fingerprint: fp.isEmpty ? null : fp,
     insecure: isTlsInsecure(q),
     alpn: alpnFromQuery(q),
+    cipherSuites: _nonEmptyParam(q['cs']),
   );
 }
 
@@ -551,6 +558,7 @@ TlsSpec parseVmessTls(Map<String, dynamic> cfg, String server, String net) {
     fingerprint: fp.isEmpty ? null : fp,
     insecure: cfg['insecure'] == '1' || cfg['insecure'] == true,
     alpn: _normalizeAlpn(alpn), // §151 F2 — единый нормализатор ALPN
+    cipherSuites: _nonEmptyParam(cfg['cs']?.toString()),
   );
 }
 

@@ -538,6 +538,10 @@ VlessSpec? _xrayVlessToSpec(Map<String, dynamic> o, String remarks) {
     warnings,
   );
   final transport = _xrayTransportFromStream(stream);
+  // §X — Xray `streamSettings.finalmask` (A/B-фрагментация) → проброс как есть.
+  final fmRaw = stream['finalmask'];
+  final finalMask =
+      fmRaw is Map<String, dynamic> ? Map<String, dynamic>.from(fmRaw) : null;
 
   // §115 — flow берём из конфига как есть (раньше REALITY+tcp без flow
   // получал навязанный vision → ломались валидные none-сетапы). vision
@@ -565,6 +569,7 @@ VlessSpec? _xrayVlessToSpec(Map<String, dynamic> o, String remarks) {
     transport: transport,
     packetEncoding: packetEncoding,
     encryption: encryption,
+    finalMask: finalMask,
     warnings: warnings,
   );
 }
@@ -666,6 +671,11 @@ TrojanSpec? _xrayTrojanToSpec(Map<String, dynamic> o, String remarks) {
   );
   final label = remarks.isNotEmpty ? remarks : (o['tag']?.toString() ?? '');
 
+  // §X — `streamSettings.finalmask` (A/B-фрагментация) → проброс как есть.
+  final fmRaw = stream['finalmask'];
+  final finalMask =
+      fmRaw is Map<String, dynamic> ? Map<String, dynamic>.from(fmRaw) : null;
+
   return TrojanSpec(
     id: newUuidV4(),
     tag: tagFromLabel(label, 'trojan', server, port),
@@ -676,6 +686,7 @@ TrojanSpec? _xrayTrojanToSpec(Map<String, dynamic> o, String remarks) {
     password: password,
     tls: tls,
     transport: _xrayTransportFromStream(stream),
+    finalMask: finalMask,
     warnings: warnings,
   );
 }
@@ -700,6 +711,11 @@ VmessSpec? _xrayVmessToSpec(Map<String, dynamic> o, String remarks) {
   final label = remarks.isNotEmpty ? remarks : (o['tag']?.toString() ?? '');
   final security = user['security']?.toString() ?? 'auto';
 
+  // §X — `streamSettings.finalmask` (A/B-фрагментация) → проброс как есть.
+  final fmRaw = stream['finalmask'];
+  final finalMask =
+      fmRaw is Map<String, dynamic> ? Map<String, dynamic>.from(fmRaw) : null;
+
   return VmessSpec(
     id: newUuidV4(),
     tag: tagFromLabel(label, 'vmess', server, port),
@@ -712,6 +728,7 @@ VmessSpec? _xrayVmessToSpec(Map<String, dynamic> o, String remarks) {
     security: security.isEmpty ? 'auto' : security,
     tls: tls,
     transport: _xrayTransportFromStream(stream),
+    finalMask: finalMask,
     warnings: warnings,
   );
 }
@@ -909,6 +926,7 @@ TlsSpec _xrayTlsFromStream(Map stream, String server) {
           ? null
           : t['fingerprint'].toString().toLowerCase(),
       insecure: t['allowInsecure'] == true,
+      cipherSuites: t['cipherSuites']?.toString(),
     );
   }
   return TlsSpec.disabled;

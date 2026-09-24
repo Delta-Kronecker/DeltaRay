@@ -85,6 +85,12 @@ VmessSpec? _vmessFromJson(Map<String, dynamic> cfg, String rawUri) {
 
   if (tls.insecure) warnings.add(const InsecureTlsWarning());
 
+  // §X — A/B-фрагментация (Xray `streamSettings.finalmask`, `fm` в JSON).
+  final finalMask = parseFinalMask(
+    {'fm': cfg['fm']?.toString() ?? ''},
+    warnings: warnings,
+  );
+
   return VmessSpec(
     id: newUuidV4(),
     tag: tag,
@@ -97,6 +103,7 @@ VmessSpec? _vmessFromJson(Map<String, dynamic> cfg, String rawUri) {
     security: security,
     tls: tls,
     transport: transport,
+    finalMask: finalMask,
     warnings: warnings,
   );
 }

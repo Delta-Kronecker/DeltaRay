@@ -500,3 +500,24 @@ String buildQuery(Map<String, String> params) {
       .map((k) => '${encodeParam(k)}=${encodeParam(params[k]!)}')
       .join('&');
 }
+
+/// §X — `fm=` из URI → Xray `streamSettings.finalmask` (A/B-фрагментация).
+/// queryParameters уже даёт декодированный JSON-объект, напр.
+/// `{"tcp":[{"type":"fragment","settings":{...}}]}`. Мусор → warning + null
+/// (узел остаётся рабочим, без finalmask). Значение валидирует ядро.
+Map<String, dynamic>? parseFinalMask(
+  Map<String, String> q, {
+  required List<NodeWarning> warnings,
+}) {
+  final raw = (q['fm'] ?? '').trim();
+  if (raw.isEmpty) return null;
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is Map<String, dynamic>) return decoded;
+    warnings.add(FinalMaskInvalidWarning(raw));
+    return null;
+  } catch (_) {
+    warnings.add(FinalMaskInvalidWarning(raw));
+    return null;
+  }
+}

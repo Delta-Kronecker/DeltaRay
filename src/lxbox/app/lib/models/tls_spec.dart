@@ -18,6 +18,10 @@ class TlsSpec {
   /// В отличие от utls/reality, на QUIC валиден — не срезается.
   final List<String> certificatePublicKeySha256;
 
+  /// Xray `tlsSettings.cipherSuites` — cipher-suite overrides (`cs=` в URI,
+  /// `cipherSuites` в Xray-JSON). Проброс как есть: трует/валидирует ядро.
+  final String? cipherSuites;
+
   const TlsSpec({
     required this.enabled,
     this.serverName,
@@ -26,6 +30,7 @@ class TlsSpec {
     this.fingerprint,
     this.reality,
     this.certificatePublicKeySha256 = const [],
+    this.cipherSuites,
   });
 
   static const disabled = TlsSpec(enabled: false);
@@ -52,6 +57,9 @@ class TlsSpec {
       m['certificate_public_key_sha256'] =
           List<String>.from(certificatePublicKeySha256);
     }
+    if (cipherSuites != null && cipherSuites!.isNotEmpty) {
+      m['cipher_suites'] = cipherSuites;
+    }
     if (!quic && fingerprint != null && fingerprint!.isNotEmpty) {
       m['utls'] = {'enabled': true, 'fingerprint': fingerprint};
     }
@@ -69,6 +77,7 @@ class TlsSpec {
     String? fingerprint,
     RealitySpec? reality,
     List<String>? certificatePublicKeySha256,
+    String? cipherSuites,
   }) =>
       TlsSpec(
         enabled: enabled ?? this.enabled,
@@ -79,6 +88,7 @@ class TlsSpec {
         reality: reality ?? this.reality,
         certificatePublicKeySha256:
             certificatePublicKeySha256 ?? this.certificatePublicKeySha256,
+        cipherSuites: cipherSuites ?? this.cipherSuites,
       );
 
   @override
@@ -90,11 +100,12 @@ class TlsSpec {
           _listEq(alpn, other.alpn) &&
           insecure == other.insecure &&
           fingerprint == other.fingerprint &&
-          reality == other.reality);
+          reality == other.reality &&
+          cipherSuites == other.cipherSuites);
 
   @override
   int get hashCode => Object.hash(enabled, serverName, Object.hashAll(alpn),
-      insecure, fingerprint, reality);
+      insecure, fingerprint, reality, cipherSuites);
 }
 
 class RealitySpec {
